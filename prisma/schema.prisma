@@ -1,0 +1,619 @@
+// OPERIX — Plataforma SaaS de gestión de personal para eventos
+// © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
+// Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
+// distribución o uso no autorizado, total o parcial, sin consentimiento
+// expreso por escrito del autor.
+
+// Modelo de datos multi-tenant.
+// Convención: todo modelo con datos propios de una empresa contratista lleva companyId,
+// resuelto server-side vía getEffectiveCompanyId() — nunca confiado del cliente.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Dueño de la plataforma (Operix) — NO pertenece a ningún tenant.
+// Separado deliberadamente de `User` (que siempre requiere companyId): un
+// admin de plataforma opera POR ENCIMA de las empresas, no dentro de una.
+// ---------------------------------------------------------------------------
+
+model PlatformAdmin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  passwordResetTokens PasswordResetToken[]
+}
+
+// Tokens de un solo uso para "Olvidé mi contraseña" — soporta tanto cuentas
+// de tenant (User) como de plataforma (PlatformAdmin), por eso ambas FKs son
+// opcionales (exactamente una está presente por token). Se guarda el HASH del
+// token, nunca el valor en claro, igual que una contraseña.
+model PasswordResetToken {
+  id              String         @id @default(cuid())
+  userId          String?
+  user            User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platformAdminId String?
+  platformAdmin   PlatformAdmin? @relation(fields: [platformAdminId], references: [id], onDelete: Cascade)
+  tokenHash       String         @unique
+  expiresAt       DateTime
+  usedAt          DateTime?
+  createdAt       DateTime       @default(now())
+
+  @@index([tokenHash])
+}
+
+// Bitácora de acciones destructivas a nivel de plataforma (ej. borrado real de
+// una empresa). A propósito SIN relación/FK a Company ni PlatformAdmin — debe
+// sobrevivir aunque el registro que describe ya no exista (por eso guarda
+// companyName como snapshot en vez de solo el id).
+model PlatformAuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actorEmail  String?
+  action      String
+  companyId   String
+  companyName String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Tenant / Empresa
+// ---------------------------------------------------------------------------
+
+enum BillingStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
+model Company {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  country      String // ISO 3166-1 alpha-2, rige feriados/reglas de pago por defecto
+  logoUrl      String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Uso de la plataforma (visible solo para el dueño de Operix en /platform)
+  lastAccessedAt DateTime?
+
+  // Facturación del SaaS a este tenant — solo registro/seguimiento, igual que
+  // el módulo de Pagos (§9.1): ninguna pasarela de pago procesa nada aquí.
+  planName         String        @default("Free")
+  planPriceMonthly Decimal       @default(0) @db.Decimal(10, 2)
+  billingCycleDay  Int           @default(1) // día del mes en que "renueva" el ciclo
+  billingStatus    BillingStatus @default(TRIAL)
+
+  users         User[]
+  clients       Client[]
+  workers       Worker[]
+  events        Event[]
+  payRuleSets   PayRuleSet[]
+  holidays      Holiday[]
+  invoices      ClientInvoice[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@index([slug])
+}
+
+// ---------------------------------------------------------------------------
+// Usuarios y roles
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+  CLIENT
+  WORKER
+  APPLICANT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  INVITED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  companyId    String
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  email        String     @unique
+  passwordHash String
+  name         String
+  phone        String?
+  image        String?
+  fcmToken     String? // token de Firebase Cloud Messaging del último dispositivo registrado (§6.10)
+  role         UserRole
+  status       UserStatus @default(ACTIVE)
+  clientId     String? // solo si role = CLIENT: a qué Client (cuenta cliente) representa
+  client       Client?    @relation(fields: [clientId], references: [id])
+  worker       Worker? // solo si role = WORKER/APPLICANT
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  assignedByMe    WorkerAssignment[] @relation("AssignedBy")
+  approvedWorkers Worker[]           @relation("ApprovedBy")
+  markedPayments  PaymentRecord[]    @relation("PaidBy")
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  createdEvents   Event[]            @relation("EventCreatedBy")
+  passwordResetTokens PasswordResetToken[]
+
+  @@index([companyId, role])
+}
+
+model RolePermissionOverride {
+  id            String   @id @default(cuid())
+  companyId     String
+  role          UserRole
+  permissionKey String
+  allowed       Boolean
+  createdAt     DateTime @default(now())
+
+  @@unique([companyId, role, permissionKey])
+  @@index([companyId])
+}
+
+// ---------------------------------------------------------------------------
+// Clientes (empresas/personas que contratan personal)
+// ---------------------------------------------------------------------------
+
+model Client {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  businessName String
+  taxId        String?
+  contactName  String
+  contactEmail String
+  contactPhone String?
+  address      String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users    User[]
+  events   Event[]
+  invoices ClientInvoice[]
+
+  @@index([companyId])
+}
+
+// ---------------------------------------------------------------------------
+// Trabajadores / Aspirantes (misma entidad, máquina de estados)
+// ---------------------------------------------------------------------------
+
+enum WorkerStatus {
+  PENDING_REVIEW
+  APPROVED
+  ACTIVE
+  REJECTED
+  INACTIVE
+}
+
+enum Specialty {
+  WAITER
+  BARTENDER
+  HOST
+  COOK
+  SECURITY
+  CLEANING
+  LOGISTICS
+  OTHER
+}
+
+model Worker {
+  id        String       @id @default(cuid())
+  companyId String
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String       @unique
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    WorkerStatus @default(PENDING_REVIEW)
+
+  photoUrl              String?
+  idNumber              String?
+  nationality           String?
+  birthDate             DateTime?
+  address               String?
+  maritalStatus         String?
+  hasChildren           Boolean   @default(false)
+  childrenCount         Int?
+  education             String?
+  courses               Json? // string[]
+  languages             Json? // string[]
+  specialties           Specialty[] @default([OTHER]) // multi-especialidad (aspirante puede marcar varias en la postulación)
+  experienceYears       Int?
+  previousEmployers     Json? // { company, role, from, to }[]
+  references            Json? // { name, phone, relation }[]
+  licenses              Json? // string[]
+  hasVehicle            Boolean   @default(false)
+  vehicleType           String?
+  uniformSizes          Json? // { shirt, pants, shoes }
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  hourlyRate            Decimal?  @db.Decimal(10, 2)
+  ratingAverage         Decimal   @default(0) @db.Decimal(3, 2)
+  ratingCount           Int       @default(0)
+
+  approvedById    String?
+  approvedBy      User?     @relation("ApprovedBy", fields: [approvedById], references: [id])
+  approvedAt      DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  healthInfo        WorkerHealthInfo?
+  documents         WorkerDocument[]
+  availabilitySlots AvailabilitySlot[]
+  timeOffs          TimeOff[]
+  assignments       WorkerAssignment[]
+  paymentRecords    PaymentRecord[]
+
+  @@index([companyId, status])
+  @@index([specialties], type: Gin)
+}
+
+// Datos sensibles de salud — tabla separada, acceso restringido a ADMIN/SUPERVISOR (§9.2)
+model WorkerHealthInfo {
+  id         String   @id @default(cuid())
+  workerId   String   @unique
+  worker     Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  allergies  String?
+  conditions String?
+  notes      String?
+  updatedAt  DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Disponibilidad
+// ---------------------------------------------------------------------------
+
+model AvailabilitySlot {
+  id        String   @id @default(cuid())
+  workerId  String
+  worker    Worker   @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  dayOfWeek Int // 0 = domingo .. 6 = sábado
+  startTime String // "HH:mm"
+  endTime   String // "HH:mm"
+  createdAt DateTime @default(now())
+
+  @@index([workerId, dayOfWeek])
+}
+
+enum TimeOffType {
+  VACATION
+  PERMIT
+  ABSENCE
+}
+
+enum TimeOffStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model TimeOff {
+  id        String        @id @default(cuid())
+  workerId  String
+  worker    Worker        @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  type      TimeOffType
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  status    TimeOffStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+
+  @@index([workerId, startDate, endDate])
+}
+
+// ---------------------------------------------------------------------------
+// Eventos
+// ---------------------------------------------------------------------------
+
+enum EventStatus {
+  DRAFT
+  REQUESTED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Event {
+  id           String      @id @default(cuid())
+  companyId    String
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId     String
+  client       Client      @relation(fields: [clientId], references: [id])
+  title        String
+  eventType    String?
+  address      String
+  latitude     Float?
+  longitude    Float?
+  startAt      DateTime
+  endAt        DateTime
+  status       EventStatus @default(DRAFT)
+  notes        String?
+  cancelReason String?
+  createdById  String
+  createdBy    User        @relation("EventCreatedBy", fields: [createdById], references: [id])
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  staffRequirements EventStaffRequirement[]
+  assignments       WorkerAssignment[]
+  invoices          ClientInvoice[]
+
+  @@index([companyId, startAt])
+  @@index([clientId])
+}
+
+model EventStaffRequirement {
+  id        String    @id @default(cuid())
+  eventId   String
+  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  specialty Specialty
+  quantity  Int
+
+  @@index([eventId])
+}
+
+// ---------------------------------------------------------------------------
+// Asignaciones (con detección de solapamiento — algoritmo Torneo Katana, §9.5)
+// ---------------------------------------------------------------------------
+
+enum AssignmentStatus {
+  PROPOSED
+  ACCEPTED
+  REJECTED
+  CANCELLED
+  COMPLETED
+}
+
+enum CheckMethod {
+  GPS
+  QR
+  SUPERVISOR_CODE
+  SELFIE
+}
+
+enum RatingModerationStatus {
+  NONE
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model WorkerAssignment {
+  id       String           @id @default(cuid())
+  eventId  String
+  event    Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  workerId String
+  worker   Worker           @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  status   AssignmentStatus @default(PROPOSED)
+
+  assignedById String
+  assignedBy   User      @relation("AssignedBy", fields: [assignedById], references: [id])
+  assignedAt   DateTime  @default(now())
+  respondedAt  DateTime?
+  rejectReason String?
+
+  checkInAt       DateTime?
+  checkInLat      Float?
+  checkInLng      Float?
+  checkInMethod   CheckMethod?
+  checkInPhotoUrl String?
+
+  checkOutAt       DateTime?
+  checkOutLat      Float?
+  checkOutLng      Float?
+  checkOutMethod   CheckMethod?
+  checkOutPhotoUrl String?
+
+  ratingScore            Int?
+  ratingComment          String?
+  ratingModerationStatus RatingModerationStatus @default(NONE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workerId])
+  @@index([eventId])
+}
+
+// ---------------------------------------------------------------------------
+// Documentos
+// ---------------------------------------------------------------------------
+
+enum DocumentType {
+  ID_CARD
+  RESUME
+  HEALTH_CARD
+  FOOD_HANDLING
+  LICENSE
+  CERTIFICATE
+  OTHER
+}
+
+model WorkerDocument {
+  id         String       @id @default(cuid())
+  workerId   String
+  worker     Worker       @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  type       DocumentType
+  fileUrl    String
+  fileName   String
+  issuedAt   DateTime?
+  expiresAt  DateTime?
+  uploadedAt DateTime     @default(now())
+
+  @@index([workerId])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// Pagos (registro/cálculo — nunca procesamiento, §6.8/§9.1)
+// ---------------------------------------------------------------------------
+
+model PayRuleSet {
+  id                 String   @id @default(cuid())
+  companyId          String
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  country            String
+  name               String
+  overtimeMultiplier Decimal  @default(1.5) @db.Decimal(4, 2)
+  sundayMultiplier   Decimal  @default(1.5) @db.Decimal(4, 2)
+  holidayMultiplier  Decimal  @default(2.0) @db.Decimal(4, 2)
+  isActive           Boolean  @default(true)
+  effectiveFrom      DateTime @default(now())
+  createdAt          DateTime @default(now())
+
+  @@index([companyId, country])
+}
+
+model Holiday {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  country   String
+  date      DateTime
+  name      String
+
+  @@index([companyId, date])
+}
+
+enum PaymentStatus {
+  PENDIENTE
+  PAGADO
+}
+
+model PaymentRecord {
+  id            String        @id @default(cuid())
+  companyId     String
+  workerId      String
+  worker        Worker        @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  periodStart   DateTime
+  periodEnd     DateTime
+  regularHours  Decimal       @default(0) @db.Decimal(8, 2)
+  overtimeHours Decimal       @default(0) @db.Decimal(8, 2)
+  sundayHours   Decimal       @default(0) @db.Decimal(8, 2)
+  holidayHours  Decimal       @default(0) @db.Decimal(8, 2)
+  bonuses       Decimal       @default(0) @db.Decimal(10, 2)
+  deductions    Decimal       @default(0) @db.Decimal(10, 2)
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  status        PaymentStatus @default(PENDIENTE)
+  paidAt        DateTime?
+  paymentMethod String? // referencia libre: efectivo, transferencia, cheque
+  paidById      String?
+  paidBy        User?         @relation("PaidBy", fields: [paidById], references: [id])
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  @@index([companyId, status])
+  @@index([workerId, periodStart])
+}
+
+// Facturación al cliente — también registro/cálculo, sin pasarela (consistente con §9.1)
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+}
+
+model ClientInvoice {
+  id          String        @id @default(cuid())
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId    String
+  client      Client        @relation(fields: [clientId], references: [id])
+  eventId     String?
+  event       Event?        @relation(fields: [eventId], references: [id])
+  periodStart DateTime
+  periodEnd   DateTime
+  amount      Decimal       @db.Decimal(10, 2)
+  status      InvoiceStatus @default(DRAFT)
+  issuedAt    DateTime?
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime      @default(now())
+
+  @@index([companyId, status])
+  @@index([clientId])
+}
+
+// ---------------------------------------------------------------------------
+// Notificaciones
+// ---------------------------------------------------------------------------
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+  WHATSAPP
+  SMS
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+model Notification {
+  id                String              @id @default(cuid())
+  companyId         String
+  company           Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel           NotificationChannel
+  type              String
+  title             String
+  body              String
+  status            NotificationStatus  @default(PENDING)
+  relatedEntityType String?
+  relatedEntityId   String?
+  createdAt         DateTime            @default(now())
+  sentAt            DateTime?
+  readAt            DateTime?
+
+  @@index([companyId, userId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Auditoría transversal (§9.9)
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([companyId, entityType, entityId])
+  @@index([companyId, createdAt])
+}
