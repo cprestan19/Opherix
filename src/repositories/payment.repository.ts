@@ -77,16 +77,26 @@ export function listPaymentRecordsForWorker(workerId: string) {
   });
 }
 
-export function markAsPaid(id: string, paidById: string, paymentMethod: string) {
-  return prisma.paymentRecord.update({
-    where: { id },
+export async function markAsPaid(companyId: string, id: string, paidById: string, paymentMethod: string) {
+  const result = await prisma.paymentRecord.updateMany({
+    where: { id, companyId },
     data: { status: "PAGADO", paidAt: new Date(), paidById, paymentMethod },
   });
+  if (result.count === 0) return null;
+  return prisma.paymentRecord.findUniqueOrThrow({ where: { id } });
 }
 
-export function updateBonusesAndDeductions(id: string, bonuses: number, deductions: number, totalAmount: number) {
-  return prisma.paymentRecord.update({
-    where: { id },
+export async function updateBonusesAndDeductions(
+  companyId: string,
+  id: string,
+  bonuses: number,
+  deductions: number,
+  totalAmount: number,
+) {
+  const result = await prisma.paymentRecord.updateMany({
+    where: { id, companyId },
     data: { bonuses, deductions, totalAmount },
   });
+  if (result.count === 0) return null;
+  return prisma.paymentRecord.findUniqueOrThrow({ where: { id } });
 }

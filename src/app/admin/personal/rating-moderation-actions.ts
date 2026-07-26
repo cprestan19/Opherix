@@ -9,12 +9,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
+import { requireCompanyStaff } from "@/lib/tenant";
 import { reviewRating } from "@/services/rating.service";
 
 export async function reviewRatingAction(assignmentId: string, decision: "APPROVED" | "REJECTED") {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
   await reviewRating(companyId, user.id, assignmentId, decision);
   revalidatePath("/admin/personal");
 }

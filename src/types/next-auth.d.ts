@@ -31,6 +31,8 @@ declare module "next-auth" {
       companyId?: string;
       clientId?: string;
       workerStatus?: WorkerStatus;
+      /** false si la revalidación periódica (ver auth.ts) detectó la cuenta suspendida/borrada. */
+      accountActive?: boolean;
     } & DefaultSession["user"];
   }
 }
@@ -41,5 +43,8 @@ declare module "next-auth/jwt" {
     companyId?: string;
     clientId?: string;
     workerStatus?: WorkerStatus;
+    accountActive?: boolean;
+    /** epoch ms de la última vez que el jwt callback confirmó el estado contra la BD. */
+    lastValidatedAt?: number;
   }
 }

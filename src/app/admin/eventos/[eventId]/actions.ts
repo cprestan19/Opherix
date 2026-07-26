@@ -9,7 +9,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
+import { requireCompanyStaff } from "@/lib/tenant";
 import {
   assignWorkerToEvent,
   removeAssignment,
@@ -32,8 +32,7 @@ export interface EventActionResult {
 }
 
 export async function assignWorkerAction(eventId: string, workerId: string): Promise<EventActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
   try {
     await assignWorkerToEvent(companyId, eventId, workerId, user.id);
   } catch (error) {
@@ -45,22 +44,19 @@ export async function assignWorkerAction(eventId: string, workerId: string): Pro
 }
 
 export async function removeAssignmentAction(eventId: string, assignmentId: string) {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
   await removeAssignment(companyId, assignmentId, user.id);
   revalidatePath(`/admin/eventos/${eventId}`);
 }
 
 export async function confirmEventAction(eventId: string) {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
   await confirmEvent(companyId, eventId, user.id);
   revalidatePath(`/admin/eventos/${eventId}`);
 }
 
 export async function cancelEventAction(eventId: string, reason: string) {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
   await cancelEvent(companyId, eventId, user.id, reason);
   revalidatePath(`/admin/eventos/${eventId}`);
 }
@@ -69,8 +65,7 @@ export async function updateEventAction(eventId: string, input: EventRequestInpu
   const parsed = eventRequestSchema.safeParse(input);
   if (!parsed.success) return { error: "Revisa los campos del formulario." };
 
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await updateEventFull(companyId, user.id, eventId, parsed.data);
@@ -83,8 +78,7 @@ export async function updateEventAction(eventId: string, input: EventRequestInpu
 }
 
 export async function archiveEventAction(eventId: string): Promise<EventActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await archiveEvent(companyId, user.id, eventId);
@@ -109,8 +103,7 @@ function buildLink(companySlug: string, eventId: string, token: string) {
 }
 
 export async function generateEventAccessLinkAction(eventId: string, companySlug: string): Promise<EventAccessLinkResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     const { token, expiresAt } = await generateEventAccessLink(companyId, user.id, eventId);
@@ -123,8 +116,7 @@ export async function generateEventAccessLinkAction(eventId: string, companySlug
 }
 
 export async function resendEventAccessLinkAction(eventId: string, companySlug: string): Promise<EventActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await resendEventAccessLink(companyId, user.id, eventId, companySlug);
@@ -136,8 +128,7 @@ export async function resendEventAccessLinkAction(eventId: string, companySlug: 
 }
 
 export async function closeEventAccessLinkAction(eventId: string): Promise<EventActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await closeEventAccessLink(companyId, user.id, eventId);
@@ -150,8 +141,7 @@ export async function closeEventAccessLinkAction(eventId: string): Promise<Event
 }
 
 export async function reopenEventAccessLinkAction(eventId: string): Promise<EventActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await reopenEventAccessLink(companyId, user.id, eventId);
@@ -164,8 +154,7 @@ export async function reopenEventAccessLinkAction(eventId: string): Promise<Even
 }
 
 export async function issueInvoiceAction(eventId: string, amount: number): Promise<EventActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
   const event = await getEventDetail(companyId, eventId);
   if (!event) return { error: "Evento no encontrado." };
 

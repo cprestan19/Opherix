@@ -165,15 +165,18 @@ export function getEventDetail(companyId: string, eventId: string) {
   });
 }
 
-export function updateEventStatus(
+export async function updateEventStatus(
+  companyId: string,
   eventId: string,
   status: "CONFIRMED" | "CANCELLED" | "COMPLETED" | "IN_PROGRESS",
   cancelReason?: string,
 ) {
-  return prisma.event.update({
-    where: { id: eventId },
+  const result = await prisma.event.updateMany({
+    where: { id: eventId, companyId },
     data: { status, cancelReason },
   });
+  if (result.count === 0) return null;
+  return prisma.event.findUniqueOrThrow({ where: { id: eventId } });
 }
 
 export function setEventAccessToken(eventId: string, token: string, expiresAt: Date) {
@@ -237,11 +240,13 @@ export function createAssignment(eventId: string, workerId: string, assignedById
   });
 }
 
-export function cancelAssignment(assignmentId: string) {
-  return prisma.workerAssignment.update({
-    where: { id: assignmentId },
+export async function cancelAssignment(companyId: string, assignmentId: string) {
+  const result = await prisma.workerAssignment.updateMany({
+    where: { id: assignmentId, event: { companyId } },
     data: { status: "CANCELLED" },
   });
+  if (result.count === 0) return null;
+  return prisma.workerAssignment.findUniqueOrThrow({ where: { id: assignmentId } });
 }
 
 export function listAssignmentsForWorker(workerId: string) {

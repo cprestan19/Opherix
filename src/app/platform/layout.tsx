@@ -28,6 +28,7 @@ const navGroups: NavGroup[] = [
 export default async function PlatformLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (session.user.accountActive === false) redirect("/login");
   if (session.user.role !== "PLATFORM_ADMIN") {
     redirect(getPortalPath(session.user.role, session.user.workerStatus));
   }

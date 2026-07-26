@@ -12,6 +12,7 @@ import { revalidatePath } from "next/cache";
 import { notFound } from "next/navigation";
 import { findCompanyBySlug } from "@/repositories/worker.repository";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
+import { submitEventRatingSchema } from "@/lib/validations/rating";
 import { updateEventRequestViaAccessToken, EventError } from "@/services/event.service";
 import { submitEventRatingViaAccessToken, RatingError } from "@/services/rating.service";
 
@@ -53,10 +54,13 @@ export async function submitEventRatingAction(
   score: number,
   comment: string,
 ): Promise<EventAccessActionResult> {
+  const parsed = submitEventRatingSchema.safeParse({ score, comment: comment || undefined });
+  if (!parsed.success) return { error: "Revisa la calificación ingresada." };
+
   const companyId = await resolveCompanyId(companySlug);
 
   try {
-    await submitEventRatingViaAccessToken(companyId, eventId, token, score, comment || undefined);
+    await submitEventRatingViaAccessToken(companyId, eventId, token, parsed.data.score, parsed.data.comment);
   } catch (error) {
     if (error instanceof RatingError) return { error: error.message };
     throw error;

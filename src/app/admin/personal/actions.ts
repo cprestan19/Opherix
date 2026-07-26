@@ -9,7 +9,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
+import { requireCompanyStaff } from "@/lib/tenant";
 import { createWorkerSchema, type CreateWorkerInput } from "@/lib/validations/worker-create";
 import { createWorker, WorkerError } from "@/services/worker.service";
 
@@ -21,8 +21,7 @@ export async function createWorkerAction(input: CreateWorkerInput): Promise<Crea
   const parsed = createWorkerSchema.safeParse(input);
   if (!parsed.success) return { error: "Revisa los campos del formulario." };
 
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await createWorker(companyId, user.id, parsed.data);

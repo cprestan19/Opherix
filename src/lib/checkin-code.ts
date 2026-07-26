@@ -17,7 +17,13 @@ import crypto from "node:crypto";
  * el cliente.
  */
 function secretKey() {
-  return process.env.AUTH_SECRET ?? "dev-checkin-secret";
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    // Fallar cerrado: un secreto público conocido dejaría que cualquiera
+    // calcule códigos de check-in válidos para cualquier evento sin verlos.
+    throw new Error("AUTH_SECRET no está configurado — no se pueden generar/validar códigos de check-in.");
+  }
+  return secret;
 }
 
 function todayKey() {
@@ -32,5 +38,8 @@ export function generateCheckInCode(eventId: string): string {
 
 export function verifyCheckInCode(eventId: string, code: string): boolean {
   if (!code) return false;
-  return generateCheckInCode(eventId).toLowerCase() === code.trim().toLowerCase();
+  const expected = Buffer.from(generateCheckInCode(eventId).toLowerCase());
+  const provided = Buffer.from(code.trim().toLowerCase());
+  if (expected.length !== provided.length) return false;
+  return crypto.timingSafeEqual(expected, provided);
 }

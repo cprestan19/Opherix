@@ -25,3 +25,12 @@ export function findValidClientAccessToken(tokenHash: string) {
     include: { client: true },
   });
 }
+
+/**
+ * Revoca el token en BD al cerrar sesión — no basta con borrar la cookie: si
+ * el token ya se filtró (equipo compartido, devtools, logs de proxy), seguiría
+ * siendo válido por hasta 7 días más si solo se borra la cookie del cliente.
+ */
+export async function revokeClientAccessToken(tokenHash: string) {
+  await prisma.clientAccessToken.deleteMany({ where: { tokenHash } });
+}

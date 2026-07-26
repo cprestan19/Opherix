@@ -20,7 +20,7 @@ export const eventRequestSchema = z.object({
     .array(
       z.object({
         specialty: z.enum(specialtyValues),
-        quantity: z.number().int().min(1, "Mínimo 1"),
+        quantity: z.number().int().min(1, "Mínimo 1").max(500, "Máximo 500 por tipo de personal"),
       }),
     )
     .min(1, "Indica al menos un tipo de personal"),

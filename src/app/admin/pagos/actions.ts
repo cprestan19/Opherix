@@ -9,7 +9,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
+import { requireCompanyStaff } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import {
   calculatePaymentsForPeriod,
@@ -26,8 +26,7 @@ export async function calculatePaymentsAction(
   periodStart: string,
   periodEnd: string,
 ): Promise<PaymentActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
   const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
   await calculatePaymentsForPeriod(
@@ -46,8 +45,7 @@ export async function markAsPaidAction(
   paymentRecordId: string,
   paymentMethod: string,
 ): Promise<PaymentActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
   await markPaymentAsPaid(companyId, user.id, paymentRecordId, paymentMethod);
   revalidatePath("/admin/pagos");
   return {};
@@ -58,8 +56,7 @@ export async function adjustPaymentAction(
   bonuses: number,
   deductions: number,
 ): Promise<PaymentActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
   try {
     await adjustPayment(companyId, user.id, paymentRecordId, bonuses, deductions);
   } catch (error) {

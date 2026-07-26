@@ -390,7 +390,8 @@ export async function assignWorkerToEvent(
 }
 
 export async function removeAssignment(companyId: string, assignmentId: string, actorId: string) {
-  const updated = await eventRepo.cancelAssignment(assignmentId);
+  const updated = await eventRepo.cancelAssignment(companyId, assignmentId);
+  if (!updated) throw new EventError("Asignación no encontrada.");
   await logAudit({
     companyId,
     actorId,
@@ -403,7 +404,8 @@ export async function removeAssignment(companyId: string, assignmentId: string, 
 
 export async function confirmEvent(companyId: string, eventId: string, actorId: string) {
   const event = await eventRepo.getEventDetail(companyId, eventId);
-  const updated = await eventRepo.updateEventStatus(eventId, "CONFIRMED");
+  if (!event) throw new EventError("Evento no encontrado.");
+  const updated = await eventRepo.updateEventStatus(companyId, eventId, "CONFIRMED");
   await logAudit({ companyId, actorId, action: "EVENT_CONFIRMED", entityType: "Event", entityId: eventId });
 
   // El Cliente ya no tiene cuenta/portal (§ /solicitar/[companySlug]) — el
@@ -423,7 +425,8 @@ export async function confirmEvent(companyId: string, eventId: string, actorId: 
 
 export async function cancelEvent(companyId: string, eventId: string, actorId: string, reason: string) {
   const event = await eventRepo.getEventDetail(companyId, eventId);
-  const updated = await eventRepo.updateEventStatus(eventId, "CANCELLED", reason);
+  if (!event) throw new EventError("Evento no encontrado.");
+  const updated = await eventRepo.updateEventStatus(companyId, eventId, "CANCELLED", reason);
   await logAudit({
     companyId,
     actorId,

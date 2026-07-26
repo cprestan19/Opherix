@@ -9,7 +9,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
+import { requireCompanyStaff } from "@/lib/tenant";
 import { adminEventSchema, type AdminEventInput } from "@/lib/validations/event";
 import { createEventByAdmin, EventError } from "@/services/event.service";
 
@@ -21,8 +21,7 @@ export async function createEventAdminAction(input: AdminEventInput): Promise<Ev
   const parsed = adminEventSchema.safeParse(input);
   if (!parsed.success) return { error: "Revisa los campos del formulario." };
 
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await createEventByAdmin(companyId, parsed.data.clientId, user.id, parsed.data);

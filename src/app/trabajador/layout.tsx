@@ -44,6 +44,7 @@ const navGroups: NavGroup[] = [
 export default async function TrabajadorLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (session.user.accountActive === false) redirect("/login");
   if (session.user.role !== "WORKER" && session.user.role !== "APPLICANT") {
     redirect(getPortalPath(session.user.role, session.user.workerStatus));
   }

@@ -73,8 +73,13 @@ export function listPendingTimeOff(companyId: string) {
   });
 }
 
-export function updateTimeOffStatus(id: string, status: "APPROVED" | "REJECTED") {
-  return prisma.timeOff.update({ where: { id }, data: { status } });
+export async function updateTimeOffStatus(companyId: string, id: string, status: "APPROVED" | "REJECTED") {
+  const result = await prisma.timeOff.updateMany({
+    where: { id, worker: { companyId } },
+    data: { status },
+  });
+  if (result.count === 0) return null;
+  return prisma.timeOff.findUniqueOrThrow({ where: { id } });
 }
 
 export function listWorkersWithAvailability(companyId: string) {

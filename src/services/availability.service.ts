@@ -64,7 +64,8 @@ export async function reviewTimeOff(
   actorId: string,
   decision: "APPROVED" | "REJECTED",
 ) {
-  const updated = await availabilityRepo.updateTimeOffStatus(timeOffId, decision);
+  const updated = await availabilityRepo.updateTimeOffStatus(companyId, timeOffId, decision);
+  if (!updated) throw new AvailabilityError("Solicitud de ausencia no encontrada.");
   await logAudit({
     companyId,
     actorId,

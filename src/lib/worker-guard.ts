@@ -20,6 +20,7 @@ const PENDING_STATES = new Set(["PENDING_REVIEW", "REJECTED"]);
 export async function requireActiveWorker() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (session.user.accountActive === false) redirect("/login");
   if (session.user.role !== "WORKER" && session.user.role !== "APPLICANT") {
     redirect("/login");
   }

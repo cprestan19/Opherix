@@ -9,7 +9,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
+import { requireCompanyStaff } from "@/lib/tenant";
 import { workerEditSchema, type WorkerEditInput } from "@/lib/validations/worker-edit";
 import { updateWorkerProfile, setWorkerAccountStatus, WorkerError } from "@/services/worker.service";
 import { findWorkerById } from "@/repositories/worker.repository";
@@ -25,8 +25,7 @@ export async function updateWorkerAction(workerId: string, input: WorkerEditInpu
   const parsed = workerEditSchema.safeParse(input);
   if (!parsed.success) return { error: "Revisa los campos del formulario." };
 
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await updateWorkerProfile(companyId, user.id, user.role, workerId, parsed.data);
@@ -44,8 +43,7 @@ export async function setWorkerStatusAction(
   workerId: string,
   status: "ACTIVE" | "INACTIVE",
 ): Promise<ActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await setWorkerAccountStatus(companyId, user.id, workerId, status);
@@ -62,8 +60,7 @@ export async function uploadWorkerDocumentAction(
   workerId: string,
   input: { type: DocumentType; fileUrl: string; fileName: string; issuedAt?: string; expiresAt?: string },
 ): Promise<ActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   const worker = await findWorkerById(companyId, workerId);
   if (!worker) return { error: "Trabajador no encontrado." };
@@ -78,8 +75,7 @@ export async function updateWorkerDocumentAction(
   documentId: string,
   input: { type?: DocumentType; fileUrl?: string; fileName?: string; issuedAt?: string; expiresAt?: string },
 ): Promise<ActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await updateDocument(companyId, user.id, documentId, input);
@@ -93,8 +89,7 @@ export async function updateWorkerDocumentAction(
 }
 
 export async function deleteWorkerDocumentAction(documentId: string): Promise<ActionResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await deleteDocument(companyId, user.id, documentId);
@@ -113,7 +108,7 @@ export async function toggleWorkerAvailabilityAction(
   startTime: string,
   endTime: string,
 ): Promise<ActionResult> {
-  const companyId = await getEffectiveCompanyId();
+  const { companyId } = await requireCompanyStaff();
 
   const worker = await findWorkerById(companyId, workerId);
   if (!worker) return { error: "Trabajador no encontrado." };

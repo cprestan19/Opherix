@@ -9,13 +9,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
+import { requireCompanyStaff } from "@/lib/tenant";
 import { reviewTimeOff } from "@/services/availability.service";
 import { assignWorkerToEvent, removeAssignment, EventError } from "@/services/event.service";
 
 export async function reviewTimeOffAction(timeOffId: string, decision: "APPROVED" | "REJECTED") {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
   await reviewTimeOff(companyId, timeOffId, user.id, decision);
   revalidatePath("/admin/disponibilidad");
 }
@@ -33,8 +32,7 @@ export async function assignWorkerToEventFromAvailabilityAction(
   eventId: string,
   workerId: string,
 ): Promise<AssignWorkerResult> {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await assignWorkerToEvent(companyId, eventId, workerId, user.id);
@@ -52,8 +50,7 @@ export async function assignWorkerToEventFromAvailabilityAction(
  * trabajador con "Asignar evento"), sin tener que ir hasta /admin/eventos.
  */
 export async function removeAssignmentFromAvailabilityAction(assignmentId: string) {
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
   await removeAssignment(companyId, assignmentId, user.id);
   revalidatePath("/admin/disponibilidad");
 }

@@ -47,7 +47,8 @@ export async function issueInvoiceForEvent(
 }
 
 export async function markInvoicePaid(companyId: string, actorId: string, invoiceId: string) {
-  const updated = await invoiceRepo.markInvoicePaid(invoiceId);
+  const updated = await invoiceRepo.markInvoicePaid(companyId, invoiceId);
+  if (!updated) throw new InvoiceError("Factura no encontrada.");
   await logAudit({ companyId, actorId, action: "INVOICE_PAID", entityType: "ClientInvoice", entityId: invoiceId });
   return updated;
 }

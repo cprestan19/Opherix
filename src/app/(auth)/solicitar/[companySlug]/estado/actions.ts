@@ -13,7 +13,8 @@ import { cookies } from "next/headers";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
 import { updateEventRequestAsClient, EventError } from "@/services/event.service";
 import { getClientAccessSession } from "@/lib/client-access-session";
-import { CLIENT_ACCESS_COOKIE_NAME } from "@/lib/client-access-token";
+import { CLIENT_ACCESS_COOKIE_NAME, hashClientAccessToken } from "@/lib/client-access-token";
+import { revokeClientAccessToken } from "@/repositories/client-access-token.repository";
 
 export interface ClientRequestActionResult {
   error?: string;
@@ -42,5 +43,9 @@ export async function updateEventRequestClientAction(
 
 export async function signOutClientSessionAction() {
   const cookieStore = await cookies();
+  const token = cookieStore.get(CLIENT_ACCESS_COOKIE_NAME)?.value;
+  if (token) {
+    await revokeClientAccessToken(hashClientAccessToken(token));
+  }
   cookieStore.delete(CLIENT_ACCESS_COOKIE_NAME);
 }

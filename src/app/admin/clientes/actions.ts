@@ -9,7 +9,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
+import { requireCompanyStaff } from "@/lib/tenant";
 import { createClientSchema, type CreateClientInput } from "@/lib/validations/client";
 import { createClient, ClientError } from "@/services/client.service";
 
@@ -21,8 +21,7 @@ export async function createClientAction(input: CreateClientInput): Promise<Crea
   const parsed = createClientSchema.safeParse(input);
   if (!parsed.success) return { error: "Revisa los campos del formulario." };
 
-  const companyId = await getEffectiveCompanyId();
-  const user = await getCurrentUser();
+  const { user, companyId } = await requireCompanyStaff();
 
   try {
     await createClient(companyId, user.id, parsed.data);

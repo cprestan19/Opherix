@@ -9,14 +9,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { archiveEventsForCompany } from "@/services/event.service";
+import { isAuthorizedCronRequest } from "@/lib/cron-auth";
 
 /**
  * Disparado diariamente por Vercel Cron (ver vercel.json). Protegido con
  * CRON_SECRET para que no sea invocable públicamente (§9.4).
  */
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get("authorization");
-  if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!isAuthorizedCronRequest(request)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

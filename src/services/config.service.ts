@@ -42,8 +42,11 @@ export async function addHoliday(companyId: string, actorId: string, country: st
   return holiday;
 }
 
+export class ConfigError extends Error {}
+
 export async function removeHoliday(companyId: string, actorId: string, holidayId: string) {
-  await configRepo.deleteHoliday(holidayId);
+  const deleted = await configRepo.deleteHoliday(companyId, holidayId);
+  if (!deleted) throw new ConfigError("Feriado no encontrado.");
   await logAudit({ companyId, actorId, action: "HOLIDAY_REMOVED", entityType: "Holiday", entityId: holidayId });
 }
 

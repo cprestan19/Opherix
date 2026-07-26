@@ -20,7 +20,7 @@ export const authConfig = {
   trustHost: true,
   callbacks: {
     authorized({ auth, request }) {
-      const isLoggedIn = !!auth?.user;
+      const isLoggedIn = !!auth?.user && auth.user.accountActive !== false;
       const { pathname } = request.nextUrl;
       const isPublicRoute =
         pathname === "/" ||

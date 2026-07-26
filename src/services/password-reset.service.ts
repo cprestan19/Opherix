@@ -43,6 +43,18 @@ export async function requestPasswordReset(emailRaw: string): Promise<{ message:
     platformAdminId: platformAdmin?.id,
   });
 
+  // AuditLog.companyId es obligatorio (§9.9) — solo se puede auditar la
+  // solicitud para usuarios de un tenant, no para PlatformAdmin (sin company).
+  if (user) {
+    await logAudit({
+      companyId: user.companyId,
+      actorId: user.id,
+      action: "PASSWORD_RESET_REQUESTED",
+      entityType: "User",
+      entityId: user.id,
+    });
+  }
+
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
   const sent = await sendEmail(
     email,
@@ -65,7 +77,7 @@ export async function confirmPasswordReset(token: string, newPassword: string): 
     throw new PasswordResetError("Este enlace ya no es válido — pide uno nuevo.");
   }
 
-  const passwordHash = await bcrypt.hash(newPassword, 10);
+  const passwordHash = await bcrypt.hash(newPassword, 12);
 
   if (record.userId) {
     await repo.updateUserPassword(record.userId, passwordHash);

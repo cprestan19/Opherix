@@ -84,7 +84,8 @@ export async function markPaymentAsPaid(
   paymentRecordId: string,
   paymentMethod: string,
 ) {
-  const updated = await paymentRepo.markAsPaid(paymentRecordId, actorId, paymentMethod);
+  const updated = await paymentRepo.markAsPaid(companyId, paymentRecordId, actorId, paymentMethod);
+  if (!updated) throw new PaymentError("Registro de pago no encontrado.");
   await logAudit({
     companyId,
     actorId,
@@ -126,7 +127,14 @@ export async function adjustPayment(
     Number(record.totalAmount) - Number(record.bonuses) + Number(record.deductions);
   const totalAmount = Math.max(0, baseAmount + bonuses - deductions);
 
-  const updated = await paymentRepo.updateBonusesAndDeductions(paymentRecordId, bonuses, deductions, totalAmount);
+  const updated = await paymentRepo.updateBonusesAndDeductions(
+    companyId,
+    paymentRecordId,
+    bonuses,
+    deductions,
+    totalAmount,
+  );
+  if (!updated) throw new PaymentError("Registro de pago no encontrado.");
   await logAudit({
     companyId,
     actorId,

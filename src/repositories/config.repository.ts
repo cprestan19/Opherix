@@ -50,6 +50,7 @@ export function createHoliday(companyId: string, country: string, date: Date, na
   return prisma.holiday.create({ data: { companyId, country, date, name } });
 }
 
-export function deleteHoliday(id: string) {
-  return prisma.holiday.delete({ where: { id } });
+export async function deleteHoliday(companyId: string, id: string) {
+  const result = await prisma.holiday.deleteMany({ where: { id, companyId } });
+  return result.count > 0;
 }

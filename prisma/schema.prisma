@@ -24,12 +24,14 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model PlatformAdmin {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  name                String
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   passwordResetTokens PasswordResetToken[]
 }
@@ -142,23 +144,25 @@ enum UserStatus {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  companyId    String
-  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  email        String     @unique
-  passwordHash String
-  name         String
-  phone        String?
-  image        String?
-  fcmToken     String? // token de Firebase Cloud Messaging del último dispositivo registrado (§6.10)
-  role         UserRole
-  status       UserStatus @default(ACTIVE)
-  clientId     String? // solo si role = CLIENT: a qué Client (cuenta cliente) representa
-  client       Client?    @relation(fields: [clientId], references: [id])
-  worker       Worker? // solo si role = WORKER/APPLICANT
-  lastLoginAt  DateTime?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id                  String     @id @default(cuid())
+  companyId           String
+  company             Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  email               String     @unique
+  passwordHash        String
+  name                String
+  phone               String?
+  image               String?
+  fcmToken            String? // token de Firebase Cloud Messaging del último dispositivo registrado (§6.10)
+  role                UserRole
+  status              UserStatus @default(ACTIVE)
+  clientId            String? // solo si role = CLIENT: a qué Client (cuenta cliente) representa
+  client              Client?    @relation(fields: [clientId], references: [id])
+  worker              Worker? // solo si role = WORKER/APPLICANT
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
   assignedByMe    WorkerAssignment[] @relation("AssignedBy")
   approvedWorkers Worker[]           @relation("ApprovedBy")

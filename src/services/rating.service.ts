@@ -35,7 +35,9 @@ export async function submitEventRating(
   score: number,
   comment?: string,
 ) {
-  if (score < 1 || score > 5) throw new RatingError("La calificación debe ser entre 1 y 5.");
+  if (!Number.isInteger(score) || score < 1 || score > 5) {
+    throw new RatingError("La calificación debe ser un número entero entre 1 y 5.");
+  }
 
   const assignments = await ratingRepo.findAcceptedAssignmentsForEvent(companyId, eventId);
   if (assignments.length === 0) {

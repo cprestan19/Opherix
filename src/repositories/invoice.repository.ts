@@ -34,6 +34,11 @@ export function listInvoicesForClient(companyId: string, clientId: string) {
   });
 }
 
-export function markInvoicePaid(id: string) {
-  return prisma.clientInvoice.update({ where: { id }, data: { status: "PAID", paidAt: new Date() } });
+export async function markInvoicePaid(companyId: string, id: string) {
+  const result = await prisma.clientInvoice.updateMany({
+    where: { id, companyId },
+    data: { status: "PAID", paidAt: new Date() },
+  });
+  if (result.count === 0) return null;
+  return prisma.clientInvoice.findUniqueOrThrow({ where: { id } });
 }

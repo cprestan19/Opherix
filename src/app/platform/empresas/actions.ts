@@ -11,13 +11,14 @@
 import { revalidatePath } from "next/cache";
 import { createCompanySchema, type CreateCompanyInput } from "@/lib/validations/platform";
 import { createCompany, setCompanyActive, deleteCompany, PlatformError } from "@/services/platform.service";
-import { getCurrentUser } from "@/lib/tenant";
+import { requireRole } from "@/lib/tenant";
 
 export interface CreateCompanyResult {
   error?: string;
 }
 
 export async function createCompanyAction(input: CreateCompanyInput): Promise<CreateCompanyResult> {
+  await requireRole("PLATFORM_ADMIN");
   const parsed = createCompanySchema.safeParse(input);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Revisa los campos del formulario." };
@@ -36,6 +37,7 @@ export async function createCompanyAction(input: CreateCompanyInput): Promise<Cr
 }
 
 export async function setCompanyActiveAction(companyId: string, isActive: boolean) {
+  await requireRole("PLATFORM_ADMIN");
   await setCompanyActive(companyId, isActive);
   revalidatePath("/platform/empresas");
 }
@@ -48,7 +50,7 @@ export async function deleteCompanyAction(
   companyId: string,
   confirmName: string,
 ): Promise<DeleteCompanyResult> {
-  const user = await getCurrentUser();
+  const user = await requireRole("PLATFORM_ADMIN");
 
   try {
     await deleteCompany(companyId, confirmName, { id: user.id, email: user.email ?? "" });
