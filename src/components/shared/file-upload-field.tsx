@@ -46,7 +46,17 @@ export function FileUploadField({ folder, value, onChange }: FileUploadFieldProp
         useUniqueFileName: true,
       });
 
-      if (result.url) onChange({ url: result.url, name: file.name });
+      if (result.url) {
+        const previousUrl = value?.url;
+        onChange({ url: result.url, name: file.name });
+        if (previousUrl && previousUrl !== result.url) {
+          fetch("/api/imagekit/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: previousUrl }),
+          }).catch((err) => console.error("[FileUploadField] cleanup failed", err));
+        }
+      }
     } catch (err) {
       console.error("[FileUploadField] upload failed", err);
       setError("No se pudo subir el archivo. Intenta de nuevo.");

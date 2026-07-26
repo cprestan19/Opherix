@@ -217,8 +217,16 @@ export function PhotoCaptureField({ folder, value, onChange }: PhotoCaptureField
       });
 
       if (result.url) {
+        const previousUrl = value;
         onChange(result.url);
         setOpen(false);
+        if (previousUrl && previousUrl !== result.url) {
+          fetch("/api/imagekit/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: previousUrl }),
+          }).catch((err) => console.error("[PhotoCaptureField] cleanup failed", err));
+        }
       }
     } catch (err) {
       console.error("[PhotoCaptureField] upload failed", err);

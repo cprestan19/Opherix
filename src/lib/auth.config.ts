@@ -32,7 +32,8 @@ export const authConfig = {
         pathname.startsWith("/solicitar") ||
         pathname.startsWith("/api/auth") ||
         pathname.startsWith("/api/cron") ||
-        pathname.startsWith("/api/imagekit/auth");
+        pathname.startsWith("/api/imagekit/auth") ||
+        pathname.startsWith("/api/imagekit/delete");
 
       if (isPublicRoute) return true;
       return isLoggedIn;

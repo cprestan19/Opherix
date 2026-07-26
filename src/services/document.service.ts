@@ -11,6 +11,7 @@ import * as documentRepo from "@/repositories/document.repository";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification } from "@/services/notification.service";
+import { deleteImageKitFileByUrl } from "@/lib/imagekit-delete";
 import type { DocumentType } from "@/generated/prisma/enums";
 
 export class DocumentError extends Error {}
@@ -81,6 +82,7 @@ export async function deleteDocument(companyId: string, actorId: string, documen
   const document = await assertDocumentInCompany(companyId, documentId);
 
   await documentRepo.deleteDocument(documentId);
+  await deleteImageKitFileByUrl(document.fileUrl);
 
   await logAudit({
     companyId,

@@ -17,15 +17,22 @@ import {
   workerApplicationSchema,
   specialtyValues,
   specialtyLabels,
+  maritalStatusValues,
+  maritalStatusLabels,
+  languageValues,
+  languageLabels,
   APPLICATION_STEPS,
   type WorkerApplicationInput,
 } from "@/lib/validations/worker-application";
+import { nationalityValues } from "@/lib/nationality-list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChipInput } from "@/components/shared/chip-input";
+import { DatePickerField } from "@/components/shared/date-picker-field";
 import {
   Field,
   FieldDescription,
@@ -34,7 +41,7 @@ import {
   FieldLabel,
   FieldSet,
 } from "@/components/ui/field";
-import { cn } from "@/lib/utils";
+import { cn, toSentenceCase } from "@/lib/utils";
 import { submitApplicationAction } from "./actions";
 import { PhotoCaptureField } from "@/components/shared/photo-capture-field";
 import { FileUploadField } from "@/components/shared/file-upload-field";
@@ -54,10 +61,12 @@ const defaultValues: WorkerApplicationInput = {
   email: "",
   phone: "",
   idNumber: "",
-  nationality: "",
+  // Placeholder de "sin seleccionar" — Zod los rechaza igual al validar (no
+  // pertenecen al enum), así que el campo sigue siendo obligatorio de verdad.
+  nationality: "" as WorkerApplicationInput["nationality"],
   birthDate: "",
   address: "",
-  maritalStatus: "",
+  maritalStatus: "" as WorkerApplicationInput["maritalStatus"],
   hasChildren: false,
   childrenCount: 0,
   photoUrl: "",
@@ -129,6 +138,23 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
     }
   }
 
+  // Si la validación falla al enviar (último paso), react-hook-form no llama
+  // a onSubmit y no avisa nada visible — antes esto se sentía como "no pasó
+  // nada". Se busca el primer paso que tenga un campo con error, se navega
+  // ahí (donde ya se ve el recuadro rojo vía aria-invalid) y se muestra un
+  // mensaje explícito en vez de fallar en silencio.
+  function onInvalid(fieldErrors: typeof errors) {
+    const erroredFields = Object.keys(fieldErrors);
+    const stepIndex = APPLICATION_STEPS.findIndex((s) =>
+      s.fields.some((f) => erroredFields.includes(f)),
+    );
+    if (stepIndex !== -1 && stepIndex !== step) {
+      setDirection(stepIndex > step ? 1 : -1);
+      setStep(stepIndex);
+    }
+    setServerError("Revisa los campos marcados en rojo antes de enviar tu postulación.");
+  }
+
   return (
     <form
       onSubmit={(e) => {
@@ -137,7 +163,7 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
           goNext();
           return;
         }
-        handleSubmit(onSubmit)(e);
+        handleSubmit(onSubmit, onInvalid)(e);
       }}
       className="flex flex-col gap-8"
     >
@@ -209,24 +235,51 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field data-invalid={!!errors.name}>
                     <FieldLabel htmlFor="name">Nombre completo</FieldLabel>
-                    <Input id="name" {...register("name")} />
+                    <Input
+                      id="name"
+                      aria-invalid={!!errors.name}
+                      {...register("name")}
+                      onChange={(e) =>
+                        setValue("name", toSentenceCase(e.target.value), {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
+                      }
+                    />
                     <FieldError errors={[errors.name]} />
                   </Field>
                   <Field data-invalid={!!errors.idNumber}>
                     <FieldLabel htmlFor="idNumber">Cédula</FieldLabel>
-                    <Input id="idNumber" {...register("idNumber")} />
+                    <Input id="idNumber" aria-invalid={!!errors.idNumber} {...register("idNumber")} />
                     <FieldError errors={[errors.idNumber]} />
                   </Field>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field data-invalid={!!errors.nationality}>
                     <FieldLabel htmlFor="nationality">Nacionalidad</FieldLabel>
-                    <Input id="nationality" placeholder="Ej. Panameña" {...register("nationality")} />
+                    <Controller
+                      control={control}
+                      name="nationality"
+                      render={({ field }) => (
+                        <Select value={field.value || undefined} onValueChange={field.onChange}>
+                          <SelectTrigger id="nationality" className="w-full" aria-invalid={!!errors.nationality}>
+                            <SelectValue placeholder="Selecciona tu nacionalidad" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {nationalityValues.map((value) => (
+                              <SelectItem key={value} value={value}>
+                                {value}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                     <FieldError errors={[errors.nationality]} />
                   </Field>
                   <Field data-invalid={!!errors.birthDate}>
                     <FieldLabel htmlFor="birthDate">Fecha de nacimiento</FieldLabel>
-                    <Input id="birthDate" type="date" {...register("birthDate")} />
+                    <Input id="birthDate" type="date" aria-invalid={!!errors.birthDate} {...register("birthDate")} />
                     <FieldError errors={[errors.birthDate]} />
                   </Field>
                 </div>
@@ -258,26 +311,53 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                   </Field>
                   <Field data-invalid={!!errors.email}>
                     <FieldLabel htmlFor="email">Correo electrónico</FieldLabel>
-                    <Input id="email" type="email" {...register("email")} />
+                    <Input id="email" type="email" aria-invalid={!!errors.email} {...register("email")} />
                     <FieldError errors={[errors.email]} />
                   </Field>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field data-invalid={!!errors.phone}>
                     <FieldLabel htmlFor="phone">Teléfono</FieldLabel>
-                    <Input id="phone" {...register("phone")} />
+                    <Input id="phone" aria-invalid={!!errors.phone} {...register("phone")} />
                     <FieldError errors={[errors.phone]} />
                   </Field>
                   <Field data-invalid={!!errors.address}>
                     <FieldLabel htmlFor="address">Dirección</FieldLabel>
-                    <Input id="address" {...register("address")} />
+                    <Input
+                      id="address"
+                      aria-invalid={!!errors.address}
+                      {...register("address")}
+                      onChange={(e) =>
+                        setValue("address", toSentenceCase(e.target.value), {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
+                      }
+                    />
                     <FieldError errors={[errors.address]} />
                   </Field>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <Field data-invalid={!!errors.maritalStatus}>
                     <FieldLabel htmlFor="maritalStatus">Estado civil</FieldLabel>
-                    <Input id="maritalStatus" {...register("maritalStatus")} />
+                    <Controller
+                      control={control}
+                      name="maritalStatus"
+                      render={({ field }) => (
+                        <Select value={field.value || undefined} onValueChange={field.onChange}>
+                          <SelectTrigger id="maritalStatus" className="w-full" aria-invalid={!!errors.maritalStatus}>
+                            <SelectValue placeholder="Selecciona" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {maritalStatusValues.map((value) => (
+                              <SelectItem key={value} value={value}>
+                                {maritalStatusLabels[value]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
                     <FieldError errors={[errors.maritalStatus]} />
                   </Field>
                   <Field orientation="horizontal" className="sm:col-span-2 sm:items-end sm:pb-2">
@@ -316,7 +396,14 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                     <Input
                       id="education"
                       placeholder="Ej. Bachiller, Técnico, Universitario"
+                      aria-invalid={!!errors.education}
                       {...register("education")}
+                      onChange={(e) =>
+                        setValue("education", toSentenceCase(e.target.value), {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
+                      }
                     />
                     <FieldError errors={[errors.education]} />
                   </Field>
@@ -338,19 +425,40 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field data-invalid={!!errors.languages}>
-                    <FieldLabel htmlFor="languages">Idiomas</FieldLabel>
+                    <FieldLabel>Idiomas</FieldLabel>
                     <Controller
                       control={control}
                       name="languages"
                       render={({ field }) => (
-                        <ChipInput
-                          id="languages"
-                          value={field.value}
-                          onChange={field.onChange}
-                          placeholder="Ej. Español, Inglés"
-                        />
+                        <div className="flex flex-wrap gap-2">
+                          {languageValues.map((value) => {
+                            const checked = field.value.includes(value);
+                            return (
+                              <button
+                                key={value}
+                                type="button"
+                                onClick={() =>
+                                  field.onChange(
+                                    checked
+                                      ? field.value.filter((v) => v !== value)
+                                      : [...field.value, value],
+                                  )
+                                }
+                                className={cn(
+                                  "rounded-full border px-3 py-1.5 text-sm transition-colors",
+                                  checked
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-border bg-background text-muted-foreground",
+                                )}
+                              >
+                                {languageLabels[value]}
+                              </button>
+                            );
+                          })}
+                        </div>
                       )}
                     />
+                    <FieldDescription>Puedes elegir más de uno.</FieldDescription>
                     <FieldError errors={[errors.languages]} />
                   </Field>
                   <Field>
@@ -413,6 +521,7 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                       id="experienceYears"
                       type="number"
                       min={0}
+                      aria-invalid={!!errors.experienceYears}
                       {...register("experienceYears", { valueAsNumber: true })}
                     />
                     <FieldError errors={[errors.experienceYears]} />
@@ -422,25 +531,84 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                 <Field>
                   <FieldLabel>Empresas anteriores</FieldLabel>
                   <div className="flex flex-col gap-3">
-                    {employers.fields.map((item, index) => (
-                      <div key={item.id} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-4">
-                        <Input placeholder="Empresa" {...register(`previousEmployers.${index}.company` as const)} />
-                        <Input placeholder="Puesto" {...register(`previousEmployers.${index}.role` as const)} />
-                        <Input placeholder="Desde" {...register(`previousEmployers.${index}.from` as const)} />
-                        <div className="flex gap-2">
-                          <Input placeholder="Hasta" {...register(`previousEmployers.${index}.to` as const)} />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            aria-label="Quitar empresa anterior"
-                            onClick={() => employers.remove(index)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                    {employers.fields.map((item, index) => {
+                      const employerErrors = errors.previousEmployers?.[index];
+                      return (
+                        <div
+                          key={item.id}
+                          className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-4"
+                        >
+                          <div>
+                            <Input
+                              placeholder="Empresa"
+                              aria-invalid={!!employerErrors?.company}
+                              {...register(`previousEmployers.${index}.company` as const)}
+                              onChange={(e) =>
+                                setValue(
+                                  `previousEmployers.${index}.company`,
+                                  toSentenceCase(e.target.value),
+                                  { shouldValidate: true, shouldDirty: true },
+                                )
+                              }
+                            />
+                            <FieldError errors={[employerErrors?.company]} />
+                          </div>
+                          <div>
+                            <Input
+                              placeholder="Puesto"
+                              aria-invalid={!!employerErrors?.role}
+                              {...register(`previousEmployers.${index}.role` as const)}
+                              onChange={(e) =>
+                                setValue(`previousEmployers.${index}.role`, toSentenceCase(e.target.value), {
+                                  shouldValidate: true,
+                                  shouldDirty: true,
+                                })
+                              }
+                            />
+                            <FieldError errors={[employerErrors?.role]} />
+                          </div>
+                          <div>
+                            <Controller
+                              control={control}
+                              name={`previousEmployers.${index}.from` as const}
+                              render={({ field }) => (
+                                <DatePickerField
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  placeholder="Desde"
+                                  invalid={!!employerErrors?.from}
+                                />
+                              )}
+                            />
+                            <FieldError errors={[employerErrors?.from]} />
+                          </div>
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <Controller
+                                control={control}
+                                name={`previousEmployers.${index}.to` as const}
+                                render={({ field }) => (
+                                  <DatePickerField
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    placeholder="Hasta"
+                                  />
+                                )}
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Quitar empresa anterior"
+                              onClick={() => employers.remove(index)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     <Button
                       type="button"
                       size="sm"
@@ -455,24 +623,63 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                 <Field data-invalid={!!errors.references}>
                   <FieldLabel>Referencias</FieldLabel>
                   <div className="flex flex-col gap-3">
-                    {references.fields.map((item, index) => (
-                      <div key={item.id} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-4">
-                        <Input placeholder="Nombre" {...register(`references.${index}.name` as const)} />
-                        <Input placeholder="Teléfono" {...register(`references.${index}.phone` as const)} />
-                        <Input placeholder="Relación" {...register(`references.${index}.relation` as const)} />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="w-fit"
-                          aria-label="Quitar referencia"
-                          onClick={() => references.remove(index)}
-                          disabled={references.fields.length === 1}
+                    {references.fields.map((item, index) => {
+                      const referenceErrors = errors.references?.[index];
+                      return (
+                        <div
+                          key={item.id}
+                          className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-4"
                         >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    ))}
+                          <div>
+                            <Input
+                              placeholder="Nombre"
+                              aria-invalid={!!referenceErrors?.name}
+                              {...register(`references.${index}.name` as const)}
+                              onChange={(e) =>
+                                setValue(`references.${index}.name`, toSentenceCase(e.target.value), {
+                                  shouldValidate: true,
+                                  shouldDirty: true,
+                                })
+                              }
+                            />
+                            <FieldError errors={[referenceErrors?.name]} />
+                          </div>
+                          <div>
+                            <Input
+                              placeholder="Teléfono"
+                              aria-invalid={!!referenceErrors?.phone}
+                              {...register(`references.${index}.phone` as const)}
+                            />
+                            <FieldError errors={[referenceErrors?.phone]} />
+                          </div>
+                          <div>
+                            <Input
+                              placeholder="Relación"
+                              aria-invalid={!!referenceErrors?.relation}
+                              {...register(`references.${index}.relation` as const)}
+                              onChange={(e) =>
+                                setValue(`references.${index}.relation`, toSentenceCase(e.target.value), {
+                                  shouldValidate: true,
+                                  shouldDirty: true,
+                                })
+                              }
+                            />
+                            <FieldError errors={[referenceErrors?.relation]} />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="w-fit"
+                            aria-label="Quitar referencia"
+                            onClick={() => references.remove(index)}
+                            disabled={references.fields.length === 1}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      );
+                    })}
                     <Button
                       type="button"
                       size="sm"
@@ -492,35 +699,56 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
             <FieldSet>
               <p className="mb-4 text-sm text-muted-foreground">{APPLICATION_STEPS[2].description}</p>
               <FieldGroup>
-                <Field orientation="horizontal">
+                <Field data-invalid={!!errors.vehicleType} orientation="horizontal" className="flex-wrap">
                   <Controller
                     control={control}
                     name="hasVehicle"
                     render={({ field }) => (
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} id="hasVehicle" />
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={(checked) => {
+                          field.onChange(checked);
+                          if (!checked) setValue("vehicleType", "", { shouldValidate: true });
+                        }}
+                        id="hasVehicle"
+                      />
                     )}
                   />
                   <FieldLabel htmlFor="hasVehicle" className="font-normal">
                     Cuento con vehículo o moto propia
                   </FieldLabel>
                   {hasVehicle ? (
-                    <Input className="ml-2 max-w-48" placeholder="Tipo de vehículo" {...register("vehicleType")} />
+                    <div className="ml-2 flex flex-col gap-1">
+                      <Input
+                        className="max-w-48"
+                        placeholder="Tipo de vehículo"
+                        aria-invalid={!!errors.vehicleType}
+                        {...register("vehicleType")}
+                        onChange={(e) =>
+                          setValue("vehicleType", toSentenceCase(e.target.value), {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                          })
+                        }
+                      />
+                      <FieldError errors={[errors.vehicleType]} />
+                    </div>
                   ) : null}
                 </Field>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <Field data-invalid={!!errors.uniformShirtSize}>
                     <FieldLabel htmlFor="uniformShirtSize">Talla camisa</FieldLabel>
-                    <Input id="uniformShirtSize" {...register("uniformShirtSize")} />
+                    <Input id="uniformShirtSize" aria-invalid={!!errors.uniformShirtSize} {...register("uniformShirtSize")} />
                     <FieldError errors={[errors.uniformShirtSize]} />
                   </Field>
                   <Field data-invalid={!!errors.uniformPantsSize}>
                     <FieldLabel htmlFor="uniformPantsSize">Talla pantalón</FieldLabel>
-                    <Input id="uniformPantsSize" {...register("uniformPantsSize")} />
+                    <Input id="uniformPantsSize" aria-invalid={!!errors.uniformPantsSize} {...register("uniformPantsSize")} />
                     <FieldError errors={[errors.uniformPantsSize]} />
                   </Field>
                   <Field data-invalid={!!errors.uniformShoeSize}>
                     <FieldLabel htmlFor="uniformShoeSize">Talla calzado</FieldLabel>
-                    <Input id="uniformShoeSize" {...register("uniformShoeSize")} />
+                    <Input id="uniformShoeSize" aria-invalid={!!errors.uniformShoeSize} {...register("uniformShoeSize")} />
                     <FieldError errors={[errors.uniformShoeSize]} />
                   </Field>
                 </div>
@@ -596,12 +824,26 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field data-invalid={!!errors.emergencyContactName}>
                     <FieldLabel htmlFor="emergencyContactName">Nombre de contacto de emergencia</FieldLabel>
-                    <Input id="emergencyContactName" {...register("emergencyContactName")} />
+                    <Input
+                      id="emergencyContactName"
+                      aria-invalid={!!errors.emergencyContactName}
+                      {...register("emergencyContactName")}
+                      onChange={(e) =>
+                        setValue("emergencyContactName", toSentenceCase(e.target.value), {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        })
+                      }
+                    />
                     <FieldError errors={[errors.emergencyContactName]} />
                   </Field>
                   <Field data-invalid={!!errors.emergencyContactPhone}>
                     <FieldLabel htmlFor="emergencyContactPhone">Teléfono de emergencia</FieldLabel>
-                    <Input id="emergencyContactPhone" {...register("emergencyContactPhone")} />
+                    <Input
+                      id="emergencyContactPhone"
+                      aria-invalid={!!errors.emergencyContactPhone}
+                      {...register("emergencyContactPhone")}
+                    />
                     <FieldError errors={[errors.emergencyContactPhone]} />
                   </Field>
                 </div>

@@ -85,7 +85,15 @@ export function CheckInDialog({ open, onOpenChange, title, mode, defaultCode, on
         signature: auth.signature,
         useUniqueFileName: true,
       });
+      const previousUrl = photoUrl;
       setPhotoUrl(result.url ?? undefined);
+      if (previousUrl && result.url && previousUrl !== result.url) {
+        fetch("/api/imagekit/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: previousUrl }),
+        }).catch((err) => console.error("[CheckInDialog] cleanup failed", err));
+      }
     } catch (err) {
       console.error("[CheckInDialog] upload failed", err);
       setError("No se pudo subir la foto.");
