@@ -47,7 +47,8 @@ export function FileUploadField({ folder, value, onChange }: FileUploadFieldProp
       });
 
       if (result.url) onChange({ url: result.url, name: file.name });
-    } catch {
+    } catch (err) {
+      console.error("[FileUploadField] upload failed", err);
       setError("No se pudo subir el archivo. Intenta de nuevo.");
     } finally {
       setIsUploading(false);

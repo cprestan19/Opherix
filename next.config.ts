@@ -26,7 +26,11 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://ik.imagekit.io https://maps.gstatic.com https://maps.googleapis.com",
   "font-src 'self' data:",
-  "connect-src 'self' https://ik.imagekit.io https://maps.googleapis.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com",
+  // https://*.imagekit.io (no solo ik.imagekit.io): la subida real del
+  // cliente (@imagekit/react `upload()`) postea a upload.imagekit.io, un
+  // subdominio distinto al de lectura/CDN — restringir solo a ik.imagekit.io
+  // bloqueaba la subida de fotos con un error de CSP silencioso.
+  "connect-src 'self' https://*.imagekit.io https://maps.googleapis.com https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com",
   "frame-src https://challenges.cloudflare.com",
   "object-src 'none'",
   "base-uri 'self'",

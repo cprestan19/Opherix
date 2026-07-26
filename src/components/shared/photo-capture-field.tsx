@@ -220,7 +220,8 @@ export function PhotoCaptureField({ folder, value, onChange }: PhotoCaptureField
         onChange(result.url);
         setOpen(false);
       }
-    } catch {
+    } catch (err) {
+      console.error("[PhotoCaptureField] upload failed", err);
       setError("No se pudo subir la foto. Intenta de nuevo.");
     } finally {
       setIsUploading(false);

@@ -86,7 +86,8 @@ export function CheckInDialog({ open, onOpenChange, title, mode, defaultCode, on
         useUniqueFileName: true,
       });
       setPhotoUrl(result.url ?? undefined);
-    } catch {
+    } catch (err) {
+      console.error("[CheckInDialog] upload failed", err);
       setError("No se pudo subir la foto.");
     } finally {
       setIsUploadingPhoto(false);
