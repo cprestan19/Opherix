@@ -11,7 +11,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCompanyStaff } from "@/lib/tenant";
 import { createClientSchema, type CreateClientInput } from "@/lib/validations/client";
-import { createClient, ClientError } from "@/services/client.service";
+import { createClient, setClientActiveStatus, ClientError } from "@/services/client.service";
 
 export interface CreateClientResult {
   error?: string;
@@ -25,6 +25,25 @@ export async function createClientAction(input: CreateClientInput): Promise<Crea
 
   try {
     await createClient(companyId, user.id, parsed.data);
+  } catch (error) {
+    if (error instanceof ClientError) return { error: error.message };
+    throw error;
+  }
+
+  revalidatePath("/admin/clientes");
+  revalidatePath("/admin/eventos");
+  return {};
+}
+
+export interface SetClientActiveResult {
+  error?: string;
+}
+
+export async function setClientActiveAction(clientId: string, isActive: boolean): Promise<SetClientActiveResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await setClientActiveStatus(companyId, user.id, clientId, isActive);
   } catch (error) {
     if (error instanceof ClientError) return { error: error.message };
     throw error;

@@ -35,6 +35,15 @@ export function createClient(data: {
   return prisma.client.create({ data });
 }
 
+export async function setClientActive(companyId: string, clientId: string, isActive: boolean) {
+  const result = await prisma.client.updateMany({
+    where: { id: clientId, companyId },
+    data: { isActive },
+  });
+  if (result.count === 0) return null;
+  return prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+}
+
 export function findClientByEmail(companyId: string, contactEmail: string) {
   return prisma.client.findFirst({
     where: { companyId, contactEmail: { equals: contactEmail, mode: "insensitive" } },

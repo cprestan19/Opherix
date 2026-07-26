@@ -51,3 +51,28 @@ export async function createClient(companyId: string, actorId: string, input: Cr
 export async function listClients(companyId: string) {
   return clientRepo.listClients(companyId);
 }
+
+/**
+ * Archivar/reactivar cliente (soft-delete, § CLAUDE.md §4 — nunca borrado
+ * físico): un cliente archivado deja de aparecer entre las opciones al crear
+ * un evento nuevo, pero conserva su historial de solicitudes y facturación.
+ */
+export async function setClientActiveStatus(
+  companyId: string,
+  actorId: string,
+  clientId: string,
+  isActive: boolean,
+) {
+  const client = await clientRepo.setClientActive(companyId, clientId, isActive);
+  if (!client) throw new ClientError("Cliente no encontrado.");
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: isActive ? "CLIENT_REACTIVATED" : "CLIENT_ARCHIVED",
+    entityType: "Client",
+    entityId: clientId,
+  });
+
+  return client;
+}

@@ -14,6 +14,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ClientForm } from "./client-form";
 import { ShareEventRequestLink } from "./share-event-request-link";
+import { ClientStatusToggle } from "./client-status-toggle";
 
 const dateFormatter = new Intl.DateTimeFormat("es", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -68,6 +69,7 @@ export default async function ClientesPage() {
                       {client.events[0] ? dateFormatter.format(client.events[0].createdAt) : "—"}
                     </p>
                   </div>
+                  <ClientStatusToggle clientId={client.id} isActive={client.isActive} />
                 </div>
               </li>
             ))}
