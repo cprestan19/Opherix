@@ -8,8 +8,9 @@
 
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { findCompanyBySlug } from "@/repositories/worker.repository";
+import { PublicFormHeader } from "@/components/shared/public-form-header";
 import { ApplicationForm } from "./application-form";
 
 export const metadata: Metadata = {
@@ -29,14 +30,11 @@ export default async function PostulateCompanyPage({
     <div className="min-h-svh w-full bg-secondary px-4 py-10">
       <div className="mx-auto w-full max-w-3xl">
         <Card className="border-border shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl">Únete al equipo de {company.name}</CardTitle>
-            <CardDescription>
-              Completa tu postulación como personal de eventos: meseros, bartenders, anfitriones,
-              cocineros, seguridad y logística.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+          <PublicFormHeader
+            title={`Únete al equipo de ${company.name}`}
+            description="Completa tu postulación como personal de eventos: meseros, bartenders, anfitriones, cocineros, seguridad y logística."
+          />
+          <CardContent className="pt-4">
             <ApplicationForm companySlug={company.slug} />
           </CardContent>
         </Card>
