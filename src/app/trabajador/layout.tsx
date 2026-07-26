@@ -19,6 +19,7 @@ import {
 import { auth } from "@/lib/auth";
 import { getPortalPath } from "@/lib/portal-routing";
 import { PortalShell } from "@/components/shared/portal-shell";
+import { PushPermission } from "@/components/shared/push-permission";
 import type { NavGroup } from "@/components/shared/app-sidebar";
 
 const navGroups: NavGroup[] = [
@@ -66,6 +67,7 @@ export default async function TrabajadorLayout({ children }: { children: React.R
         image: session.user.image ?? undefined,
       }}
     >
+      <PushPermission />
       {children}
     </PortalShell>
   );

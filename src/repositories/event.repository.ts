@@ -252,7 +252,13 @@ export async function cancelAssignment(companyId: string, assignmentId: string) 
 export function listAssignmentsForWorker(workerId: string) {
   return prisma.workerAssignment.findMany({
     where: { workerId, status: { not: "CANCELLED" } },
-    include: { event: { include: { client: { select: { businessName: true } } } } },
+    include: {
+      event: {
+        include: {
+          client: { select: { businessName: true, contactName: true, contactPhone: true } },
+        },
+      },
+    },
     orderBy: { event: { startAt: "asc" } },
   });
 }

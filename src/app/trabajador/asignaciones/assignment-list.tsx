@@ -9,7 +9,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { Loader2, Check, X, MapPin } from "lucide-react";
+import { Loader2, Check, X, MapPin, User, Phone } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +38,7 @@ interface AssignmentItem {
     address: string;
     startAt: Date;
     endAt: Date;
-    client: { businessName: string };
+    client: { businessName: string; contactName: string; contactPhone: string | null };
   };
 }
 
@@ -74,6 +74,14 @@ export function AssignmentList({ assignments }: { assignments: AssignmentItem[] 
             </p>
             <p className="flex items-center gap-1 text-sm text-muted-foreground">
               <MapPin className="size-3.5" /> {assignment.event.address}
+            </p>
+            <p className="flex items-center gap-1 text-sm text-muted-foreground">
+              <User className="size-3.5" /> {assignment.event.client.contactName}
+              {assignment.event.client.contactPhone ? (
+                <span className="ml-2 flex items-center gap-1">
+                  <Phone className="size-3.5" /> {assignment.event.client.contactPhone}
+                </span>
+              ) : null}
             </p>
             {assignment.status === "PROPOSED" ? (
               <div className="mt-2 flex gap-2">
