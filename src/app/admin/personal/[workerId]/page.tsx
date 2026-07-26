@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -7,23 +7,18 @@
  */
 
 import { notFound } from "next/navigation";
-import { FileText, Star, CalendarClock } from "lucide-react";
+import Link from "next/link";
+import { FileText, Star, CalendarClock, Pencil } from "lucide-react";
 import { getEffectiveCompanyId } from "@/lib/tenant";
 import { getWorkerDetail } from "@/repositories/worker.repository";
+import { listUpcomingAssignmentsForWorker } from "@/repositories/availability.repository";
 import { WorkerCv } from "@/components/shared/worker-cv";
+import { WorkerAvailabilityGrid } from "@/components/shared/worker-availability-grid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { WEEKDAY_LABELS } from "@/utils/date";
-
-const DOCUMENT_TYPE_LABELS: Record<string, string> = {
-  ID_CARD: "Cédula",
-  RESUME: "Currículum",
-  HEALTH_CARD: "Carnet de salud",
-  FOOD_HANDLING: "Manipulación de alimentos",
-  LICENSE: "Licencia",
-  CERTIFICATE: "Certificado",
-  OTHER: "Otro",
-};
+import { Button } from "@/components/ui/button";
+import { DOCUMENT_TYPE_LABELS, WORKER_STATUS_LABELS } from "@/lib/labels";
+import { WorkerStatusToggle } from "./worker-status-toggle";
 
 export default async function WorkerDetailPage({
   params,
@@ -36,18 +31,28 @@ export default async function WorkerDetailPage({
 
   if (!worker) notFound();
 
-  const slotsByDay = new Map<number, string[]>();
-  for (const slot of worker.availabilitySlots) {
-    const list = slotsByDay.get(slot.dayOfWeek) ?? [];
-    list.push(`${slot.startTime}–${slot.endTime}`);
-    slotsByDay.set(slot.dayOfWeek, list);
-  }
+  const upcomingAssignments = await listUpcomingAssignmentsForWorker(worker.id);
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{worker.user.name}</h1>
-        <p className="text-sm text-muted-foreground">Perfil completo del trabajador.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">{worker.user.name}</h1>
+          <p className="text-sm text-muted-foreground">
+            Perfil completo del trabajador ·{" "}
+            <Badge variant="secondary" className="align-middle">
+              {WORKER_STATUS_LABELS[worker.status]}
+            </Badge>
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <WorkerStatusToggle workerId={worker.id} status={worker.status} />
+          <Button asChild size="sm" className="gap-1.5">
+            <Link href={`/admin/personal/${worker.id}/editar`}>
+              <Pencil className="size-3.5" /> Editar
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <WorkerCv
@@ -70,57 +75,46 @@ export default async function WorkerDetailPage({
         }}
       />
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-medium">
-              <CalendarClock className="size-4" /> Disponibilidad
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {slotsByDay.size === 0 ? (
-              <p className="text-sm text-muted-foreground">Aún no ha configurado su disponibilidad.</p>
-            ) : (
-              <ul className="flex flex-col gap-1 text-sm">
-                {WEEKDAY_LABELS.map((label, day) =>
-                  slotsByDay.has(day) ? (
-                    <li key={day} className="flex justify-between">
-                      <span>{label}</span>
-                      <span className="text-muted-foreground">{slotsByDay.get(day)!.join(", ")}</span>
-                    </li>
-                  ) : null,
-                )}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base font-medium">
+            <CalendarClock className="size-4" /> Disponibilidad
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {worker.availabilitySlots.length === 0 && upcomingAssignments.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aún no ha configurado su disponibilidad.</p>
+          ) : (
+            <WorkerAvailabilityGrid slots={worker.availabilitySlots} upcomingAssignments={upcomingAssignments} />
+          )}
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base font-medium">
-              <FileText className="size-4" /> Documentos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {worker.documents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sin documentos cargados.</p>
-            ) : (
-              <ul className="flex flex-col gap-2 text-sm">
-                {worker.documents.map((doc) => (
-                  <li key={doc.id} className="flex items-center justify-between">
-                    <span>{DOCUMENT_TYPE_LABELS[doc.type]}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {doc.expiresAt
-                        ? `Vence ${new Intl.DateTimeFormat("es").format(doc.expiresAt)}`
-                        : "Sin vencimiento"}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base font-medium">
+            <FileText className="size-4" /> Documentos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {worker.documents.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sin documentos cargados.</p>
+          ) : (
+            <ul className="flex flex-col gap-2 text-sm">
+              {worker.documents.map((doc) => (
+                <li key={doc.id} className="flex items-center justify-between">
+                  <span>{DOCUMENT_TYPE_LABELS[doc.type]}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {doc.expiresAt
+                      ? `Vence ${new Intl.DateTimeFormat("es").format(doc.expiresAt)}`
+                      : "Sin vencimiento"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

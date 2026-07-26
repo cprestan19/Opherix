@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -15,10 +15,17 @@ import {
   removeAssignment,
   confirmEvent,
   cancelEvent,
+  updateEventFull,
+  archiveEvent,
+  generateEventAccessLink,
+  resendEventAccessLink,
+  closeEventAccessLink,
+  reopenEventAccessLink,
   EventError,
 } from "@/services/event.service";
 import { getEventDetail } from "@/repositories/event.repository";
 import { issueInvoiceForEvent, InvoiceError } from "@/services/invoice.service";
+import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
 
 export interface EventActionResult {
   error?: string;
@@ -56,6 +63,104 @@ export async function cancelEventAction(eventId: string, reason: string) {
   const user = await getCurrentUser();
   await cancelEvent(companyId, eventId, user.id, reason);
   revalidatePath(`/admin/eventos/${eventId}`);
+}
+
+export async function updateEventAction(eventId: string, input: EventRequestInput): Promise<EventActionResult> {
+  const parsed = eventRequestSchema.safeParse(input);
+  if (!parsed.success) return { error: "Revisa los campos del formulario." };
+
+  const companyId = await getEffectiveCompanyId();
+  const user = await getCurrentUser();
+
+  try {
+    await updateEventFull(companyId, user.id, eventId, parsed.data);
+  } catch (error) {
+    if (error instanceof EventError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath(`/admin/eventos/${eventId}`);
+  return {};
+}
+
+export async function archiveEventAction(eventId: string): Promise<EventActionResult> {
+  const companyId = await getEffectiveCompanyId();
+  const user = await getCurrentUser();
+
+  try {
+    await archiveEvent(companyId, user.id, eventId);
+  } catch (error) {
+    if (error instanceof EventError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath(`/admin/eventos/${eventId}`);
+  revalidatePath("/admin/eventos");
+  return {};
+}
+
+export interface EventAccessLinkResult {
+  error?: string;
+  link?: string;
+  expiresAt?: Date;
+}
+
+function buildLink(companySlug: string, eventId: string, token: string) {
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  return `${baseUrl}/solicitar/${companySlug}/evento/${eventId}?token=${token}`;
+}
+
+export async function generateEventAccessLinkAction(eventId: string, companySlug: string): Promise<EventAccessLinkResult> {
+  const companyId = await getEffectiveCompanyId();
+  const user = await getCurrentUser();
+
+  try {
+    const { token, expiresAt } = await generateEventAccessLink(companyId, user.id, eventId);
+    revalidatePath(`/admin/eventos/${eventId}`);
+    return { link: buildLink(companySlug, eventId, token), expiresAt: expiresAt ?? undefined };
+  } catch (error) {
+    if (error instanceof EventError) return { error: error.message };
+    throw error;
+  }
+}
+
+export async function resendEventAccessLinkAction(eventId: string, companySlug: string): Promise<EventActionResult> {
+  const companyId = await getEffectiveCompanyId();
+  const user = await getCurrentUser();
+
+  try {
+    await resendEventAccessLink(companyId, user.id, eventId, companySlug);
+  } catch (error) {
+    if (error instanceof EventError) return { error: error.message };
+    throw error;
+  }
+  return {};
+}
+
+export async function closeEventAccessLinkAction(eventId: string): Promise<EventActionResult> {
+  const companyId = await getEffectiveCompanyId();
+  const user = await getCurrentUser();
+
+  try {
+    await closeEventAccessLink(companyId, user.id, eventId);
+  } catch (error) {
+    if (error instanceof EventError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath(`/admin/eventos/${eventId}`);
+  return {};
+}
+
+export async function reopenEventAccessLinkAction(eventId: string): Promise<EventActionResult> {
+  const companyId = await getEffectiveCompanyId();
+  const user = await getCurrentUser();
+
+  try {
+    await reopenEventAccessLink(companyId, user.id, eventId);
+  } catch (error) {
+    if (error instanceof EventError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath(`/admin/eventos/${eventId}`);
+  return {};
 }
 
 export async function issueInvoiceAction(eventId: string, amount: number): Promise<EventActionResult> {

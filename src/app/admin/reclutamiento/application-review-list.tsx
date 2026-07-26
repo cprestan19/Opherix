@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,6 +10,7 @@
 
 import { useState, useTransition } from "react";
 import { Loader2, Check, X } from "lucide-react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -58,12 +59,14 @@ function ApplicationCard({ application }: { application: Application }) {
   function handleApprove() {
     startTransition(async () => {
       await approveApplicationAction(application.id);
+      toast.success(`${application.user.name} fue aprobado`);
     });
   }
 
   function handleReject() {
     startTransition(async () => {
       await rejectApplicationAction(application.id, rejectReason || "No especificado");
+      toast.success(`Postulación de ${application.user.name} rechazada`);
       setDialogOpen(false);
     });
   }

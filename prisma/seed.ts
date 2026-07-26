@@ -14,7 +14,7 @@ const prisma = new PrismaClient({ adapter });
 const DEMO_ADMIN_EMAIL = "admin@demo.eventstaff.local";
 const DEMO_ADMIN_PASSWORD = "Admin123!";
 
-const PLATFORM_ADMIN_EMAIL = "owner@operix.app";
+const PLATFORM_ADMIN_EMAIL = "owner@opherix.app";
 
 async function main() {
   const existingPlatformAdmin = await prisma.platformAdmin.findUnique({
@@ -29,7 +29,7 @@ async function main() {
       data: {
         email: PLATFORM_ADMIN_EMAIL,
         passwordHash: platformPasswordHash,
-        name: "Operix Owner",
+        name: "Opherix Owner",
       },
     });
   }
@@ -83,7 +83,7 @@ async function main() {
   console.log(`Admin demo: ${DEMO_ADMIN_EMAIL} / ${DEMO_ADMIN_PASSWORD}`);
   console.log(`Enlace de postulación: /postulate/${company.slug}`);
   if (platformAdminPassword) {
-    console.log(`Platform admin (dueño de Operix): ${PLATFORM_ADMIN_EMAIL} / ${platformAdminPassword}`);
+    console.log(`Platform admin (dueño de Opherix): ${PLATFORM_ADMIN_EMAIL} / ${platformAdminPassword}`);
   } else {
     console.log(`Platform admin ya existía: ${PLATFORM_ADMIN_EMAIL} (contraseña sin cambios)`);
   }

@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,17 +25,8 @@ import {
 } from "@/components/shared/responsive-dialog";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { uploadDocumentAction } from "./actions";
+import { DOCUMENT_TYPE_LABELS } from "@/lib/labels";
 import type { DocumentType } from "@/generated/prisma/enums";
-
-const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  ID_CARD: "Cédula",
-  RESUME: "Currículum",
-  HEALTH_CARD: "Carnet de salud",
-  FOOD_HANDLING: "Manipulación de alimentos",
-  LICENSE: "Licencia",
-  CERTIFICATE: "Certificado",
-  OTHER: "Otro",
-};
 
 export function DocumentUploadForm() {
   const [open, setOpen] = useState(false);
@@ -53,6 +45,7 @@ export function DocumentUploadForm() {
       expiresAt: expiresAt || undefined,
     });
     setIsSubmitting(false);
+    toast.success("Documento subido correctamente");
     setOpen(false);
     setFile(undefined);
     setExpiresAt("");

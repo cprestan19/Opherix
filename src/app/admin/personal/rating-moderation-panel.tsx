@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,6 +10,7 @@
 
 import { useTransition } from "react";
 import { Loader2, Check, X, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { reviewRatingAction } from "./rating-moderation-actions";
@@ -55,7 +56,12 @@ export function RatingModerationPanel({ items }: { items: PendingRating[] }) {
                 variant="outline"
                 className="gap-1 text-danger"
                 disabled={isPending}
-                onClick={() => startTransition(() => reviewRatingAction(item.id, "REJECTED"))}
+                onClick={() =>
+                  startTransition(async () => {
+                    await reviewRatingAction(item.id, "REJECTED");
+                    toast.success("Calificación oculta");
+                  })
+                }
               >
                 <X className="size-4" /> Ocultar
               </Button>
@@ -63,7 +69,12 @@ export function RatingModerationPanel({ items }: { items: PendingRating[] }) {
                 size="sm"
                 className="gap-1"
                 disabled={isPending}
-                onClick={() => startTransition(() => reviewRatingAction(item.id, "APPROVED"))}
+                onClick={() =>
+                  startTransition(async () => {
+                    await reviewRatingAction(item.id, "APPROVED");
+                    toast.success("Calificación publicada");
+                  })
+                }
               >
                 {isPending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
                 Publicar

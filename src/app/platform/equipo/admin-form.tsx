@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -12,6 +12,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/shared/password-input";
@@ -51,8 +52,10 @@ export function AdminForm() {
     const result = await createPlatformAdminAction(values);
     if (result?.error) {
       setServerError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success("Miembro creado correctamente");
     reset(defaultValues);
     setOpen(false);
   }
@@ -69,7 +72,7 @@ export function AdminForm() {
           <DialogHeader>
             <DialogTitle>Nuevo admin de plataforma</DialogTitle>
             <DialogDescription>
-              Tendrá el mismo nivel de acceso que tú: ver y administrar todas las empresas de Operix.
+              Tendrá el mismo nivel de acceso que tú: ver y administrar todas las empresas de Opherix.
             </DialogDescription>
           </DialogHeader>
 

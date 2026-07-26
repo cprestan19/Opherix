@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,6 +10,7 @@
 
 import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -28,7 +29,7 @@ export function EventActions({ eventId, status }: { eventId: string; status: str
   const [reason, setReason] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  if (status === "CANCELLED" || status === "COMPLETED") return null;
+  if (status === "CANCELLED" || status === "COMPLETED" || status === "ARCHIVED") return null;
 
   return (
     <div className="flex gap-2">
@@ -54,6 +55,7 @@ export function EventActions({ eventId, status }: { eventId: string; status: str
               onClick={() =>
                 startTransition(async () => {
                   await cancelEventAction(eventId, reason || "No especificado");
+                  toast.success("Evento cancelado");
                   setDialogOpen(false);
                 })
               }
@@ -65,7 +67,15 @@ export function EventActions({ eventId, status }: { eventId: string; status: str
         </DialogContent>
       </Dialog>
       {status === "REQUESTED" ? (
-        <Button disabled={isPending} onClick={() => startTransition(() => confirmEventAction(eventId))}>
+        <Button
+          disabled={isPending}
+          onClick={() =>
+            startTransition(async () => {
+              await confirmEventAction(eventId);
+              toast.success("Evento confirmado");
+            })
+          }
+        >
           {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
           Confirmar evento
         </Button>

@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -13,7 +13,7 @@ import { findCompanyBySlug } from "@/repositories/worker.repository";
 import { ApplicationForm } from "./application-form";
 
 export const metadata: Metadata = {
-  title: "Postúlate | Operix",
+  title: "Postúlate | Opherix",
 };
 
 export default async function PostulateCompanyPage({

@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -20,9 +20,10 @@ export default async function DisponibilidadTrabajadorPage() {
     return <p className="text-sm text-muted-foreground">No se encontró tu perfil de trabajador.</p>;
   }
 
-  const [slots, timeOffs] = await Promise.all([
+  const [slots, timeOffs, upcomingAssignments] = await Promise.all([
     availabilityRepo.listSlotsForWorker(worker.id),
     availabilityRepo.listTimeOffForWorker(worker.id),
+    availabilityRepo.listUpcomingAssignmentsForWorker(worker.id),
   ]);
 
   return (
@@ -33,7 +34,10 @@ export default async function DisponibilidadTrabajadorPage() {
           Indica tus días/horas disponibles y solicita vacaciones o permisos.
         </p>
       </div>
-      <AvailabilityGrid initialSlots={slots} />
+      <AvailabilityGrid
+        initialSlots={slots}
+        occupiedRanges={upcomingAssignments.map((a) => a.event)}
+      />
       <TimeOffPanel items={timeOffs} />
     </div>
   );

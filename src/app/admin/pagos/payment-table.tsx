@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { Loader2, Pencil } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,6 +84,7 @@ function PaymentRow({ record }: { record: PaymentRecordRow }) {
     setIsSubmitting(true);
     await markAsPaidAction(record.id, method);
     setIsSubmitting(false);
+    toast.success("Pago marcado como pagado");
     setPayOpen(false);
   }
 
@@ -90,6 +92,7 @@ function PaymentRow({ record }: { record: PaymentRecordRow }) {
     setIsSubmitting(true);
     await adjustPaymentAction(record.id, Number(bonuses), Number(deductions));
     setIsSubmitting(false);
+    toast.success("Bonos/descuentos ajustados correctamente");
     setAdjustOpen(false);
   }
 

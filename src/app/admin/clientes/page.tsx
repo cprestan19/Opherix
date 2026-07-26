@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -9,8 +9,11 @@
 import { getEffectiveCompanyId } from "@/lib/tenant";
 import { listClients } from "@/services/client.service";
 import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ClientForm } from "./client-form";
+
+const dateFormatter = new Intl.DateTimeFormat("es", { day: "2-digit", month: "short", year: "numeric" });
 
 export default async function ClientesPage() {
   const companyId = await getEffectiveCompanyId();
@@ -33,24 +36,36 @@ export default async function ClientesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {clients.map((client) => (
-            <Card key={client.id}>
-              <CardContent className="flex flex-col gap-2 p-5">
-                <p className="font-medium">{client.businessName}</p>
-                <p className="text-sm text-muted-foreground">
-                  {client.contactName} · {client.contactEmail}
-                </p>
-                <div className="flex items-center gap-2">
-                  <Badge variant={client.isActive ? "secondary" : "outline"}>
-                    {client.isActive ? "Activo" : "Inactivo"}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">{client._count.events} evento(s)</span>
+        <Card className="py-0">
+          <ul className="divide-y divide-border">
+            {clients.map((client) => (
+              <li key={client.id}>
+                <div className="flex items-center gap-3 py-2.5 pr-4 pl-3.5 sm:gap-4">
+                  <Avatar className="size-10 shrink-0">
+                    <AvatarFallback className="text-xs">{client.businessName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="truncate font-medium">{client.businessName}</p>
+                      <Badge variant={client.isActive ? "secondary" : "outline"} className="shrink-0">
+                        {client.isActive ? "Activo" : "Inactivo"}
+                      </Badge>
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {client.contactName} · {client.contactEmail}
+                      {client.contactPhone ? ` · ${client.contactPhone}` : ""}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {client._count.events} solicitud(es) · Registrado: {dateFormatter.format(client.createdAt)} ·
+                      Última solicitud:{" "}
+                      {client.events[0] ? dateFormatter.format(client.events[0].createdAt) : "—"}
+                    </p>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
     </div>
   );

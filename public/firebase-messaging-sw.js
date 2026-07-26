@@ -19,7 +19,7 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   const { title, body } = payload.notification ?? {};
-  self.registration.showNotification(title ?? "Operix", {
+  self.registration.showNotification(title ?? "Opherix", {
     body: body ?? "",
     icon: "/icons/icon-192.png",
   });

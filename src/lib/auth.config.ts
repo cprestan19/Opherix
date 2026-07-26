@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -29,6 +29,7 @@ export const authConfig = {
         pathname.startsWith("/forgot-password") ||
         pathname.startsWith("/reset-password") ||
         pathname.startsWith("/postulate") ||
+        pathname.startsWith("/solicitar") ||
         pathname.startsWith("/api/auth") ||
         pathname.startsWith("/api/cron") ||
         pathname.startsWith("/api/imagekit/auth");

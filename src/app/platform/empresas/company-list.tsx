@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,6 +10,7 @@
 
 import { useState, useTransition } from "react";
 import { Loader2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,9 +93,18 @@ function CompanyCard({ company }: { company: CompanyRow }) {
     setIsDeleting(false);
     if (result?.error) {
       setDeleteError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success(`Empresa "${company.name}" eliminada permanentemente`);
     setDeleteOpen(false);
+  }
+
+  function handleToggleActive() {
+    startTransition(async () => {
+      await setCompanyActiveAction(company.id, !company.isActive);
+      toast.success(company.isActive ? "Empresa desactivada" : "Empresa activada");
+    });
   }
 
   return (
@@ -145,9 +155,7 @@ function CompanyCard({ company }: { company: CompanyRow }) {
             variant="outline"
             className="flex-1"
             disabled={isPending}
-            onClick={() =>
-              startTransition(() => setCompanyActiveAction(company.id, !company.isActive))
-            }
+            onClick={handleToggleActive}
           >
             {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
             {company.isActive ? "Desactivar" : "Activar"}

@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -37,7 +37,7 @@ export async function sendEmail(to: string, subject: string, body: string): Prom
     // jsonTransport, `raw`, headers List-*, envelope.size y OAuth2, que son
     // las superficies afectadas por los CVEs conocidos de nodemailer.
     await client.sendMail({
-      from: process.env.EMAIL_FROM ?? "notificaciones@operix.app",
+      from: process.env.EMAIL_FROM ?? "notificaciones@opherix.app",
       to,
       subject,
       text: body,

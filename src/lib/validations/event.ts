@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -27,3 +27,14 @@ export const eventRequestSchema = z.object({
 });
 
 export type EventRequestInput = z.infer<typeof eventRequestSchema>;
+
+/**
+ * Creación/edición desde el portal Administrador — a diferencia de la
+ * solicitud del Cliente (que ya tiene su propio clientId resuelto de la
+ * sesión), el admin elige explícitamente a qué cliente pertenece el evento.
+ */
+export const adminEventSchema = eventRequestSchema.extend({
+  clientId: z.string().min(1, "Selecciona un cliente"),
+});
+
+export type AdminEventInput = z.infer<typeof adminEventSchema>;

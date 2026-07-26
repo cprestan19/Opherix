@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -20,7 +20,7 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: "Operix",
+  title: "Opherix",
   description: "Plataforma inteligente para gestionar tu personal temporal de eventos",
   manifest: "/manifest.json",
   icons: {
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Operix",
+    title: "Opherix",
   },
 };
 

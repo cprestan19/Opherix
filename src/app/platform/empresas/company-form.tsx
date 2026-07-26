@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -12,6 +12,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/shared/password-input";
@@ -57,8 +58,10 @@ export function CompanyForm() {
     const result = await createCompanyAction(values);
     if (result?.error) {
       setServerError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success("Empresa creada correctamente");
     reset(defaultValues);
     setOpen(false);
   }
@@ -73,7 +76,7 @@ export function CompanyForm() {
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>Nueva empresa cliente de Operix</DialogTitle>
+            <DialogTitle>Nueva empresa cliente de Opherix</DialogTitle>
             <DialogDescription>
               Crea el tenant y su primera cuenta de Administrador para que puedan empezar a operar.
             </DialogDescription>

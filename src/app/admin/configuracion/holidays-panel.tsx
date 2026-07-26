@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { Loader2, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { addHolidayAction, removeHolidayAction } from "./actions";
@@ -30,8 +31,14 @@ export function HolidaysPanel({ holidays }: { holidays: Holiday[] }) {
     setIsSubmitting(true);
     await addHolidayAction(date, name);
     setIsSubmitting(false);
+    toast.success("Feriado agregado correctamente");
     setDate("");
     setName("");
+  }
+
+  async function handleRemove(id: string, holidayName: string) {
+    await removeHolidayAction(id);
+    toast.success(`Feriado "${holidayName}" eliminado`);
   }
 
   return (
@@ -57,7 +64,7 @@ export function HolidaysPanel({ holidays }: { holidays: Holiday[] }) {
                 variant="ghost"
                 size="icon"
                 aria-label={`Quitar feriado ${h.name}`}
-                onClick={() => removeHolidayAction(h.id)}
+                onClick={() => handleRemove(h.id, h.name)}
               >
                 <Trash2 className="size-4" />
               </Button>

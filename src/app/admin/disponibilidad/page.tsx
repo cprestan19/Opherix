@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -7,15 +7,15 @@
  */
 
 import { getEffectiveCompanyId } from "@/lib/tenant";
-import { listWorkersWithAvailability, listPendingTimeOff } from "@/repositories/availability.repository";
+import { listWorkersWithAvailability } from "@/repositories/availability.repository";
+import { listAssignableEvents } from "@/repositories/event.repository";
 import { AvailabilityOverview } from "./availability-overview";
-import { TimeOffQueue } from "./time-off-queue";
 
 export default async function DisponibilidadAdminPage() {
   const companyId = await getEffectiveCompanyId();
-  const [workers, pendingTimeOff] = await Promise.all([
+  const [workers, events] = await Promise.all([
     listWorkersWithAvailability(companyId),
-    listPendingTimeOff(companyId),
+    listAssignableEvents(companyId),
   ]);
 
   return (
@@ -25,14 +25,7 @@ export default async function DisponibilidadAdminPage() {
         <p className="text-sm text-muted-foreground">Vista consolidada de disponibilidad del personal.</p>
       </div>
 
-      <div>
-        <h2 className="mb-2 text-sm font-medium text-muted-foreground">
-          Solicitudes pendientes ({pendingTimeOff.length})
-        </h2>
-        <TimeOffQueue items={pendingTimeOff} />
-      </div>
-
-      <AvailabilityOverview workers={workers} />
+      <AvailabilityOverview workers={workers} events={events} />
     </div>
   );
 }

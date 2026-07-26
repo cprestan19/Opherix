@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -11,10 +11,10 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PasswordInput } from "@/components/shared/password-input";
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
@@ -35,7 +35,6 @@ const defaultValues: CreateClientInput = {
   contactEmail: "",
   contactPhone: "",
   address: "",
-  password: "",
 };
 
 export function ClientForm() {
@@ -53,8 +52,10 @@ export function ClientForm() {
     const result = await createClientAction(values);
     if (result?.error) {
       setServerError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success("Cliente creado correctamente");
     reset(defaultValues);
     setOpen(false);
   }
@@ -69,9 +70,10 @@ export function ClientForm() {
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>Nueva cuenta cliente</DialogTitle>
+            <DialogTitle>Nuevo cliente</DialogTitle>
             <DialogDescription>
-              Se creará la empresa cliente y un usuario de acceso con el correo indicado.
+              Registro de contacto para facturación e historial de eventos — el cliente solicita
+              personal desde el link público de la empresa, sin necesidad de cuenta ni contraseña.
             </DialogDescription>
           </DialogHeader>
 
@@ -92,14 +94,9 @@ export function ClientForm() {
             </Field>
           </div>
           <Field data-invalid={!!errors.contactEmail}>
-            <FieldLabel htmlFor="contactEmail">Correo de acceso</FieldLabel>
+            <FieldLabel htmlFor="contactEmail">Correo de contacto</FieldLabel>
             <Input id="contactEmail" type="email" {...register("contactEmail")} />
             <FieldError errors={[errors.contactEmail]} />
-          </Field>
-          <Field data-invalid={!!errors.password}>
-            <FieldLabel htmlFor="password">Contraseña inicial</FieldLabel>
-            <PasswordInput id="password" {...register("password")} />
-            <FieldError errors={[errors.password]} />
           </Field>
           <Field>
             <FieldLabel htmlFor="address">Dirección</FieldLabel>

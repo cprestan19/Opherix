@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { Loader2, Plus } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -74,8 +75,10 @@ export function TimeOffPanel({ items }: { items: TimeOffItem[] }) {
     const result = await requestTimeOffAction(values);
     if (result?.error) {
       setServerError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success("Solicitud enviada correctamente");
     reset();
     setOpen(false);
   }

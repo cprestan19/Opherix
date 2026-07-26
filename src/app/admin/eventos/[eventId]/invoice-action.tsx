@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { Loader2, Receipt } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,8 +37,10 @@ export function InvoiceAction({ eventId }: { eventId: string }) {
     setIsSubmitting(false);
     if (result?.error) {
       setError(result.error);
+      toast.error(result.error);
       return;
     }
+    toast.success("Factura emitida correctamente");
     setOpen(false);
   }
 

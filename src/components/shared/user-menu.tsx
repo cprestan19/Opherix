@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -31,18 +31,18 @@ interface UserMenuProps {
 export function UserMenu({ name, email, image, roleLabel, profileHref }: UserMenuProps) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg px-2 py-1.5 outline-none hover:bg-secondary">
+      <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg px-2 py-1.5 outline-none hover:bg-white/10 md:hover:bg-secondary">
         <Avatar className="size-8">
           <AvatarImage src={image} alt={name} />
           <AvatarFallback className="bg-primary/10 text-primary">
             {name.slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <div className="hidden flex-col items-start leading-none sm:flex">
+        <div className="hidden flex-col items-start leading-none md:flex">
           <span className="text-sm font-medium">{name}</span>
           <span className="text-xs text-muted-foreground">{roleLabel}</span>
         </div>
-        <ChevronDown className="size-4 text-muted-foreground" />
+        <ChevronDown className="size-4 text-white/70 md:text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>

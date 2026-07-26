@@ -1,4 +1,4 @@
-// OPERIX — Plataforma SaaS de gestión de personal para eventos
+// OPHERIX — Plataforma SaaS de gestión de personal para eventos
 // © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
 // Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
 // distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -18,7 +18,7 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
-// Dueño de la plataforma (Operix) — NO pertenece a ningún tenant.
+// Dueño de la plataforma (Opherix) — NO pertenece a ningún tenant.
 // Separado deliberadamente de `User` (que siempre requiere companyId): un
 // admin de plataforma opera POR ENCIMA de las empresas, no dentro de una.
 // ---------------------------------------------------------------------------
@@ -78,6 +78,13 @@ enum BillingStatus {
   CANCELLED
 }
 
+enum AutoArchiveDelay {
+  OFF
+  IMMEDIATE
+  AFTER_1H
+  AFTER_24H
+}
+
 model Company {
   id           String   @id @default(cuid())
   name         String
@@ -88,7 +95,7 @@ model Company {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  // Uso de la plataforma (visible solo para el dueño de Operix en /platform)
+  // Uso de la plataforma (visible solo para el dueño de Opherix en /platform)
   lastAccessedAt DateTime?
 
   // Facturación del SaaS a este tenant — solo registro/seguimiento, igual que
@@ -98,15 +105,20 @@ model Company {
   billingCycleDay  Int           @default(1) // día del mes en que "renueva" el ciclo
   billingStatus    BillingStatus @default(TRIAL)
 
-  users         User[]
-  clients       Client[]
-  workers       Worker[]
-  events        Event[]
-  payRuleSets   PayRuleSet[]
-  holidays      Holiday[]
-  invoices      ClientInvoice[]
-  notifications Notification[]
-  auditLogs     AuditLog[]
+  // Archivado automático de eventos según su hora de finalización (endAt) —
+  // el cron /api/cron/archive-events solo actúa sobre tenants con esto != OFF.
+  autoArchiveDelay AutoArchiveDelay @default(OFF)
+
+  users              User[]
+  clients            Client[]
+  workers            Worker[]
+  events             Event[]
+  payRuleSets        PayRuleSet[]
+  holidays           Holiday[]
+  invoices           ClientInvoice[]
+  notifications      Notification[]
+  auditLogs          AuditLog[]
+  clientAccessTokens ClientAccessToken[]
 
   @@index([slug])
 }
@@ -189,11 +201,34 @@ model Client {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  users    User[]
-  events   Event[]
-  invoices ClientInvoice[]
+  users        User[]
+  events       Event[]
+  invoices     ClientInvoice[]
+  accessTokens ClientAccessToken[]
 
   @@index([companyId])
+}
+
+// ---------------------------------------------------------------------------
+// Sesión "recuérdame sin contraseña" — el Cliente ya no se autentica con
+// contraseña ni tiene portal propio; solicita desde /solicitar/[companySlug]
+// (sin verificación por correo, protegido solo por Turnstile + rate limiting)
+// y esto le permite volver a ver el estado sin repetir el formulario (7 días).
+// Reemplaza el antiguo portal /cliente/* con login.
+// ---------------------------------------------------------------------------
+model ClientAccessToken {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  email     String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([tokenHash])
+  @@index([clientId])
 }
 
 // ---------------------------------------------------------------------------
@@ -335,6 +370,7 @@ enum EventStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+  ARCHIVED
 }
 
 model Event {
@@ -353,8 +389,29 @@ model Event {
   status       EventStatus @default(DRAFT)
   notes        String?
   cancelReason String?
-  createdById  String
-  createdBy    User        @relation("EventCreatedBy", fields: [createdById], references: [id])
+  archivedAt   DateTime?
+  // Solo se llena en eventos creados desde /solicitar/[companySlug] (formulario
+  // público sin cuenta) — usado únicamente para el rate limiting por IP de ese
+  // flujo, nunca para eventos creados por un Administrador.
+  ipAddress    String?
+  // Opcional: los eventos que nacen de /solicitar/[companySlug] no tienen
+  // ningún User que los "cree" — el solicitante no tiene cuenta.
+  createdById  String?
+  createdBy    User?       @relation("EventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  // Link único del evento (§ /solicitar/[companySlug]/evento/[eventId]) — el
+  // mismo que el cliente usa para ver/editar su solicitud y, al finalizar el
+  // evento, calificar el servicio. Se guarda en claro (no hasheado, a
+  // diferencia de OTP/contraseñas) porque el Administrador necesita poder
+  // reenviarlo más de una vez — su seguridad depende de la expiración y de
+  // que solo se comparte explícitamente, no de ser un secreto irrecuperable.
+  // Vive hasta accessTokenExpiresAt o hasta que el Administrador lo cierre
+  // manualmente (accessClosedAt); una vez terminado el evento, solo el
+  // Administrador puede reabrirlo (máx. 24h).
+  accessToken          String?   @unique
+  accessTokenExpiresAt DateTime?
+  accessClosedAt       DateTime?
+
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 

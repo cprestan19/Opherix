@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -9,11 +9,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { OperixLogo } from "@/components/shared/operix-logo";
+import { OpherixLogo } from "@/components/shared/opherix-logo";
 import { ResetPasswordForm } from "./reset-password-form";
 
 export const metadata: Metadata = {
-  title: "Restablecer contraseña | Operix",
+  title: "Restablecer contraseña | Opherix",
 };
 
 export default async function ResetPasswordPage({
@@ -28,8 +28,8 @@ export default async function ResetPasswordPage({
       <div className="w-full max-w-sm">
         <div className="mb-6 flex justify-center">
           <div className="flex items-center gap-2">
-            <OperixLogo size={32} />
-            <span className="text-xl font-bold">Operix</span>
+            <OpherixLogo size={32} />
+            <span className="text-xl font-bold">Opherix</span>
           </div>
         </div>
         <Card className="border-border shadow-sm">

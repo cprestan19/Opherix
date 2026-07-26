@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -11,8 +11,9 @@
 import { revalidatePath } from "next/cache";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
-import { updatePayRules, addHoliday, removeHoliday } from "@/services/config.service";
+import { updatePayRules, addHoliday, removeHoliday, updateAutoArchiveDelay } from "@/services/config.service";
 import { updateCompanyBranding } from "@/repositories/config.repository";
+import type { AutoArchiveDelay } from "@/generated/prisma/enums";
 
 export async function updateBrandingAction(name: string) {
   const companyId = await getEffectiveCompanyId();
@@ -44,5 +45,12 @@ export async function removeHolidayAction(holidayId: string) {
   const companyId = await getEffectiveCompanyId();
   const user = await getCurrentUser();
   await removeHoliday(companyId, user.id, holidayId);
+  revalidatePath("/admin/configuracion");
+}
+
+export async function updateAutoArchiveDelayAction(autoArchiveDelay: AutoArchiveDelay) {
+  const companyId = await getEffectiveCompanyId();
+  const user = await getCurrentUser();
+  await updateAutoArchiveDelay(companyId, user.id, autoArchiveDelay);
   revalidatePath("/admin/configuracion");
 }

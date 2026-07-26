@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,10 +10,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LinkIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { OperixLogo } from "@/components/shared/operix-logo";
+import { OpherixLogo } from "@/components/shared/opherix-logo";
 
 export const metadata: Metadata = {
-  title: "Postúlate | Operix",
+  title: "Postúlate | Opherix",
 };
 
 export default function PostulatePage() {
@@ -22,8 +22,8 @@ export default function PostulatePage() {
       <div className="w-full max-w-lg space-y-4">
         <div className="flex justify-center">
           <div className="flex items-center gap-2">
-            <OperixLogo size={32} />
-            <span className="text-xl font-bold">Operix</span>
+            <OpherixLogo size={32} />
+            <span className="text-xl font-bold">Opherix</span>
           </div>
         </div>
         <Card className="border-border shadow-sm">
@@ -39,7 +39,7 @@ export default function PostulatePage() {
               <LinkIcon className="size-6 text-muted-foreground" />
               <p className="max-w-sm text-sm text-muted-foreground">
                 Necesitas el enlace de postulación específico de la empresa a la que quieres unirte
-                (algo como <span className="font-mono text-foreground">operix.app/postulate/nombre-empresa</span>).
+                (algo como <span className="font-mono text-foreground">opherix.app/postulate/nombre-empresa</span>).
                 Pídeselo directamente a esa empresa.
               </p>
             </div>

@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -18,13 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { specialtyLabels } from "@/lib/validations/worker-application";
 import { StaggerContainer, StaggerItem } from "@/components/shared/motion/stagger";
-
-interface Employer {
-  company: string;
-  role: string;
-  from: string;
-  to?: string;
-}
+import { asStringArray, asEmployers } from "@/lib/worker-fields";
 
 export interface WorkerCvData {
   id: string;
@@ -42,17 +36,6 @@ export interface WorkerCvData {
   licenses: unknown;
   ratingAverage: number | string;
   ratingCount: number;
-}
-
-function asStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
-}
-
-function asEmployers(value: unknown): Employer[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter(
-    (v): v is Employer => typeof v === "object" && v !== null && "company" in v && "role" in v,
-  );
 }
 
 export function WorkerCv({ worker }: { worker: WorkerCvData }) {
@@ -93,8 +76,8 @@ export function WorkerCv({ worker }: { worker: WorkerCvData }) {
 
       <Card>
         <CardContent className="p-0">
-          <div ref={printRef} className="flex flex-col gap-6 bg-white p-8">
-            <div className="flex items-center gap-5">
+          <div ref={printRef} className="flex flex-col gap-4 bg-white p-5">
+            <div className="flex items-center gap-4">
               <motion.div
                 initial={{ opacity: 0, scale: 0.85 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -105,9 +88,9 @@ export function WorkerCv({ worker }: { worker: WorkerCvData }) {
                   <AvatarFallback className="text-lg">{worker.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                 </Avatar>
               </motion.div>
-              <StaggerContainer className="flex flex-col gap-1">
+              <StaggerContainer className="flex flex-col gap-0.5">
                 <StaggerItem>
-                  <h2 className="text-2xl font-semibold tracking-tight text-foreground">{worker.name}</h2>
+                  <h2 className="text-xl font-semibold tracking-tight text-foreground">{worker.name}</h2>
                 </StaggerItem>
                 <StaggerItem>
                   <div className="flex flex-wrap gap-1.5">
@@ -119,7 +102,7 @@ export function WorkerCv({ worker }: { worker: WorkerCvData }) {
                   </div>
                 </StaggerItem>
                 <StaggerItem>
-                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Mail className="size-3.5" /> {worker.email}
                     </span>
@@ -136,8 +119,8 @@ export function WorkerCv({ worker }: { worker: WorkerCvData }) {
                   </div>
                 </StaggerItem>
                 <StaggerItem>
-                  <div className="mt-1 flex items-center gap-1 text-sm">
-                    <Star className="size-4 fill-warning text-warning" />
+                  <div className="flex items-center gap-1 text-xs">
+                    <Star className="size-3.5 fill-warning text-warning" />
                     <span className="font-medium">{Number(worker.ratingAverage).toFixed(1)}</span>
                     <span className="text-muted-foreground">({worker.ratingCount} evaluaciones)</span>
                   </div>
@@ -147,7 +130,7 @@ export function WorkerCv({ worker }: { worker: WorkerCvData }) {
 
             <Separator />
 
-            <StaggerContainer className="grid gap-6 sm:grid-cols-2">
+            <StaggerContainer className="grid gap-4 sm:grid-cols-2">
               <StaggerItem className="flex flex-col gap-2">
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                   <Briefcase className="size-4" /> Experiencia

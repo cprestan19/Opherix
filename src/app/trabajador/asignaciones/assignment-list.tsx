@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,6 +10,7 @@
 
 import { useTransition } from "react";
 import { Loader2, Check, X, MapPin } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -84,6 +85,7 @@ export function AssignmentList({ assignments }: { assignments: AssignmentItem[] 
                   onClick={() =>
                     startTransition(async () => {
                       await respondToAssignmentAction(assignment.id, "REJECTED");
+                      toast.success("Asignación rechazada");
                     })
                   }
                 >
@@ -96,6 +98,7 @@ export function AssignmentList({ assignments }: { assignments: AssignmentItem[] 
                   onClick={() =>
                     startTransition(async () => {
                       await respondToAssignmentAction(assignment.id, "ACCEPTED");
+                      toast.success("Asignación aceptada");
                     })
                   }
                 >

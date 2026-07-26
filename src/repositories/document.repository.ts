@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -25,10 +25,34 @@ export function listDocumentsForWorker(workerId: string) {
   return prisma.workerDocument.findMany({ where: { workerId }, orderBy: { uploadedAt: "desc" } });
 }
 
+export function findDocumentById(id: string) {
+  return prisma.workerDocument.findUnique({
+    where: { id },
+    include: { worker: { select: { companyId: true } } },
+  });
+}
+
+export function updateDocument(
+  id: string,
+  data: {
+    type?: DocumentType;
+    fileUrl?: string;
+    fileName?: string;
+    issuedAt?: Date | null;
+    expiresAt?: Date | null;
+  },
+) {
+  return prisma.workerDocument.update({ where: { id }, data });
+}
+
+export function deleteDocument(id: string) {
+  return prisma.workerDocument.delete({ where: { id } });
+}
+
 export function listDocumentsForCompany(companyId: string) {
   return prisma.workerDocument.findMany({
     where: { worker: { companyId } },
-    include: { worker: { include: { user: { select: { name: true } } } } },
+    include: { worker: { select: { id: true, user: { select: { name: true } } } } },
     orderBy: { expiresAt: "asc" },
   });
 }
@@ -42,6 +66,6 @@ export function findExpiringDocuments(companyId: string, daysAhead: number) {
       worker: { companyId },
       expiresAt: { not: null, lte: threshold, gte: new Date() },
     },
-    include: { worker: { include: { user: { select: { id: true, name: true } } } } },
+    include: { worker: { select: { id: true, user: { select: { id: true, name: true } } } } },
   });
 }

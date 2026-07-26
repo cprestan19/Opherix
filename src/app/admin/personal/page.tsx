@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -18,13 +18,11 @@ import { calculateAge } from "@/utils/date";
 import { WorkerFilters } from "./worker-filters";
 import { RatingModerationPanel } from "./rating-moderation-panel";
 import { listPendingModerations } from "@/services/rating.service";
+import { asStringArray } from "@/lib/worker-fields";
+import { WorkerForm } from "./worker-form";
 import type { WorkerStatus } from "@/generated/prisma/enums";
 
 const WORKER_STATUS_VALUES: WorkerStatus[] = ["ACTIVE", "APPROVED", "INACTIVE"];
-
-function asStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
-}
 
 export default async function PersonalPage({
   searchParams,
@@ -46,9 +44,12 @@ export default async function PersonalPage({
     <div className="flex flex-col gap-6">
       <RatingModerationPanel items={pendingModerations} />
 
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Personal</h1>
-        <p className="text-sm text-muted-foreground">{workers.length} trabajador(es) en el directorio.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Personal</h1>
+          <p className="text-sm text-muted-foreground">{workers.length} trabajador(es) en el directorio.</p>
+        </div>
+        <WorkerForm />
       </div>
 
       <WorkerFilters />
@@ -69,11 +70,11 @@ export default async function PersonalPage({
                 <li key={worker.id}>
                   <Link
                     href={`/admin/personal/${worker.id}`}
-                    className="flex items-center gap-3 p-3.5 transition-colors hover:bg-muted/50 sm:gap-4 sm:p-4"
+                    className="flex items-center gap-3 py-2 pr-3.5 pl-2.5 transition-colors hover:bg-muted/50 sm:gap-4 sm:py-2.5 sm:pr-4"
                   >
-                    <Avatar className="size-10 shrink-0 sm:size-11">
+                    <Avatar className="size-16 shrink-0 shadow-sm ring-2 ring-background sm:size-18">
                       <AvatarImage src={worker.photoUrl ?? undefined} alt={worker.user.name} />
-                      <AvatarFallback>{worker.user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      <AvatarFallback className="text-base">{worker.user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                       {worker.status === "ACTIVE" ? (
                         <AvatarBadge className="bg-success" title="Activo" />
                       ) : null}

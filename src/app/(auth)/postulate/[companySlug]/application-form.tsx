@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import { submitApplicationAction } from "./actions";
-import { PhotoUploadField } from "@/components/shared/photo-upload-field";
+import { PhotoCaptureField } from "@/components/shared/photo-capture-field";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 
 const WEEKDAYS = [
@@ -202,7 +202,7 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                     control={control}
                     name="photoUrl"
                     render={({ field }) => (
-                      <PhotoUploadField folder="/applicants" value={field.value} onChange={field.onChange} />
+                      <PhotoCaptureField folder="/applicants" value={field.value} onChange={field.onChange} />
                     )}
                   />
                 </Field>

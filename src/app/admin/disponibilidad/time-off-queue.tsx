@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,6 +10,7 @@
 
 import { useTransition } from "react";
 import { Loader2, Check, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { reviewTimeOffAction } from "./actions";
@@ -61,7 +62,12 @@ export function TimeOffQueue({ items }: { items: PendingTimeOff[] }) {
                 variant="outline"
                 className="gap-1 text-danger"
                 disabled={isPending}
-                onClick={() => startTransition(() => reviewTimeOffAction(item.id, "REJECTED"))}
+                onClick={() =>
+                  startTransition(async () => {
+                    await reviewTimeOffAction(item.id, "REJECTED");
+                    toast.success("Solicitud rechazada");
+                  })
+                }
               >
                 <X className="size-4" /> Rechazar
               </Button>
@@ -69,7 +75,12 @@ export function TimeOffQueue({ items }: { items: PendingTimeOff[] }) {
                 size="sm"
                 className="gap-1"
                 disabled={isPending}
-                onClick={() => startTransition(() => reviewTimeOffAction(item.id, "APPROVED"))}
+                onClick={() =>
+                  startTransition(async () => {
+                    await reviewTimeOffAction(item.id, "APPROVED");
+                    toast.success("Solicitud aprobada");
+                  })
+                }
               >
                 {isPending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
                 Aprobar

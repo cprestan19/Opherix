@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -23,7 +23,10 @@ export function getPortalPath(role: SessionRole, workerStatus?: WorkerStatus | n
     case "SUPERVISOR":
       return "/admin";
     case "CLIENT":
-      return "/cliente";
+      // El portal /cliente/* con cuenta y contraseña fue reemplazado por el
+      // formulario público /solicitar/[companySlug], sin cuenta ni login —
+      // un User con role CLIENT ya no tiene ningún portal propio al que entrar.
+      return "/login";
     case "WORKER":
     case "APPLICANT":
       if (workerStatus === "PENDING_REVIEW" || workerStatus === "REJECTED") {

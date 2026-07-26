@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -8,16 +8,6 @@
 
 import "server-only";
 import { prisma } from "@/lib/prisma";
-
-export function findAssignmentForRating(assignmentId: string, companyId: string, clientId: string) {
-  return prisma.workerAssignment.findFirst({
-    where: {
-      id: assignmentId,
-      worker: { companyId },
-      event: { clientId, status: "COMPLETED" },
-    },
-  });
-}
 
 export function setRating(
   assignmentId: string,
@@ -38,6 +28,13 @@ export async function applyRatingToWorkerAverage(workerId: string, score: number
   return prisma.worker.update({
     where: { id: workerId },
     data: { ratingAverage: newAverage, ratingCount: newCount },
+  });
+}
+
+export function findAcceptedAssignmentsForEvent(companyId: string, eventId: string) {
+  return prisma.workerAssignment.findMany({
+    where: { eventId, status: "ACCEPTED", worker: { companyId } },
+    select: { id: true, workerId: true, ratingScore: true },
   });
 }
 

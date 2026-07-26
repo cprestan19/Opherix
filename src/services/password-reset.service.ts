@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -16,7 +16,7 @@ import { logAudit } from "@/lib/audit";
 export class PasswordResetError extends Error {}
 
 const GENERIC_REQUEST_MESSAGE =
-  "Si el correo existe en Operix, vas a recibir un enlace para restablecer tu contraseña.";
+  "Si el correo existe en Opherix, vas a recibir un enlace para restablecer tu contraseña.";
 
 /**
  * Genera y "envía" (o, si no hay SMTP configurado, deja en el log del
@@ -46,7 +46,7 @@ export async function requestPasswordReset(emailRaw: string): Promise<{ message:
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
   const sent = await sendEmail(
     email,
-    "Restablecer tu contraseña — Operix",
+    "Restablecer tu contraseña — Opherix",
     `Recibimos una solicitud para restablecer tu contraseña.\n\nEste enlace vence en 1 hora:\n${resetUrl}\n\nSi no fuiste tú, ignora este correo.`,
   );
 

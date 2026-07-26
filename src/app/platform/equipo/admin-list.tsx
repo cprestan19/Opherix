@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,6 +10,7 @@
 
 import { useState, useTransition } from "react";
 import { Loader2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -45,7 +46,12 @@ function AdminRowItem({ admin, isSelf }: { admin: AdminRow; isSelf: boolean }) {
   function handleRemove() {
     startTransition(async () => {
       const result = await removePlatformAdminAction(admin.id);
-      if (result?.error) setError(result.error);
+      if (result?.error) {
+        setError(result.error);
+        toast.error(result.error);
+        return;
+      }
+      toast.success(`${admin.name} eliminado del equipo`);
     });
   }
 

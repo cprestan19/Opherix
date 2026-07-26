@@ -1,0 +1,147 @@
+/**
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
+ * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
+ * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
+ * distribución o uso no autorizado, total o parcial, sin consentimiento
+ * expreso por escrito del autor.
+ */
+
+import "server-only";
+import bcrypt from "bcryptjs";
+import * as workerRepo from "@/repositories/worker.repository";
+import { logAudit } from "@/lib/audit";
+import { dispatchNotification } from "@/services/notification.service";
+import type { WorkerEditInput } from "@/lib/validations/worker-edit";
+import type { CreateWorkerInput } from "@/lib/validations/worker-create";
+
+export class WorkerError extends Error {}
+
+export async function createWorker(companyId: string, actorId: string, input: CreateWorkerInput) {
+  const existing = await workerRepo.findUserByEmail(input.email);
+  if (existing) {
+    throw new WorkerError("Ya existe una cuenta con este correo.");
+  }
+
+  const passwordHash = await bcrypt.hash(input.password, 12);
+
+  const user = await workerRepo.createWorkerDirect({
+    companyId,
+    email: input.email,
+    passwordHash,
+    name: input.name,
+    phone: input.phone,
+    specialties: input.specialties,
+  });
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "WORKER_CREATED",
+    entityType: "Worker",
+    entityId: user.worker!.id,
+  });
+
+  return user;
+}
+
+export async function updateWorkerProfile(
+  companyId: string,
+  actorId: string,
+  actorRole: string,
+  workerId: string,
+  input: WorkerEditInput,
+) {
+  const worker = await workerRepo.findWorkerById(companyId, workerId);
+  if (!worker) throw new WorkerError("Trabajador no encontrado.");
+
+  if (input.email.toLowerCase() !== worker.user.email.toLowerCase()) {
+    const existing = await workerRepo.findUserByEmail(input.email);
+    if (existing && existing.id !== worker.userId) {
+      throw new WorkerError("Ya existe una cuenta con este correo.");
+    }
+  }
+
+  // La tarifa por hora es visible y editable solo por el Administrador — nunca
+  // por Supervisor, Trabajador ni Cliente. Se aplica también aquí (no solo
+  // ocultando el campo en la UI) para no confiar en el rol solo del lado del cliente.
+  const hourlyRate = actorRole === "ADMIN" ? input.hourlyRate : undefined;
+
+  const updated = await workerRepo.updateWorkerProfile(workerId, worker.userId, {
+    name: input.name,
+    email: input.email,
+    phone: input.phone,
+    idNumber: input.idNumber,
+    nationality: input.nationality,
+    birthDate: new Date(input.birthDate),
+    address: input.address,
+    maritalStatus: input.maritalStatus,
+    hasChildren: input.hasChildren,
+    childrenCount: input.hasChildren ? (input.childrenCount ?? 0) : 0,
+    photoUrl: input.photoUrl,
+    education: input.education,
+    courses: input.courses,
+    languages: input.languages,
+    specialties: input.specialties,
+    experienceYears: input.experienceYears,
+    previousEmployers: input.previousEmployers,
+    references: input.references,
+    licenses: input.licenses,
+    hourlyRate,
+    hasVehicle: input.hasVehicle,
+    vehicleType: input.hasVehicle ? input.vehicleType : null,
+    uniformSizes: {
+      shirt: input.uniformShirtSize,
+      pants: input.uniformPantsSize,
+      shoes: input.uniformShoeSize,
+    },
+    emergencyContactName: input.emergencyContactName,
+    emergencyContactPhone: input.emergencyContactPhone,
+    allergies: input.allergies,
+    conditions: input.conditions,
+  });
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "WORKER_UPDATED",
+    entityType: "Worker",
+    entityId: workerId,
+  });
+
+  return updated;
+}
+
+export async function setWorkerAccountStatus(
+  companyId: string,
+  actorId: string,
+  workerId: string,
+  status: "ACTIVE" | "INACTIVE",
+) {
+  const worker = await workerRepo.findWorkerById(companyId, workerId);
+  if (!worker) throw new WorkerError("Trabajador no encontrado.");
+
+  const updated = await workerRepo.setWorkerStatus(workerId, status);
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: status === "ACTIVE" ? "WORKER_ACTIVATED" : "WORKER_SUSPENDED",
+    entityType: "Worker",
+    entityId: workerId,
+  });
+
+  await dispatchNotification({
+    companyId,
+    userId: worker.userId,
+    type: status === "ACTIVE" ? "WORKER_ACTIVATED" : "WORKER_SUSPENDED",
+    title: status === "ACTIVE" ? "Tu cuenta fue reactivada" : "Tu cuenta fue suspendida",
+    body:
+      status === "ACTIVE"
+        ? "Ya puedes volver a recibir asignaciones."
+        : "Un administrador suspendió tu cuenta. Contacta a tu empresa para más información.",
+    relatedEntityType: "Worker",
+    relatedEntityId: workerId,
+  });
+
+  return updated;
+}

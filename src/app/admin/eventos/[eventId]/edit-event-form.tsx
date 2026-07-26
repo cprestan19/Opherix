@@ -1,0 +1,180 @@
+/**
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
+ * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
+ * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
+ * distribución o uso no autorizado, total o parcial, sin consentimiento
+ * expreso por escrito del autor.
+ */
+
+"use client";
+
+import { useState } from "react";
+import { useForm, useFieldArray, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogTrigger as DialogTrigger,
+} from "@/components/shared/responsive-dialog";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
+import { specialtyLabels, specialtyValues } from "@/lib/validations/worker-application";
+import { updateEventAction } from "./actions";
+
+export function EditEventForm({ eventId, event }: { eventId: string; event: EventRequestInput }) {
+  const [open, setOpen] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<EventRequestInput>({ resolver: zodResolver(eventRequestSchema), defaultValues: event });
+
+  const requirements = useFieldArray({ control, name: "staffRequirements" });
+
+  async function onSubmit(values: EventRequestInput) {
+    setServerError(null);
+    const result = await updateEventAction(eventId, values);
+    if (result?.error) {
+      setServerError(result.error);
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Evento actualizado correctamente");
+    setOpen(false);
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (next) reset(event);
+    setOpen(next);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-1.5">
+          <Pencil className="size-4" /> Editar evento
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <DialogHeader>
+            <DialogTitle>Editar evento</DialogTitle>
+            <DialogDescription>El cliente del evento no se puede cambiar desde aquí.</DialogDescription>
+          </DialogHeader>
+
+          <Field data-invalid={!!errors.title}>
+            <FieldLabel htmlFor="edit-title">Título del evento</FieldLabel>
+            <Input id="edit-title" {...register("title")} />
+            <FieldError errors={[errors.title]} />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field>
+              <FieldLabel htmlFor="edit-eventType">Tipo de evento</FieldLabel>
+              <Input id="edit-eventType" placeholder="Boda, corporativo..." {...register("eventType")} />
+            </Field>
+            <Field data-invalid={!!errors.address}>
+              <FieldLabel htmlFor="edit-address">Ubicación</FieldLabel>
+              <Input id="edit-address" {...register("address")} />
+              <FieldError errors={[errors.address]} />
+            </Field>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field data-invalid={!!errors.startAt}>
+              <FieldLabel htmlFor="edit-startAt">Inicio</FieldLabel>
+              <Input id="edit-startAt" type="datetime-local" {...register("startAt")} />
+              <FieldError errors={[errors.startAt]} />
+            </Field>
+            <Field data-invalid={!!errors.endAt}>
+              <FieldLabel htmlFor="edit-endAt">Fin</FieldLabel>
+              <Input id="edit-endAt" type="datetime-local" {...register("endAt")} />
+              <FieldError errors={[errors.endAt]} />
+            </Field>
+          </div>
+
+          <Field>
+            <FieldLabel>Personal requerido</FieldLabel>
+            <div className="flex flex-col gap-2">
+              {requirements.fields.map((item, index) => (
+                <div key={item.id} className="flex items-center gap-2">
+                  <Controller
+                    control={control}
+                    name={`staffRequirements.${index}.specialty`}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {specialtyValues.map((value) => (
+                            <SelectItem key={value} value={value}>
+                              {specialtyLabels[value]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-20"
+                    {...register(`staffRequirements.${index}.quantity` as const, { valueAsNumber: true })}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Quitar tipo de personal"
+                    onClick={() => requirements.remove(index)}
+                    disabled={requirements.fields.length === 1}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit gap-1"
+                onClick={() => requirements.append({ specialty: "WAITER", quantity: 1 })}
+              >
+                <Plus className="size-4" /> Agregar tipo de personal
+              </Button>
+            </div>
+            <FieldError errors={[errors.staffRequirements]} />
+          </Field>
+
+          <Field>
+            <FieldLabel htmlFor="edit-notes">Observaciones</FieldLabel>
+            <Textarea id="edit-notes" rows={2} {...register("notes")} />
+          </Field>
+
+          {serverError ? <p className="text-sm text-danger">{serverError}</p> : null}
+
+          <DialogFooter>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
+              Guardar cambios
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

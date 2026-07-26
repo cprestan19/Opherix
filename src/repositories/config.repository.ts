@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -8,6 +8,7 @@
 
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import type { AutoArchiveDelay } from "@/generated/prisma/enums";
 
 export function getCompany(companyId: string) {
   return prisma.company.findUniqueOrThrow({ where: { id: companyId } });
@@ -15,6 +16,10 @@ export function getCompany(companyId: string) {
 
 export function updateCompanyBranding(companyId: string, data: { name: string }) {
   return prisma.company.update({ where: { id: companyId }, data });
+}
+
+export function updateAutoArchiveDelay(companyId: string, autoArchiveDelay: AutoArchiveDelay) {
+  return prisma.company.update({ where: { id: companyId }, data: { autoArchiveDelay } });
 }
 
 export function getOrCreatePayRuleSet(companyId: string, country: string) {

@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -54,31 +54,33 @@ export function StatCard({
 }: StatCardProps) {
   return (
     <Card className={cn("shadow-xs transition-shadow hover:shadow-md", cardGradientClasses[accent])}>
-      <CardContent className="flex flex-col gap-3 p-5">
-        <div className="flex items-center gap-4">
+      <CardContent className="flex flex-col gap-2 p-3.5 sm:gap-3 sm:p-5">
+        <div className="flex items-center gap-2.5 sm:gap-4">
           <div
             className={cn(
-              "flex size-11 shrink-0 items-center justify-center rounded-xl",
+              "flex size-8 shrink-0 items-center justify-center rounded-lg sm:size-11 sm:rounded-xl",
               iconChipClasses[accent],
             )}
           >
-            <Icon className="size-5" />
+            <Icon className="size-4 sm:size-5" />
           </div>
           <div className="min-w-0">
-            <p className="text-2xl font-semibold tracking-tight tabular-nums">
+            <p className="text-base font-semibold tracking-tight tabular-nums sm:text-2xl">
               <AnimatedNumber value={value} format={format} />
-              {suffix ? <span className="ml-1 text-base font-medium text-muted-foreground">{suffix}</span> : null}
+              {suffix ? (
+                <span className="ml-1 text-xs font-medium text-muted-foreground sm:text-base">{suffix}</span>
+              ) : null}
             </p>
-            <p className="truncate text-sm text-muted-foreground">{label}</p>
+            <p className="truncate text-xs text-muted-foreground sm:text-sm">{label}</p>
           </div>
         </div>
         {href ? (
           <Link
             href={href}
-            className="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+            className="flex items-center gap-1 text-xs font-medium text-primary hover:underline sm:text-sm"
           >
             {linkLabel ?? `Ver ${label.toLowerCase()}`}
-            <ArrowRight className="size-3.5" />
+            <ArrowRight className="size-3 sm:size-3.5" />
           </Link>
         ) : null}
       </CardContent>

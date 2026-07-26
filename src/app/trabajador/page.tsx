@@ -1,17 +1,19 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
  * expreso por escrito del autor.
  */
 
-import { CalendarCheck2, Clock, Hourglass, Wallet } from "lucide-react";
+import Link from "next/link";
+import { CalendarCheck2, CalendarPlus, Clock, Hourglass, Wallet } from "lucide-react";
 import { requireActiveWorker } from "@/lib/worker-guard";
-import { getWorkerIdForUser } from "@/repositories/availability.repository";
+import { getWorkerIdForUser, listSlotsForWorker } from "@/repositories/availability.repository";
 import { getWorkerDashboardStats, getUpcomingAssignmentsForWorker } from "@/services/worker-dashboard.service";
 import { StatCard } from "@/components/shared/stat-card";
 import { StaggerContainer, StaggerItem } from "@/components/shared/motion/stagger";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 function formatRange(start: Date) {
@@ -26,9 +28,10 @@ export default async function TrabajadorDashboardPage() {
     return <p className="text-sm text-muted-foreground">No se encontró tu perfil de trabajador.</p>;
   }
 
-  const [stats, upcoming] = await Promise.all([
+  const [stats, upcoming, availabilitySlots] = await Promise.all([
     getWorkerDashboardStats(worker.id),
     getUpcomingAssignmentsForWorker(worker.id),
+    listSlotsForWorker(worker.id),
   ]);
 
   return (
@@ -38,7 +41,28 @@ export default async function TrabajadorDashboardPage() {
         <p className="text-sm text-muted-foreground">Tus próximas asignaciones y actividad reciente.</p>
       </div>
 
-      <StaggerContainer className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {availabilitySlots.length === 0 ? (
+        <Card className="border-warning/40">
+          <CardContent className="flex flex-col items-start gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning">
+                <CalendarPlus className="size-4" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Tienes tu calendario sin activar</p>
+                <p className="text-xs text-muted-foreground">
+                  Aprovecha y coloca tu disponibilidad para que puedan asignarte a eventos.
+                </p>
+              </div>
+            </div>
+            <Button asChild size="sm" className="w-full shrink-0 sm:w-fit">
+              <Link href="/trabajador/disponibilidad">Colocar disponibilidad</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <StaggerContainer className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StaggerItem>
           <StatCard
             label="Próximas asignaciones"

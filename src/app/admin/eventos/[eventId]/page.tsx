@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -9,12 +9,17 @@
 import { notFound } from "next/navigation";
 import { getEffectiveCompanyId } from "@/lib/tenant";
 import { getEventDetail, findAvailableWorkersForSpecialty } from "@/repositories/event.repository";
-import { Card, CardContent } from "@/components/ui/card";
+import { getCompany } from "@/repositories/config.repository";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Star } from "lucide-react";
 import { AssignmentPanel } from "./assignment-panel";
 import { EventActions } from "./event-actions";
 import { EventCheckInCode } from "@/components/shared/event-checkin-code";
 import { InvoiceAction } from "./invoice-action";
+import { EditEventForm } from "./edit-event-form";
+import { ArchiveEventAction } from "./archive-event-action";
+import { EventAccessLinkPanel } from "./event-access-link-panel";
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Borrador",
@@ -23,7 +28,12 @@ const STATUS_LABELS: Record<string, string> = {
   IN_PROGRESS: "En curso",
   COMPLETED: "Completado",
   CANCELLED: "Cancelado",
+  ARCHIVED: "Archivado",
 };
+
+function toDatetimeLocal(date: Date) {
+  return date.toISOString().slice(0, 16);
+}
 
 function formatRange(start: Date, end: Date) {
   const formatter = new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" });
@@ -37,8 +47,10 @@ export default async function EventDetailPage({
 }) {
   const { eventId } = await params;
   const companyId = await getEffectiveCompanyId();
-  const event = await getEventDetail(companyId, eventId);
+  const [event, company] = await Promise.all([getEventDetail(companyId, eventId), getCompany(companyId)]);
   if (!event) notFound();
+
+  const ratedAssignments = event.assignments.filter((a) => a.ratingScore !== null);
 
   const uniqueSpecialties = [...new Set(event.staffRequirements.map((r) => r.specialty))];
   const workersLists = await Promise.all(
@@ -57,7 +69,26 @@ export default async function EventDetailPage({
             {event.client.businessName} · {formatRange(event.startAt, event.endAt)}
           </p>
         </div>
-        <Badge variant="outline">{STATUS_LABELS[event.status]}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline">{STATUS_LABELS[event.status]}</Badge>
+          {event.status !== "CANCELLED" && event.status !== "ARCHIVED" ? (
+            <EditEventForm
+              eventId={event.id}
+              event={{
+                title: event.title,
+                eventType: event.eventType ?? "",
+                address: event.address,
+                startAt: toDatetimeLocal(event.startAt),
+                endAt: toDatetimeLocal(event.endAt),
+                notes: event.notes ?? "",
+                staffRequirements: event.staffRequirements.map((r) => ({
+                  specialty: r.specialty,
+                  quantity: r.quantity,
+                })),
+              }}
+            />
+          ) : null}
+        </div>
       </div>
 
       <Card>
@@ -82,10 +113,46 @@ export default async function EventDetailPage({
       <div className="flex items-center gap-2">
         <EventActions eventId={event.id} status={event.status} />
         {event.status === "COMPLETED" ? <InvoiceAction eventId={event.id} /> : null}
+        {event.status === "COMPLETED" ? <ArchiveEventAction eventId={event.id} /> : null}
       </div>
 
       {event.status === "CONFIRMED" || event.status === "IN_PROGRESS" ? (
         <EventCheckInCode eventId={event.id} />
+      ) : null}
+
+      {event.status !== "DRAFT" ? (
+        <EventAccessLinkPanel
+          eventId={event.id}
+          companySlug={company.slug}
+          hasAccessToken={Boolean(event.accessToken)}
+          accessTokenExpiresAt={event.accessTokenExpiresAt}
+          accessClosedAt={event.accessClosedAt}
+          eventEnded={event.endAt < new Date()}
+          baseUrl={process.env.NEXTAUTH_URL ?? "http://localhost:3000"}
+        />
+      ) : null}
+
+      {ratedAssignments.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base font-medium">
+              <Star className="size-4 fill-warning text-warning" /> Calificación del cliente
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {ratedAssignments.map((a) => (
+              <div key={a.id} className="flex items-center justify-between gap-4 rounded-lg border border-border p-3">
+                <div>
+                  <p className="text-sm font-medium">{a.worker.user.name}</p>
+                  {a.ratingComment ? <p className="text-xs text-muted-foreground">{a.ratingComment}</p> : null}
+                </div>
+                <Badge variant={a.ratingModerationStatus === "PENDING_REVIEW" ? "secondary" : "default"}>
+                  {a.ratingScore}/5{a.ratingModerationStatus === "PENDING_REVIEW" ? " · en revisión" : ""}
+                </Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       ) : null}
 
       <AssignmentPanel

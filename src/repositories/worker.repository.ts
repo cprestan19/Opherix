@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -16,6 +16,35 @@ export function findCompanyBySlug(slug: string) {
 
 export function findUserByEmail(email: string) {
   return prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+}
+
+export function createWorkerDirect(data: {
+  companyId: string;
+  email: string;
+  passwordHash: string;
+  name: string;
+  phone: string;
+  specialties: Prisma.WorkerUncheckedCreateInput["specialties"];
+}) {
+  return prisma.user.create({
+    data: {
+      companyId: data.companyId,
+      email: data.email.toLowerCase(),
+      passwordHash: data.passwordHash,
+      name: data.name,
+      phone: data.phone,
+      role: "WORKER",
+      status: "ACTIVE",
+      worker: {
+        create: {
+          companyId: data.companyId,
+          specialties: data.specialties,
+          status: "ACTIVE",
+        },
+      },
+    },
+    include: { worker: true },
+  });
 }
 
 export function createApplicant(data: {
@@ -119,6 +148,7 @@ export function getWorkerDetail(companyId: string, workerId: string) {
       documents: { orderBy: { uploadedAt: "desc" } },
       availabilitySlots: { orderBy: { dayOfWeek: "asc" } },
       timeOffs: { orderBy: { startDate: "desc" }, take: 10 },
+      healthInfo: true,
       assignments: {
         where: { ratingScore: { not: null } },
         orderBy: { updatedAt: "desc" },
@@ -145,4 +175,85 @@ export function rejectWorker(workerId: string, approvedById: string, reason: str
     where: { id: workerId },
     data: { status: "REJECTED", approvedById, approvedAt: new Date(), rejectionReason: reason },
   });
+}
+
+export interface UpdateWorkerProfileData {
+  name: string;
+  email: string;
+  phone: string;
+  idNumber: string;
+  nationality: string;
+  birthDate: Date;
+  address: string;
+  maritalStatus: string;
+  hasChildren: boolean;
+  childrenCount: number;
+  photoUrl?: string;
+  education: string;
+  courses: string[];
+  languages: string[];
+  specialties: Prisma.WorkerUncheckedUpdateInput["specialties"];
+  experienceYears: number;
+  previousEmployers: Prisma.InputJsonValue;
+  references: Prisma.InputJsonValue;
+  licenses: string[];
+  hourlyRate?: number;
+  hasVehicle: boolean;
+  vehicleType?: string | null;
+  uniformSizes: Prisma.InputJsonValue;
+  emergencyContactName: string;
+  emergencyContactPhone: string;
+  allergies?: string;
+  conditions?: string;
+}
+
+export function updateWorkerProfile(workerId: string, userId: string, data: UpdateWorkerProfileData) {
+  const { allergies, conditions, ...workerFields } = data;
+
+  return prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data: { name: data.name, email: data.email.toLowerCase(), phone: data.phone },
+    });
+
+    const worker = await tx.worker.update({
+      where: { id: workerId },
+      data: {
+        idNumber: workerFields.idNumber,
+        nationality: workerFields.nationality,
+        birthDate: workerFields.birthDate,
+        address: workerFields.address,
+        maritalStatus: workerFields.maritalStatus,
+        hasChildren: workerFields.hasChildren,
+        childrenCount: workerFields.childrenCount,
+        photoUrl: workerFields.photoUrl,
+        education: workerFields.education,
+        courses: workerFields.courses,
+        languages: workerFields.languages,
+        specialties: workerFields.specialties,
+        experienceYears: workerFields.experienceYears,
+        previousEmployers: workerFields.previousEmployers,
+        references: workerFields.references,
+        licenses: workerFields.licenses,
+        hourlyRate: workerFields.hourlyRate,
+        hasVehicle: workerFields.hasVehicle,
+        vehicleType: workerFields.vehicleType,
+        uniformSizes: workerFields.uniformSizes,
+        emergencyContactName: workerFields.emergencyContactName,
+        emergencyContactPhone: workerFields.emergencyContactPhone,
+      },
+    });
+
+    await tx.workerHealthInfo.upsert({
+      where: { workerId },
+      create: { workerId, allergies, conditions },
+      update: { allergies, conditions },
+    });
+
+    return worker;
+  });
+}
+
+export function setWorkerStatus(workerId: string, status: "ACTIVE" | "INACTIVE") {
+  return prisma.worker.update({ where: { id: workerId }, data: { status } });
 }

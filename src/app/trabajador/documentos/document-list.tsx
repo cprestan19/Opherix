@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -10,17 +10,8 @@ import { FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { getExpiryStatus } from "@/utils/date";
+import { DOCUMENT_TYPE_LABELS } from "@/lib/labels";
 import type { DocumentType } from "@/generated/prisma/enums";
-
-const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
-  ID_CARD: "Cédula",
-  RESUME: "Currículum",
-  HEALTH_CARD: "Carnet de salud",
-  FOOD_HANDLING: "Manipulación de alimentos",
-  LICENSE: "Licencia",
-  CERTIFICATE: "Certificado",
-  OTHER: "Otro",
-};
 
 const STATUS_BADGE: Record<string, { label: string; variant: "secondary" | "outline" | "destructive" }> = {
   none: { label: "Sin vencimiento", variant: "outline" },

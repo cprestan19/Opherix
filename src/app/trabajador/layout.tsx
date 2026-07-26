@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -52,6 +52,12 @@ export default async function TrabajadorLayout({ children }: { children: React.R
     <PortalShell
       portalName="Trabajador"
       navGroups={navGroups}
+      primaryNavHrefs={[
+        "/trabajador",
+        "/trabajador/asignaciones",
+        "/trabajador/check-in",
+        "/trabajador/disponibilidad",
+      ]}
       profileHref="/trabajador/perfil"
       user={{
         name: session.user.name ?? session.user.email ?? "Usuario",

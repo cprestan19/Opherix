@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -7,9 +7,7 @@
  */
 
 import "server-only";
-import bcrypt from "bcryptjs";
 import * as clientRepo from "@/repositories/client.repository";
-import { findUserByEmail } from "@/repositories/worker.repository";
 import { logAudit } from "@/lib/audit";
 
 export class ClientError extends Error {}
@@ -21,18 +19,15 @@ export interface CreateClientInput {
   contactEmail: string;
   contactPhone?: string;
   address?: string;
-  password: string;
 }
 
 export async function createClient(companyId: string, actorId: string, input: CreateClientInput) {
-  const existing = await findUserByEmail(input.contactEmail);
+  const existing = await clientRepo.findClientByEmail(companyId, input.contactEmail);
   if (existing) {
-    throw new ClientError("Ya existe una cuenta con este correo.");
+    throw new ClientError("Ya existe un cliente con este correo de contacto.");
   }
 
-  const passwordHash = await bcrypt.hash(input.password, 12);
-
-  const client = await clientRepo.createClientWithUser({
+  const client = await clientRepo.createClient({
     companyId,
     businessName: input.businessName,
     taxId: input.taxId,
@@ -40,7 +35,6 @@ export async function createClient(companyId: string, actorId: string, input: Cr
     contactEmail: input.contactEmail,
     contactPhone: input.contactPhone,
     address: input.address,
-    passwordHash,
   });
 
   await logAudit({

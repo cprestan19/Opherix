@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { BrandingForm } from "./branding-form";
 import { PayRulesForm } from "./pay-rules-form";
 import { HolidaysPanel } from "./holidays-panel";
+import { AutoArchiveForm } from "./auto-archive-form";
 
 const DEFAULT_RULES = { overtimeMultiplier: "1.5", sundayMultiplier: "1.5", holidayMultiplier: "2" };
 
@@ -61,6 +62,16 @@ export default async function ConfiguracionPage() {
         </CardHeader>
         <CardContent>
           <HolidaysPanel holidays={holidays} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base font-medium">Eventos</CardTitle>
+          <CardDescription>Archivado automático de eventos finalizados.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AutoArchiveForm autoArchiveDelay={company.autoArchiveDelay} />
         </CardContent>
       </Card>
     </div>

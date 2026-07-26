@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -24,7 +24,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { OperixLogo } from "@/components/shared/operix-logo";
+import { OpherixLogo } from "@/components/shared/opherix-logo";
 import { signOutAction } from "@/app/(auth)/actions";
 
 export interface NavItem {
@@ -59,9 +59,9 @@ export function AppSidebar({ portalName, navGroups }: AppSidebarProps) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="hover:bg-transparent active:bg-transparent">
               <div className="flex items-center gap-2.5">
-                <OperixLogo size={32} className="shrink-0" />
+                <OpherixLogo size={32} className="shrink-0" />
                 <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="text-base font-semibold text-white">Operix</span>
+                  <span className="text-base font-semibold text-white">Opherix</span>
                   <span className="text-xs text-sidebar-foreground/70">{portalName}</span>
                 </div>
               </div>

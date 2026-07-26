@@ -3,11 +3,11 @@
 @import "shadcn/tailwind.css";
 
 /*
- * REGLA DE TEMA (CLAUDE.md §3, actualizada tras adoptar la identidad Operix):
+ * REGLA DE TEMA (CLAUDE.md §3, actualizada tras adoptar la identidad Opherix):
  * el CONTENIDO de la plataforma (fondo principal, tarjetas, popovers, diálogos)
  * es SIEMPRE blanco/claro — no existe un modo oscuro conmutable ni forzado por
  * el sistema operativo del usuario. El sidebar de navegación SÍ usa un navy
- * oscuro fijo a propósito (parte de la identidad de marca Operix, igual que su
+ * oscuro fijo a propósito (parte de la identidad de marca Opherix, igual que su
  * mockup de referencia) — es un color de marca fijo, no "dark mode": nunca
  * reacciona a `prefers-color-scheme` ni a un toggle de usuario.
  *
@@ -100,7 +100,7 @@
 :root {
   color-scheme: light only;
 
-  /* Paleta Operix — CLAUDE.md §3 */
+  /* Paleta Opherix — CLAUDE.md §3 */
   --background: #ffffff;
   --foreground: #0f172a;
   --card: #ffffff;

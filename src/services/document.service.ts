@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -12,6 +12,8 @@ import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification } from "@/services/notification.service";
 import type { DocumentType } from "@/generated/prisma/enums";
+
+export class DocumentError extends Error {}
 
 export async function uploadDocument(
   companyId: string,
@@ -38,6 +40,56 @@ export async function uploadDocument(
   });
 
   return document;
+}
+
+async function assertDocumentInCompany(companyId: string, documentId: string) {
+  const document = await documentRepo.findDocumentById(documentId);
+  if (!document || document.worker.companyId !== companyId) {
+    throw new DocumentError("Documento no encontrado.");
+  }
+  return document;
+}
+
+export async function updateDocument(
+  companyId: string,
+  actorId: string,
+  documentId: string,
+  data: { type?: DocumentType; fileUrl?: string; fileName?: string; issuedAt?: string; expiresAt?: string },
+) {
+  await assertDocumentInCompany(companyId, documentId);
+
+  const document = await documentRepo.updateDocument(documentId, {
+    type: data.type,
+    fileUrl: data.fileUrl,
+    fileName: data.fileName,
+    issuedAt: data.issuedAt ? new Date(data.issuedAt) : data.issuedAt === "" ? null : undefined,
+    expiresAt: data.expiresAt ? new Date(data.expiresAt) : data.expiresAt === "" ? null : undefined,
+  });
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "DOCUMENT_UPDATED",
+    entityType: "WorkerDocument",
+    entityId: documentId,
+  });
+
+  return document;
+}
+
+export async function deleteDocument(companyId: string, actorId: string, documentId: string) {
+  const document = await assertDocumentInCompany(companyId, documentId);
+
+  await documentRepo.deleteDocument(documentId);
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "DOCUMENT_DELETED",
+    entityType: "WorkerDocument",
+    entityId: documentId,
+    metadata: { fileName: document.fileName },
+  });
 }
 
 const ALERT_WINDOWS_DAYS = [30, 14, 7];

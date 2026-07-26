@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -11,6 +11,7 @@
 import { useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Loader2, Calculator, Download, FileSpreadsheet } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { calculatePaymentsAction } from "./actions";
@@ -29,6 +30,7 @@ export function PeriodForm({ periodStart, periodEnd }: { periodStart: string; pe
   function handleCalculate() {
     startTransition(async () => {
       await calculatePaymentsAction(start, end);
+      toast.success("Pagos calculados correctamente");
       applyPeriod();
     });
   }

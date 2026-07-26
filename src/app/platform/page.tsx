@@ -1,5 +1,5 @@
 /**
- * OPERIX — Plataforma SaaS de gestión de personal para eventos
+ * OPHERIX — Plataforma SaaS de gestión de personal para eventos
  * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
  * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
  * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -21,10 +21,10 @@ export default async function PlatformDashboardPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard de plataforma</h1>
-        <p className="text-sm text-muted-foreground">Resumen de todas las empresas que usan Operix.</p>
+        <p className="text-sm text-muted-foreground">Resumen de todas las empresas que usan Opherix.</p>
       </div>
 
-      <StaggerContainer className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <StaggerContainer className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StaggerItem>
           <StatCard
             label="Empresas totales"

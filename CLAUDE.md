@@ -1,4 +1,4 @@
-# EVENT STAFF — Contexto persistente del proyecto
+# OPHERIX — Contexto persistente del proyecto
 
 > Este archivo es la instrucción maestra del proyecto. Se carga automáticamente en cada sesión de Claude Code dentro de este repo. No lo borres ni lo resumas — sirve de fuente de verdad para arquitectura, negocio y diseño.
 
@@ -13,7 +13,7 @@ Metodología obligatoria:
 4. Valida en cada entrega: arquitectura, flujo de negocio, flujo de usuario, seguridad, permisos, validaciones, manejo de errores, auditoría, rendimiento, escalabilidad, mantenibilidad, compatibilidad móvil, accesibilidad, UX.
 5. Código completo y listo para ejecutar, salvo que se pida explícitamente un diff pequeño.
 
-## 1. Qué es EVENT STAFF
+## 1. Qué es OPHERIX
 
 SaaS comercial (no una app de reservas simple) para administración y contratación de personal temporal de eventos: meseros, saloneros, bartenders, limpieza, anfitriones, cocineros, seguridad, logística.
 
@@ -41,7 +41,7 @@ Nivel de producto: Linear / Notion / Vercel / Storee.ai — no ERP clásico.
 
 Inspiración: Storee.ai, Linear.app, Vercel, Notion. Minimalista, mucho espacio en blanco, tarjetas elegantes, bordes redondeados, sombras suaves, animaciones con Framer Motion. Nada de Bootstrap/AdminLTE/Metronic.
 
-Paleta (como CSS variables / tokens Tailwind, nunca hardcodeada). **Actualizada tras adoptar la marca Operix**: el color principal es ahora **violeta** (escala oficial "violet" de Radix Colors, paso 9), no el azul original — el azul pasa a ser el acento secundario (`--indigo`), conservando el espíritu de dos colores del logo (cian→azul→violeta):
+Paleta (como CSS variables / tokens Tailwind, nunca hardcodeada). **Actualizada tras adoptar la marca Opherix**: el color principal es ahora **violeta** (escala oficial "violet" de Radix Colors, paso 9), no el azul original — el azul pasa a ser el acento secundario (`--indigo`), conservando el espíritu de dos colores del logo (cian→azul→violeta):
 
 | Uso | Color | Fuente |
 |---|---|---|
@@ -59,7 +59,7 @@ La escala completa de Radix Colors "violet" (12 pasos + variantes alpha/P3) vive
 
 **REGLA OBLIGATORIA E INNEGOCIABLE: el contenido (fondo principal, tarjetas, popovers, diálogos) siempre blanco/claro. NO dark mode conmutable ni forzado por el SO, en los 4 portales, sin excepción.** `prefers-color-scheme: dark` se ignora a propósito — el tema claro se fuerza explícitamente aunque el SO/navegador pida oscuro. Cualquier componente shadcn/ui con dark mode por defecto debe desactivarse explícitamente.
 
-**Excepción única y deliberada — sidebar de navegación:** el sidebar usa un color de marca fijo (`--sidebar: var(--violet-12)`, el paso más oscuro de la escala violet, definido en `globals.css`) igual que el mockup de referencia de Operix. Esto NO es "dark mode": nunca reacciona a `prefers-color-scheme` ni a un toggle de usuario, es un color de marca constante como el navy de Linear/Vercel en su propio branding. Ninguna otra superficie (contenido, tarjetas, modales, navbar superior) debe ser oscura.
+**Excepción única y deliberada — sidebar de navegación:** el sidebar usa un color de marca fijo (`--sidebar: var(--violet-12)`, el paso más oscuro de la escala violet, definido en `globals.css`) igual que el mockup de referencia de Opherix. Esto NO es "dark mode": nunca reacciona a `prefers-color-scheme` ni a un toggle de usuario, es un color de marca constante como el navy de Linear/Vercel en su propio branding. Ninguna otra superficie (contenido, tarjetas, modales, navbar superior) debe ser oscura.
 
 ## 4. Flujo general (8 pasos canónicos)
 
@@ -67,7 +67,7 @@ La escala completa de Radix Colors "violet" (12 pasos + variantes alpha/P3) vive
 2. **Perfil Profesional** (Aspirante) — CV generado automáticamente del formulario.
 3. **Revisión** (Administrador) — aprueba/rechaza candidatos.
 4. **Disponibilidad** (Trabajador) — calendario semanal con toggle por franja.
-5. **Solicitud de Evento** (Cliente) — fecha, hora, lugar, tipo, personal requerido por rol/cantidad.
+5. **Solicitud de Evento** (Cliente) — fecha, hora, lugar, tipo, personal requerido por rol/cantidad. **El Cliente ya no tiene cuenta ni portal con login** (cambio de 2026-07: reemplaza el antiguo portal `/cliente/*` autenticado) — solicita desde el link público `/solicitar/[companySlug]`, sin ningún paso de verificación por correo (decisión explícita: cero intervención de correos en este flujo) — solo Turnstile + rate limiting por correo/IP contra spam. Al enviar el formulario queda con una cookie de "recuérdame sin contraseña" (`ClientAccessToken`, 7 días) para volver a ver el estado en `/solicitar/[companySlug]/estado`, donde puede editar su solicitud mientras siga `REQUESTED`. El registro `Client` (empresa/contacto) se sigue creando igual que antes, solo que sin `User`/contraseña asociada — el Administrador aún puede darlo de alta manualmente desde `/admin/clientes` si lo prefiere. El correo sí se usa para avisarle cuando el Administrador confirma o rechaza la solicitud (única notificación por correo de todo este flujo).
 6. **Asignación** (Administrador) — asigna personal disponible y confirma.
 7. **Confirmación** (Trabajador) — acepta o rechaza la asignación.
 8. **Evento en Curso** (Trabajador) — check-in, ejecución, check-out.
@@ -78,7 +78,9 @@ Cada paso: dispara notificación (push + email) al actor siguiente; queda en `Au
 
 Roles: Administrador, Supervisor, Cliente, Trabajador, Aspirante.
 
-Portales: Administrador (control total, asignaciones, reportes, facturación, config), Cliente (buscar personal, crear eventos, historial, facturas), Trabajador (asignaciones, disponibilidad, check-in/out, pagos, perfil), Aspirante (postulación, documentos, CV, seguimiento, notificaciones).
+Portales: Administrador (control total, asignaciones, reportes, facturación, config), Trabajador (asignaciones, disponibilidad, check-in/out, pagos, perfil), Aspirante (postulación, documentos, CV, seguimiento, notificaciones).
+
+**Cliente ya no es un portal autenticado** — no tiene `layout`/navegación propia ni sesión NextAuth. Su única superficie es la pública `/solicitar/[companySlug]` (solicitar + verificar OTP) y `/solicitar/[companySlug]/estado` (ver/editar mientras esté pendiente), ambas sin login — ver §4 paso 5. Toda la gestión del lado del negocio (asignar personal, confirmar/rechazar, facturar) sigue siendo exclusiva del Administrador desde `/admin/eventos` y `/admin/clientes`.
 
 **Aspirante es un estado, no un rol fijo.** Al aprobarse (paso 3), la cuenta migra `Aspirante → Trabajador` conservando el mismo `userId` e historial. Máquina de estados: `PENDING_REVIEW → APPROVED → ACTIVE / REJECTED` — nunca una tabla separada que obligue a recrear el usuario.
 
@@ -87,7 +89,7 @@ Portales: Administrador (control total, asignaciones, reportes, facturación, co
 - **6.1 Dashboard:** visual, sin tablas al abrir. Tarjetas: Eventos Hoy, Personal Disponible, Personal Trabajando, Solicitudes Pendientes, Clientes Activos, Facturación del Mes, Horas Trabajadas, Pagos Pendientes. Debajo: calendario, eventos próximos, trabajadores disponibles, gráficas, actividad reciente.
 - **6.2 Reclutamiento:** formulario extenso (foto, cédula, nacimiento, dirección, teléfono, email, estado civil, hijos, escolaridad, cursos, idiomas, experiencia, empresas anteriores, referencias, licencias, vehículo/moto propio, disponibilidad, tallas uniforme, enfermedades/alergias, contacto emergencia, documentos). Genera perfil CV elegante (HTML→imagen/PDF, patrón html2canvas + jsPDF).
 - **6.3 Personal (Talento):** perfil visual — foto grande, nombre, edad, especialidad, experiencia, idiomas, calificación, disponibilidad, documentos, certificados, historial, comentarios, evaluaciones.
-- **6.4 Clientes:** ver trabajadores disponibles, filtrar por especialidad/experiencia/calificación/idiomas/disponibilidad/precio, seleccionar, solicitar evento, ver historial/facturas.
+- **6.4 Clientes:** registro de contacto (empresa, nombre, correo, teléfono) gestionado por el Administrador desde `/admin/clientes` — sin cuenta de acceso. La solicitud de evento la hace el propio Cliente sin cuenta desde `/solicitar/[companySlug]` (§4 paso 5); el historial/facturas los ve y gestiona el Administrador, no el Cliente.
 - **6.5 Eventos:** crear (ubicación, fecha, hora inicio/fin, cantidad por tipo de personal, observaciones), asignar trabajadores, gestionar confirmaciones, check-in/out.
 - **6.6 Disponibilidad:** días/horas, vacaciones, permisos, ausencias — por trabajador, vista calendario.
 - **6.7 Check-In:** GPS, QR, código de supervisor o selfie. Hora entrada/salida.
@@ -103,12 +105,12 @@ Clean Architecture: separación `ui/components`, `services`, `repositories (Pris
 
 ## 8. Propiedad Intelectual y Autoría
 
-**Operix es propiedad intelectual exclusiva de Cristhian Paul Prestán.** No es software libre ni de código abierto — todo el código, diseño y documentación de este repositorio pertenecen únicamente al autor. Estas reglas son obligatorias e innegociables, igual que las de tema claro (§3) o aislamiento multi-tenant (§9.10):
+**Opherix es propiedad intelectual exclusiva de Cristhian Paul Prestán.** No es software libre ni de código abierto — todo el código, diseño y documentación de este repositorio pertenecen únicamente al autor. Estas reglas son obligatorias e innegociables, igual que las de tema claro (§3) o aislamiento multi-tenant (§9.10):
 
 1. **Header de licencia obligatorio en cada archivo de código fuente** (`.ts`/`.tsx` bajo `src/`, `prisma/schema.prisma`, y los config de raíz como `next.config.ts`/`prisma.config.ts`/`eslint.config.mjs`/`postcss.config.mjs` — no aplica a `src/generated/` ni a `next-env.d.ts`, que Prisma/Next regeneran automáticamente y sobrescribirían cualquier header). Como comentario de bloque al inicio del archivo (antes de cualquier `"use client"`/`"use server"`/import — un comentario líder no rompe la directive prologue):
    ```ts
    /**
-    * OPERIX — Plataforma SaaS de gestión de personal para eventos
+    * OPHERIX — Plataforma SaaS de gestión de personal para eventos
     * © 2026 Cristhian Paul Prestán. Todos los derechos reservados.
     * Propiedad intelectual exclusiva del autor. Prohibida su reproducción,
     * distribución o uso no autorizado, total o parcial, sin consentimiento
@@ -132,7 +134,7 @@ Clean Architecture: separación `ui/components`, `services`, `repositories (Pris
 3. **`package.json`** debe declarar siempre:
    ```json
    {
-     "name": "operix",
+     "name": "opherix",
      "author": "Cristhian Paul Prestán",
      "license": "UNLICENSED",
      "private": true
@@ -142,7 +144,7 @@ Clean Architecture: separación `ui/components`, `services`, `repositories (Pris
 4. **Footer de autoría visible en los 4 portales** (Administrador, Cliente, Trabajador, Aspirante — que usa el shell de Trabajador). Al vivir los 4 sobre el mismo `PortalShell` compartido (`src/components/shared/portal-shell.tsx`), un único footer ahí cubre los cuatro:
    ```tsx
    <footer className="py-4 text-center text-xs text-muted-foreground">
-     © {new Date().getFullYear()} Operix. Desarrollado por Cristhian Prestán.
+     © {new Date().getFullYear()} Opherix. Desarrollado por Cristhian Prestán.
    </footer>
    ```
 
