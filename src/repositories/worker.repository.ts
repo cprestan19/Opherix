@@ -195,7 +195,6 @@ export interface UpdateWorkerProfileData {
   specialties: Prisma.WorkerUncheckedUpdateInput["specialties"];
   experienceYears: number;
   previousEmployers: Prisma.InputJsonValue;
-  references: Prisma.InputJsonValue;
   licenses: string[];
   hourlyRate?: number;
   hasVehicle: boolean;
@@ -233,7 +232,6 @@ export function updateWorkerProfile(workerId: string, userId: string, data: Upda
         specialties: workerFields.specialties,
         experienceYears: workerFields.experienceYears,
         previousEmployers: workerFields.previousEmployers,
-        references: workerFields.references,
         licenses: workerFields.licenses,
         hourlyRate: workerFields.hourlyRate,
         hasVehicle: workerFields.hasVehicle,

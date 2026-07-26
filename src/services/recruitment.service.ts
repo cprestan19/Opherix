@@ -52,7 +52,6 @@ export async function submitApplication(companySlug: string, input: WorkerApplic
       specialties: input.specialties,
       experienceYears: input.experienceYears,
       previousEmployers: input.previousEmployers,
-      references: input.references,
       licenses: input.licenses,
       hasVehicle: input.hasVehicle,
       vehicleType: input.hasVehicle ? input.vehicleType : null,

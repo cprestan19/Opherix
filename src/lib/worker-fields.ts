@@ -11,12 +11,11 @@ export interface WorkerEmployer {
   role: string;
   from: string;
   to?: string;
-}
-
-export interface WorkerReference {
-  name: string;
-  phone: string;
-  relation: string;
+  // Referencia de ese trabajo específico (ej. su jefe ahí) — va debajo de
+  // cada empresa anterior, no como una lista de referencias aparte.
+  referenceName?: string;
+  referencePhone?: string;
+  referenceRelation?: string;
 }
 
 export interface WorkerUniformSizes {
@@ -33,13 +32,6 @@ export function asEmployers(value: unknown): WorkerEmployer[] {
   if (!Array.isArray(value)) return [];
   return value.filter(
     (v): v is WorkerEmployer => typeof v === "object" && v !== null && "company" in v && "role" in v,
-  );
-}
-
-export function asReferences(value: unknown): WorkerReference[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter(
-    (v): v is WorkerReference => typeof v === "object" && v !== null && "name" in v && "phone" in v,
   );
 }
 

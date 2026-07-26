@@ -78,7 +78,6 @@ const defaultValues: WorkerApplicationInput = {
   specialties: [],
   experienceYears: 0,
   previousEmployers: [],
-  references: [{ name: "", phone: "", relation: "" }],
   licenses: [],
   hasVehicle: false,
   vehicleType: "",
@@ -112,7 +111,6 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
   });
 
   const employers = useFieldArray({ control, name: "previousEmployers" });
-  const references = useFieldArray({ control, name: "references" });
   const hasChildren = watch("hasChildren");
   const hasVehicle = watch("hasVehicle");
 
@@ -530,81 +528,117 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
 
                 <Field>
                   <FieldLabel>Empresas anteriores</FieldLabel>
+                  <FieldDescription className="-mt-1">
+                    Si tienes, agrega una referencia de esa empresa justo debajo (opcional).
+                  </FieldDescription>
                   <div className="flex flex-col gap-3">
                     {employers.fields.map((item, index) => {
                       const employerErrors = errors.previousEmployers?.[index];
                       return (
-                        <div
-                          key={item.id}
-                          className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-4"
-                        >
-                          <div>
-                            <Input
-                              placeholder="Empresa"
-                              aria-invalid={!!employerErrors?.company}
-                              {...register(`previousEmployers.${index}.company` as const)}
-                              onChange={(e) =>
-                                setValue(
-                                  `previousEmployers.${index}.company`,
-                                  toSentenceCase(e.target.value),
-                                  { shouldValidate: true, shouldDirty: true },
-                                )
-                              }
-                            />
-                            <FieldError errors={[employerErrors?.company]} />
-                          </div>
-                          <div>
-                            <Input
-                              placeholder="Puesto"
-                              aria-invalid={!!employerErrors?.role}
-                              {...register(`previousEmployers.${index}.role` as const)}
-                              onChange={(e) =>
-                                setValue(`previousEmployers.${index}.role`, toSentenceCase(e.target.value), {
-                                  shouldValidate: true,
-                                  shouldDirty: true,
-                                })
-                              }
-                            />
-                            <FieldError errors={[employerErrors?.role]} />
-                          </div>
-                          <div>
-                            <Controller
-                              control={control}
-                              name={`previousEmployers.${index}.from` as const}
-                              render={({ field }) => (
-                                <DatePickerField
-                                  value={field.value}
-                                  onChange={field.onChange}
-                                  placeholder="Desde"
-                                  invalid={!!employerErrors?.from}
-                                />
-                              )}
-                            />
-                            <FieldError errors={[employerErrors?.from]} />
-                          </div>
-                          <div className="flex gap-2">
-                            <div className="flex-1">
+                        <div key={item.id} className="flex flex-col gap-3 rounded-lg border border-border p-3">
+                          <div className="grid gap-2 sm:grid-cols-4">
+                            <div>
+                              <Input
+                                placeholder="Empresa"
+                                aria-invalid={!!employerErrors?.company}
+                                {...register(`previousEmployers.${index}.company` as const)}
+                                onChange={(e) =>
+                                  setValue(
+                                    `previousEmployers.${index}.company`,
+                                    toSentenceCase(e.target.value),
+                                    { shouldValidate: true, shouldDirty: true },
+                                  )
+                                }
+                              />
+                              <FieldError errors={[employerErrors?.company]} />
+                            </div>
+                            <div>
+                              <Input
+                                placeholder="Puesto"
+                                aria-invalid={!!employerErrors?.role}
+                                {...register(`previousEmployers.${index}.role` as const)}
+                                onChange={(e) =>
+                                  setValue(`previousEmployers.${index}.role`, toSentenceCase(e.target.value), {
+                                    shouldValidate: true,
+                                    shouldDirty: true,
+                                  })
+                                }
+                              />
+                              <FieldError errors={[employerErrors?.role]} />
+                            </div>
+                            <div>
                               <Controller
                                 control={control}
-                                name={`previousEmployers.${index}.to` as const}
+                                name={`previousEmployers.${index}.from` as const}
                                 render={({ field }) => (
                                   <DatePickerField
                                     value={field.value}
                                     onChange={field.onChange}
-                                    placeholder="Hasta"
+                                    placeholder="Desde"
+                                    invalid={!!employerErrors?.from}
                                   />
                                 )}
                               />
+                              <FieldError errors={[employerErrors?.from]} />
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              aria-label="Quitar empresa anterior"
-                              onClick={() => employers.remove(index)}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
+                            <div className="flex gap-2">
+                              <div className="flex-1">
+                                <Controller
+                                  control={control}
+                                  name={`previousEmployers.${index}.to` as const}
+                                  render={({ field }) => (
+                                    <DatePickerField
+                                      value={field.value}
+                                      onChange={field.onChange}
+                                      placeholder="Hasta"
+                                    />
+                                  )}
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                aria-label="Quitar empresa anterior"
+                                onClick={() => employers.remove(index)}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="border-t border-dashed border-border pt-3">
+                            <p className="mb-2 text-xs font-medium text-muted-foreground">
+                              Referencia de este trabajo (opcional)
+                            </p>
+                            <div className="grid gap-2 sm:grid-cols-3">
+                              <Input
+                                placeholder="Nombre"
+                                {...register(`previousEmployers.${index}.referenceName` as const)}
+                                onChange={(e) =>
+                                  setValue(
+                                    `previousEmployers.${index}.referenceName`,
+                                    toSentenceCase(e.target.value),
+                                    { shouldValidate: true, shouldDirty: true },
+                                  )
+                                }
+                              />
+                              <Input
+                                placeholder="Teléfono"
+                                {...register(`previousEmployers.${index}.referencePhone` as const)}
+                              />
+                              <Input
+                                placeholder="Relación (ej. Supervisor)"
+                                {...register(`previousEmployers.${index}.referenceRelation` as const)}
+                                onChange={(e) =>
+                                  setValue(
+                                    `previousEmployers.${index}.referenceRelation`,
+                                    toSentenceCase(e.target.value),
+                                    { shouldValidate: true, shouldDirty: true },
+                                  )
+                                }
+                              />
+                            </div>
                           </div>
                         </div>
                       );
@@ -613,83 +647,21 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                       type="button"
                       size="sm"
                       className="w-fit gap-1"
-                      onClick={() => employers.append({ company: "", role: "", from: "", to: "" })}
+                      onClick={() =>
+                        employers.append({
+                          company: "",
+                          role: "",
+                          from: "",
+                          to: "",
+                          referenceName: "",
+                          referencePhone: "",
+                          referenceRelation: "",
+                        })
+                      }
                     >
                       <Plus className="size-4" /> Agregar empresa anterior
                     </Button>
                   </div>
-                </Field>
-
-                <Field data-invalid={!!errors.references}>
-                  <FieldLabel>Referencias</FieldLabel>
-                  <div className="flex flex-col gap-3">
-                    {references.fields.map((item, index) => {
-                      const referenceErrors = errors.references?.[index];
-                      return (
-                        <div
-                          key={item.id}
-                          className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-4"
-                        >
-                          <div>
-                            <Input
-                              placeholder="Nombre"
-                              aria-invalid={!!referenceErrors?.name}
-                              {...register(`references.${index}.name` as const)}
-                              onChange={(e) =>
-                                setValue(`references.${index}.name`, toSentenceCase(e.target.value), {
-                                  shouldValidate: true,
-                                  shouldDirty: true,
-                                })
-                              }
-                            />
-                            <FieldError errors={[referenceErrors?.name]} />
-                          </div>
-                          <div>
-                            <Input
-                              placeholder="Teléfono"
-                              aria-invalid={!!referenceErrors?.phone}
-                              {...register(`references.${index}.phone` as const)}
-                            />
-                            <FieldError errors={[referenceErrors?.phone]} />
-                          </div>
-                          <div>
-                            <Input
-                              placeholder="Relación"
-                              aria-invalid={!!referenceErrors?.relation}
-                              {...register(`references.${index}.relation` as const)}
-                              onChange={(e) =>
-                                setValue(`references.${index}.relation`, toSentenceCase(e.target.value), {
-                                  shouldValidate: true,
-                                  shouldDirty: true,
-                                })
-                              }
-                            />
-                            <FieldError errors={[referenceErrors?.relation]} />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="w-fit"
-                            aria-label="Quitar referencia"
-                            onClick={() => references.remove(index)}
-                            disabled={references.fields.length === 1}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="w-fit gap-1"
-                      onClick={() => references.append({ name: "", phone: "", relation: "" })}
-                    >
-                      <Plus className="size-4" /> Agregar referencia
-                    </Button>
-                  </div>
-                  <FieldError errors={[errors.references]} />
                 </Field>
               </FieldGroup>
             </FieldSet>

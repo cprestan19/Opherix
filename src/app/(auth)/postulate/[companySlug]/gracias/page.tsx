@@ -6,9 +6,8 @@
  * expreso por escrito del autor.
  */
 
-import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function ApplicationSuccessPage() {
   return (
@@ -20,16 +19,9 @@ export default function ApplicationSuccessPage() {
           </div>
           <CardTitle className="mt-2">¡Postulación enviada!</CardTitle>
           <CardDescription>
-            Un administrador revisará tu perfil. Te notificaremos en cuanto haya una decisión. Para
-            ver el estado de tu postulación, crea una contraseña con tu correo desde
-            &quot;¿Olvidaste tu contraseña?&quot; en la pantalla de inicio de sesión.
+            Un administrador revisará tu perfil. Te notificaremos en cuanto haya una decisión.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Link href="/forgot-password" className="text-sm text-primary underline underline-offset-4">
-            Crear mi contraseña
-          </Link>
-        </CardContent>
       </Card>
     </div>
   );

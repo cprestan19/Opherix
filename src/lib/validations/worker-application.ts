@@ -49,17 +49,17 @@ export const specialtyLabels: Record<(typeof specialtyValues)[number], string> =
   OTHER: "Otro",
 };
 
+// La referencia vive dentro de cada empresa anterior (a quién llamar por ese
+// trabajo específico), no como una lista aparte — por eso todos sus campos
+// son opcionales: no todas las empresas anteriores necesitan una.
 const previousEmployerSchema = z.object({
   company: z.string().min(1, "Requerido"),
   role: z.string().min(1, "Requerido"),
   from: z.string().min(1, "Requerido"),
   to: z.string().optional(),
-});
-
-const referenceSchema = z.object({
-  name: z.string().min(1, "Requerido"),
-  phone: z.string().min(1, "Requerido"),
-  relation: z.string().min(1, "Requerido"),
+  referenceName: z.string().optional(),
+  referencePhone: z.string().optional(),
+  referenceRelation: z.string().optional(),
 });
 
 export const workerApplicationSchema = z
@@ -86,7 +86,6 @@ export const workerApplicationSchema = z
     specialties: z.array(z.enum(specialtyValues)).min(1, "Selecciona al menos una especialidad"),
     experienceYears: z.number().int().min(0).max(60),
     previousEmployers: z.array(previousEmployerSchema),
-    references: z.array(referenceSchema).min(1, "Indica al menos una referencia"),
     licenses: z.array(z.string()),
 
     // Paso 3 — Logística, salud y emergencia
@@ -154,7 +153,6 @@ export const APPLICATION_STEPS: {
       "specialties",
       "experienceYears",
       "previousEmployers",
-      "references",
       "licenses",
     ],
   },

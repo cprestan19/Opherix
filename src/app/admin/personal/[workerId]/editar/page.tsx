@@ -9,7 +9,7 @@
 import { notFound } from "next/navigation";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { getWorkerDetail } from "@/repositories/worker.repository";
-import { asStringArray, asEmployers, asReferences, asUniformSizes } from "@/lib/worker-fields";
+import { asStringArray, asEmployers, asUniformSizes } from "@/lib/worker-fields";
 import { EditWorkerForm } from "../edit-worker-form";
 
 export default async function EditWorkerPage({
@@ -47,7 +47,6 @@ export default async function EditWorkerPage({
         specialties: worker.specialties,
         experienceYears: worker.experienceYears ?? 0,
         previousEmployers: asEmployers(worker.previousEmployers),
-        references: asReferences(worker.references),
         licenses: asStringArray(worker.licenses),
         // Nunca se envía al navegador si el rol no es ADMIN — no solo se oculta en la UI.
         hourlyRate: user.role === "ADMIN" && worker.hourlyRate ? Number(worker.hourlyRate) : undefined,

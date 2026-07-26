@@ -84,7 +84,6 @@ const TAB_FIELDS: Record<(typeof TABS)[number]["value"], (keyof WorkerEditInput)
     "specialties",
     "experienceYears",
     "previousEmployers",
-    "references",
     "licenses",
     "hourlyRate",
     "hasVehicle",
@@ -120,7 +119,6 @@ export function EditWorkerForm({
   } = useForm<WorkerEditInput>({ resolver: zodResolver(workerEditSchema), defaultValues: worker });
 
   const employers = useFieldArray({ control, name: "previousEmployers" });
-  const references = useFieldArray({ control, name: "references" });
   const hasChildren = watch("hasChildren");
   const hasVehicle = watch("hasVehicle");
   const name = watch("name");
@@ -381,23 +379,47 @@ export function EditWorkerForm({
 
                     <Field>
                       <FieldLabel>Empresas anteriores</FieldLabel>
+                      <FieldDescription className="-mt-1">
+                        Referencia de esa empresa (opcional), justo debajo de cada una.
+                      </FieldDescription>
                       <div className="flex flex-col gap-3">
                         {employers.fields.map((item, index) => (
-                          <div key={item.id} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-4">
-                            <Input placeholder="Empresa" {...register(`previousEmployers.${index}.company` as const)} />
-                            <Input placeholder="Puesto" {...register(`previousEmployers.${index}.role` as const)} />
-                            <Input placeholder="Desde" {...register(`previousEmployers.${index}.from` as const)} />
-                            <div className="flex gap-2">
-                              <Input placeholder="Hasta" {...register(`previousEmployers.${index}.to` as const)} />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                aria-label="Quitar empresa anterior"
-                                onClick={() => employers.remove(index)}
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
+                          <div key={item.id} className="flex flex-col gap-3 rounded-lg border border-border p-3">
+                            <div className="grid gap-2 sm:grid-cols-4">
+                              <Input placeholder="Empresa" {...register(`previousEmployers.${index}.company` as const)} />
+                              <Input placeholder="Puesto" {...register(`previousEmployers.${index}.role` as const)} />
+                              <Input placeholder="Desde" {...register(`previousEmployers.${index}.from` as const)} />
+                              <div className="flex gap-2">
+                                <Input placeholder="Hasta" {...register(`previousEmployers.${index}.to` as const)} />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  aria-label="Quitar empresa anterior"
+                                  onClick={() => employers.remove(index)}
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="border-t border-dashed border-border pt-3">
+                              <p className="mb-2 text-xs font-medium text-muted-foreground">
+                                Referencia de este trabajo (opcional)
+                              </p>
+                              <div className="grid gap-2 sm:grid-cols-3">
+                                <Input
+                                  placeholder="Nombre"
+                                  {...register(`previousEmployers.${index}.referenceName` as const)}
+                                />
+                                <Input
+                                  placeholder="Teléfono"
+                                  {...register(`previousEmployers.${index}.referencePhone` as const)}
+                                />
+                                <Input
+                                  placeholder="Relación"
+                                  {...register(`previousEmployers.${index}.referenceRelation` as const)}
+                                />
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -405,40 +427,19 @@ export function EditWorkerForm({
                           type="button"
                           size="sm"
                           className="w-fit gap-1"
-                          onClick={() => employers.append({ company: "", role: "", from: "", to: "" })}
+                          onClick={() =>
+                            employers.append({
+                              company: "",
+                              role: "",
+                              from: "",
+                              to: "",
+                              referenceName: "",
+                              referencePhone: "",
+                              referenceRelation: "",
+                            })
+                          }
                         >
                           <Plus className="size-4" /> Agregar empresa anterior
-                        </Button>
-                      </div>
-                    </Field>
-
-                    <Field>
-                      <FieldLabel>Referencias</FieldLabel>
-                      <div className="flex flex-col gap-3">
-                        {references.fields.map((item, index) => (
-                          <div key={item.id} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-4">
-                            <Input placeholder="Nombre" {...register(`references.${index}.name` as const)} />
-                            <Input placeholder="Teléfono" {...register(`references.${index}.phone` as const)} />
-                            <Input placeholder="Relación" {...register(`references.${index}.relation` as const)} />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="w-fit"
-                              aria-label="Quitar referencia"
-                              onClick={() => references.remove(index)}
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="w-fit gap-1"
-                          onClick={() => references.append({ name: "", phone: "", relation: "" })}
-                        >
-                          <Plus className="size-4" /> Agregar referencia
                         </Button>
                       </div>
                     </Field>

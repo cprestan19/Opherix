@@ -14,12 +14,9 @@ const employerSchema = z.object({
   role: z.string().min(1, "Requerido"),
   from: z.string().min(1, "Requerido"),
   to: z.string().optional(),
-});
-
-const referenceSchema = z.object({
-  name: z.string().min(1, "Requerido"),
-  phone: z.string().min(1, "Requerido"),
-  relation: z.string().min(1, "Requerido"),
+  referenceName: z.string().optional(),
+  referencePhone: z.string().optional(),
+  referenceRelation: z.string().optional(),
 });
 
 export const workerEditSchema = z.object({
@@ -45,7 +42,6 @@ export const workerEditSchema = z.object({
   specialties: z.array(z.enum(specialtyValues)).min(1, "Selecciona al menos una especialidad"),
   experienceYears: z.number().int().min(0).max(60),
   previousEmployers: z.array(employerSchema),
-  references: z.array(referenceSchema),
   licenses: z.array(z.string()),
 
   // Laboral

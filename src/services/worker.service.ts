@@ -84,7 +84,6 @@ export async function updateWorkerProfile(
     specialties: input.specialties,
     experienceYears: input.experienceYears,
     previousEmployers: input.previousEmployers,
-    references: input.references,
     licenses: input.licenses,
     hourlyRate,
     hasVehicle: input.hasVehicle,
