@@ -9,7 +9,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { motion } from "framer-motion";
 import {
   Download,
   Loader2,
@@ -25,8 +24,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { specialtyLabels, languageLabels } from "@/lib/validations/worker-application";
-import { StaggerContainer, StaggerItem } from "@/components/shared/motion/stagger";
 import { asStringArray, asEmployers } from "@/lib/worker-fields";
 import { cn } from "@/lib/utils";
 
@@ -48,8 +47,8 @@ export interface WorkerCvData {
   ratingCount: number;
 }
 
-// Tamaño carta (8.5"x11") a 96dpi — para que el PDF exportado se vea como un
-// documento real en vez de una captura de pantalla con proporciones random.
+// Tamaño carta (8.5"x11") a 96dpi — solo para el documento que se exporta a
+// PDF, para que se vea como un documento real en vez de una captura random.
 const PAGE_WIDTH_PX = 816;
 const PAGE_HEIGHT_PX = 1056;
 
@@ -126,46 +125,151 @@ export function WorkerCv({ worker }: { worker: WorkerCvData }) {
         </Button>
       </div>
 
-      <div className="overflow-x-auto rounded-xl ring-1 ring-foreground/10">
+      {/* Vista en pantalla — en bloques, con el score de primera mano.
+          El documento tipo CV (abajo) es solo el contenido que se exporta
+          a PDF, nunca se muestra visible en la página. */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-4 p-5">
+          <Avatar className="size-20 shrink-0 border border-border">
+            <AvatarImage src={worker.photoUrl ?? undefined} alt={worker.name} />
+            <AvatarFallback className="text-lg">{worker.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">{worker.name}</h2>
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {worker.specialties.map((specialty) => (
+                <Badge key={specialty} className="w-fit">
+                  {specialtyLabels[specialty]}
+                </Badge>
+              ))}
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Mail className="size-3.5" /> {worker.email}
+              </span>
+              {worker.phone ? (
+                <span className="flex items-center gap-1">
+                  <Phone className="size-3.5" /> {worker.phone}
+                </span>
+              ) : null}
+              {worker.address ? (
+                <span className="flex items-center gap-1">
+                  <MapPin className="size-3.5" /> {worker.address}
+                </span>
+              ) : null}
+            </div>
+          </div>
+          {/* Score de primera mano — lo primero que se ve del bloque de perfil */}
+          <div className="flex shrink-0 flex-col items-center gap-0.5 rounded-lg bg-primary/5 px-5 py-3">
+            <div className="flex items-center gap-1.5 text-2xl font-bold text-primary">
+              <Star className="size-5 fill-warning text-warning" />
+              {rating.toFixed(1)}
+            </div>
+            <span className="text-xs text-muted-foreground">{worker.ratingCount} evaluaciones</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <CardContent className="flex flex-col gap-2 p-5">
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Briefcase className="size-4" /> Experiencia
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {worker.experienceYears ?? 0} año(s) de experiencia en eventos
+            </p>
+            {employers.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {employers.map((employer, i) => (
+                  <li key={i} className="text-sm">
+                    <span className="font-medium text-foreground">{employer.role}</span>
+                    <span className="text-muted-foreground"> — {employer.company}</span>
+                    <div className="text-xs text-muted-foreground">
+                      {employer.from} – {employer.to || "presente"}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex flex-col gap-4 p-5">
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <GraduationCap className="size-4" /> Formación
+              </h3>
+              <p className="text-sm text-muted-foreground">{worker.education}</p>
+              {courses.length > 0 ? (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {courses.map((course) => (
+                    <Badge key={course} variant="outline">
+                      {course}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div>
+              <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Languages className="size-4" /> Idiomas
+              </h3>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {languages.map((lang) => (
+                  <Badge key={lang} variant="secondary">
+                    {languageLabel(lang)}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+            {licenses.length > 0 ? (
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Licencias y certificaciones</h3>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {licenses.map((license) => (
+                    <Badge key={license} variant="outline">
+                      {license}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Documento estilo CV — nunca visible en pantalla, solo existe para que
+          handleDownload lo capture con html2canvas. Posicionado fuera del
+          viewport (no display:none/opacity:0 — html2canvas necesita que el
+          elemento tenga layout real para poder renderizarlo). */}
+      <div style={{ position: "fixed", left: -99999, top: 0 }} aria-hidden>
         <div
           ref={printRef}
           style={{ width: PAGE_WIDTH_PX, minHeight: PAGE_HEIGHT_PX }}
-          className="mx-auto flex flex-col bg-white text-foreground"
+          className="flex flex-col bg-white text-foreground"
         >
-          {/* Header de marca — mismo violeta que el resto de la app (§3 CLAUDE.md) */}
           <div className="flex items-center gap-6 bg-primary px-10 py-8 text-white">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.85 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-            >
-              <Avatar className="size-28 border-4 border-white/30 shadow-lg">
-                <AvatarImage src={worker.photoUrl ?? undefined} alt={worker.name} />
-                <AvatarFallback className="bg-white/20 text-2xl text-white">
-                  {worker.name.slice(0, 2).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </motion.div>
-            <StaggerContainer className="flex min-w-0 flex-col gap-1.5">
-              <StaggerItem>
-                <h1 className="text-3xl font-bold tracking-tight">{worker.name}</h1>
-              </StaggerItem>
-              <StaggerItem>
-                <p className="text-sm font-medium text-white/85">
-                  {worker.specialties.map((s) => specialtyLabels[s]).join(" · ") || "Personal de eventos"}
-                </p>
-              </StaggerItem>
-              <StaggerItem>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <Star className="size-4 fill-amber-300 text-amber-300" />
-                  <span className="text-sm font-semibold">{rating.toFixed(1)}</span>
-                  <span className="text-xs text-white/70">({worker.ratingCount} evaluaciones)</span>
-                </div>
-              </StaggerItem>
-            </StaggerContainer>
+            <Avatar className="size-28 border-4 border-white/30 shadow-lg">
+              <AvatarImage src={worker.photoUrl ?? undefined} alt={worker.name} />
+              <AvatarFallback className="bg-white/20 text-2xl text-white">
+                {worker.name.slice(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <h1 className="text-3xl font-bold tracking-tight">{worker.name}</h1>
+              <p className="text-sm font-medium text-white/85">
+                {worker.specialties.map((s) => specialtyLabels[s]).join(" · ") || "Personal de eventos"}
+              </p>
+              <div className="mt-1 flex items-center gap-1.5">
+                <Star className="size-4 fill-amber-300 text-amber-300" />
+                <span className="text-sm font-semibold">{rating.toFixed(1)}</span>
+                <span className="text-xs text-white/70">({worker.ratingCount} evaluaciones)</span>
+              </div>
+            </div>
           </div>
 
-          {/* Cuerpo — barra lateral de contacto/idiomas + columna principal de experiencia */}
           <div className="grid flex-1 grid-cols-[220px_1fr]">
             <aside className="flex flex-col gap-7 border-r border-border bg-secondary/40 px-6 py-8">
               <section className="flex flex-col gap-2.5">
@@ -242,7 +346,9 @@ export function WorkerCv({ worker }: { worker: WorkerCvData }) {
                 ) : null}
               </section>
 
-              <section className={cn("flex flex-col gap-3", employers.length > 0 && "border-t border-border pt-6")}>
+              <section
+                className={cn("flex flex-col gap-3", employers.length > 0 && "border-t border-border pt-6")}
+              >
                 <h2 className="flex items-center gap-2 text-sm font-bold text-foreground">
                   <GraduationCap className="size-4 text-primary" /> Formación
                 </h2>
