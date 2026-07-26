@@ -8,16 +8,21 @@
 
 import { getEffectiveCompanyId } from "@/lib/tenant";
 import { listClients } from "@/services/client.service";
+import { getCompany } from "@/repositories/config.repository";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ClientForm } from "./client-form";
+import { ShareEventRequestLink } from "./share-event-request-link";
 
 const dateFormatter = new Intl.DateTimeFormat("es", { day: "2-digit", month: "short", year: "numeric" });
 
 export default async function ClientesPage() {
   const companyId = await getEffectiveCompanyId();
-  const clients = await listClients(companyId);
+  const [clients, company] = await Promise.all([listClients(companyId), getCompany(companyId)]);
+
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const eventRequestUrl = `${baseUrl}/solicitar/${company.slug}`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -28,6 +33,8 @@ export default async function ClientesPage() {
         </div>
         <ClientForm />
       </div>
+
+      <ShareEventRequestLink url={eventRequestUrl} companyName={company.name} />
 
       {clients.length === 0 ? (
         <Card className="border-dashed">
