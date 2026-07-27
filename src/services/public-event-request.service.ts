@@ -13,7 +13,8 @@ import * as accessTokenRepo from "@/repositories/client-access-token.repository"
 import * as workerRepo from "@/repositories/worker.repository";
 import { generateClientAccessToken } from "@/lib/client-access-token";
 import { verifyTurnstileToken } from "@/lib/turnstile";
-import { createEventRequest, generateEventAccessLink } from "@/services/event.service";
+import { createEventRequest, generateEventAccessLink, EventError } from "@/services/event.service";
+import { logAudit } from "@/lib/audit";
 import type { PublicEventRequestInput } from "@/lib/validations/public-event-request";
 
 export class PublicEventRequestError extends Error {}
@@ -101,6 +102,7 @@ export async function submitPublicEventRequest(
 
   const contactEmail = input.contactEmail.toLowerCase();
   let client = await clientRepo.findClientByEmailOrPhone(companyId, contactEmail, input.contactPhone);
+  const isNewClient = !client;
   if (!client) {
     client = await clientRepo.createClient({
       companyId,
@@ -121,22 +123,44 @@ export async function submitPublicEventRequest(
     ? await workerRepo.filterActiveWorkerIds(companyId, input.preferredWorkerIds)
     : undefined;
 
-  const event = await createEventRequest(
-    companyId,
-    client.id,
-    null,
-    {
-      title: input.eventTitle,
-      eventType: input.eventType,
-      address: input.address,
-      startAt: input.startAt,
-      endAt: input.endAt,
-      notes: input.notes,
-      staffRequirements: input.staffNeeded,
-      preferredWorkerIds,
-    },
-    ip,
-  );
+  let event;
+  try {
+    event = await createEventRequest(
+      companyId,
+      client.id,
+      null,
+      {
+        title: input.eventTitle,
+        eventType: input.eventType,
+        address: input.address,
+        startAt: input.startAt,
+        endAt: input.endAt,
+        notes: input.notes,
+        staffRequirements: input.staffNeeded,
+        preferredWorkerIds,
+      },
+      ip,
+    );
+  } catch (error) {
+    // Si el evento no se pudo crear (fecha inválida, sin personal, error
+    // inesperado, etc.) y el Client se creó recién en esta misma solicitud,
+    // revertirlo (soft-delete) para no dejarlo huérfano sin ninguna
+    // solicitud asociada. Antes este error se perdía sin avisar al usuario
+    // ni limpiar el Client — parecía que "no pasaba nada" en el formulario.
+    if (isNewClient) {
+      await clientRepo.softDeleteClient(companyId, client.id, "Solicitud fallida — sin evento asociado");
+      await logAudit({
+        companyId,
+        actorId: null,
+        action: "CLIENT_DELETED",
+        entityType: "Client",
+        entityId: client.id,
+        metadata: { reason: "Solicitud fallida — sin evento asociado", automatic: true },
+      }).catch(() => {});
+    }
+    if (error instanceof EventError) throw new PublicEventRequestError(error.message);
+    throw new PublicEventRequestError("No se pudo enviar la solicitud. Intenta de nuevo.");
+  }
 
   const { token, tokenHash, expiresAt } = generateClientAccessToken();
   await accessTokenRepo.createClientAccessToken({

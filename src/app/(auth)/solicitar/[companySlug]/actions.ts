@@ -55,7 +55,11 @@ export async function submitPublicEventRequestAction(
     return { eventId: result.eventId, eventAccessToken: result.eventAccessToken };
   } catch (error) {
     if (error instanceof PublicEventRequestError) return { error: error.message };
-    throw error;
+    // Nunca dejar que un error inesperado se pierda en silencio en un
+    // formulario público — el usuario debe ver siempre algún mensaje en
+    // vez de que "no pase nada" al presionar enviar.
+    console.error("[solicitar] Error inesperado al enviar la solicitud:", error);
+    return { error: "No se pudo enviar la solicitud. Intenta de nuevo en unos minutos." };
   }
 }
 
