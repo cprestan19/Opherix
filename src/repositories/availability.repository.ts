@@ -54,7 +54,7 @@ export function listUpcomingAssignmentsForWorker(workerId: string) {
     where: {
       workerId,
       status: { in: ["PROPOSED", "ACCEPTED"] },
-      event: { startAt: { gte: new Date() } },
+      event: { deletedAt: null, startAt: { gte: new Date() } },
     },
     select: {
       id: true,

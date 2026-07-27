@@ -21,7 +21,7 @@ export function WorkerStatusToggle({ workerId, status }: { workerId: string; sta
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  if (status !== "ACTIVE" && status !== "INACTIVE") return null;
+  if (status !== "ACTIVE" && status !== "INACTIVE" && status !== "APPROVED") return null;
 
   function handleToggle() {
     setError(null);

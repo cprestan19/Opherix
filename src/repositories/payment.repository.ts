@@ -22,7 +22,7 @@ export function listHolidays(companyId: string, country: string) {
 
 export function listActiveWorkersWithRate(companyId: string) {
   return prisma.worker.findMany({
-    where: { companyId, status: { in: ["ACTIVE", "APPROVED"] } },
+    where: { companyId, deletedAt: null, status: { in: ["ACTIVE", "APPROVED"] } },
     include: { user: { select: { name: true } } },
   });
 }

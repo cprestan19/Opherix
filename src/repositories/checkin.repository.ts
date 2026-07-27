@@ -20,6 +20,7 @@ export function listAssignmentsForCheckIn(workerId: string) {
     where: {
       workerId,
       status: "ACCEPTED",
+      event: { deletedAt: null },
       OR: [
         { event: { startAt: { lte: dayEnd }, endAt: { gte: dayStart } } },
         { checkInAt: { not: null }, checkOutAt: null },
@@ -30,9 +31,14 @@ export function listAssignmentsForCheckIn(workerId: string) {
   });
 }
 
+/**
+ * Excluye asignaciones de un evento eliminado (soft-delete, § CLAUDE.md
+ * §9.9) — de lo contrario el trabajador podría seguir marcando entrada/salida
+ * de un evento que el Administrador ya eliminó.
+ */
 export function findAssignmentForWorker(assignmentId: string, workerId: string) {
   return prisma.workerAssignment.findFirst({
-    where: { id: assignmentId, workerId },
+    where: { id: assignmentId, workerId, event: { deletedAt: null } },
     include: { event: true },
   });
 }
@@ -96,7 +102,13 @@ export function listCheckInsForCompanyToday(companyId: string) {
   dayEnd.setHours(23, 59, 59, 999);
 
   return prisma.event.findMany({
-    where: { companyId, startAt: { lte: dayEnd }, endAt: { gte: dayStart }, status: { not: "CANCELLED" } },
+    where: {
+      companyId,
+      deletedAt: null,
+      startAt: { lte: dayEnd },
+      endAt: { gte: dayStart },
+      status: { not: "CANCELLED" },
+    },
     include: {
       assignments: {
         where: { status: "ACCEPTED" },

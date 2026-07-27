@@ -35,6 +35,7 @@ export function listEventsForInvoicing(companyId: string, periodStart: Date, per
   return prisma.event.findMany({
     where: {
       companyId,
+      deletedAt: null,
       status: { in: ["CONFIRMED", "IN_PROGRESS", "COMPLETED", "ARCHIVED"] },
       startAt: { gte: periodStart, lte: periodEnd },
     },

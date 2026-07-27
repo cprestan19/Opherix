@@ -33,14 +33,14 @@ export async function applyRatingToWorkerAverage(workerId: string, score: number
 
 export function findAcceptedAssignmentsForEvent(companyId: string, eventId: string) {
   return prisma.workerAssignment.findMany({
-    where: { eventId, status: "ACCEPTED", worker: { companyId } },
+    where: { eventId, status: "ACCEPTED", worker: { companyId, deletedAt: null } },
     select: { id: true, workerId: true, ratingScore: true },
   });
 }
 
 export function listPendingModerations(companyId: string) {
   return prisma.workerAssignment.findMany({
-    where: { ratingModerationStatus: "PENDING_REVIEW", worker: { companyId } },
+    where: { ratingModerationStatus: "PENDING_REVIEW", worker: { companyId, deletedAt: null } },
     select: {
       id: true,
       ratingScore: true,

@@ -19,9 +19,14 @@ export function createClientAccessToken(data: {
   return prisma.clientAccessToken.create({ data });
 }
 
+/**
+ * Excluye tokens de un Client eliminado (soft-delete, § CLAUDE.md §9.9) — si
+ * no, la cookie "recuérdame sin contraseña" seguiría dejando ver/editar la
+ * solicitud de un cliente que el Administrador ya eliminó.
+ */
 export function findValidClientAccessToken(tokenHash: string) {
   return prisma.clientAccessToken.findFirst({
-    where: { tokenHash, expiresAt: { gt: new Date() } },
+    where: { tokenHash, expiresAt: { gt: new Date() }, client: { deletedAt: null } },
     include: { client: true },
   });
 }

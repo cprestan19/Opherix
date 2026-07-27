@@ -243,7 +243,7 @@ export function reopenEventAccess(eventId: string, expiresAt: Date) {
  */
 export function findEventByAccessToken(companyId: string, eventId: string, token: string) {
   return prisma.event.findFirst({
-    where: { id: eventId, companyId, accessToken: token },
+    where: { id: eventId, companyId, accessToken: token, deletedAt: null },
     include: {
       client: { select: { businessName: true, contactName: true, contactEmail: true, contactPhone: true } },
       staffRequirements: true,
@@ -291,7 +291,7 @@ export async function cancelAssignment(companyId: string, assignmentId: string) 
 
 export function listAssignmentsForWorker(workerId: string) {
   return prisma.workerAssignment.findMany({
-    where: { workerId, status: { not: "CANCELLED" } },
+    where: { workerId, status: { not: "CANCELLED" }, event: { deletedAt: null } },
     include: {
       event: {
         include: {
@@ -315,7 +315,9 @@ export function respondToAssignment(
 }
 
 export function findAssignmentForWorker(assignmentId: string, workerId: string) {
-  return prisma.workerAssignment.findFirst({ where: { id: assignmentId, workerId } });
+  return prisma.workerAssignment.findFirst({
+    where: { id: assignmentId, workerId, event: { deletedAt: null } },
+  });
 }
 
 export function findAvailableWorkersForSpecialty(companyId: string, specialty: Specialty) {

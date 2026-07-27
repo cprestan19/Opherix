@@ -51,7 +51,7 @@ export function deleteDocument(id: string) {
 
 export function listDocumentsForCompany(companyId: string) {
   return prisma.workerDocument.findMany({
-    where: { worker: { companyId } },
+    where: { worker: { companyId, deletedAt: null } },
     include: { worker: { select: { id: true, user: { select: { name: true } } } } },
     orderBy: { expiresAt: "asc" },
   });
@@ -63,7 +63,7 @@ export function findExpiringDocuments(companyId: string, daysAhead: number) {
 
   return prisma.workerDocument.findMany({
     where: {
-      worker: { companyId },
+      worker: { companyId, deletedAt: null },
       expiresAt: { not: null, lte: threshold, gte: new Date() },
     },
     include: { worker: { select: { id: true, user: { select: { id: true, name: true } } } } },

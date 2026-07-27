@@ -16,6 +16,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme="light"
+      richColors
       className="toaster group"
       icons={{
         success: (
@@ -40,6 +41,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--normal-text": "var(--popover-foreground)",
           "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
+          // Éxito con más contraste que el toast neutro por defecto — bloque
+          // verde claro con texto verde oscuro, para que llame la atención.
+          "--success-bg": "#F0FDF4",
+          "--success-text": "#166534",
+          "--success-border": "#BBF7D0",
         } as React.CSSProperties
       }
       toastOptions={{
