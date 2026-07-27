@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TurnstileWidget } from "@/components/shared/turnstile-widget";
+import { FileUploadField } from "@/components/shared/file-upload-field";
 import { cn } from "@/lib/utils";
 import { publicEventRequestSchema, type PublicEventRequestInput } from "@/lib/validations/public-event-request";
 import { specialtyLabels, specialtyValues } from "@/lib/validations/worker-application";
@@ -31,6 +32,9 @@ const defaultValues: PublicEventRequestInput = {
   contactName: "",
   contactEmail: "",
   contactPhone: "",
+  businessName: "",
+  taxId: "",
+  operationRegistration: undefined,
   eventTitle: "",
   eventType: "",
   address: "",
@@ -78,6 +82,8 @@ export function RequestForm({
     if (contact) {
       setValue("contactName", contact.contactName);
       setValue("contactPhone", contact.contactPhone);
+      setValue("businessName", contact.businessName);
+      setValue("taxId", contact.taxId);
     }
   }
 
@@ -140,6 +146,30 @@ export function RequestForm({
         <FieldLabel htmlFor="contactPhone">Teléfono</FieldLabel>
         <Input id="contactPhone" {...register("contactPhone")} />
         <FieldError errors={[errors.contactPhone]} />
+      </Field>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field data-invalid={!!errors.businessName}>
+          <FieldLabel htmlFor="businessName">Nombre de la empresa</FieldLabel>
+          <Input id="businessName" {...register("businessName")} />
+          <FieldError errors={[errors.businessName]} />
+        </Field>
+        <Field data-invalid={!!errors.taxId}>
+          <FieldLabel htmlFor="taxId">RUC</FieldLabel>
+          <Input id="taxId" {...register("taxId")} />
+          <FieldError errors={[errors.taxId]} />
+        </Field>
+      </div>
+
+      <Field>
+        <FieldLabel>Registro de operación (opcional)</FieldLabel>
+        <Controller
+          control={control}
+          name="operationRegistration"
+          render={({ field }) => (
+            <FileUploadField folder="/clients/documents" value={field.value} onChange={field.onChange} />
+          )}
+        />
       </Field>
 
       <Field data-invalid={!!errors.eventTitle}>

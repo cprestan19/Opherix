@@ -202,6 +202,11 @@ model Client {
   contactEmail String
   contactPhone String?
   address      String?
+  // Adjunto opcional del formulario público /solicitar/[companySlug] — copia
+  // del registro de operación de la empresa, sube a ImageKit como cualquier
+  // otro documento (§ CLAUDE.md §2).
+  operationRegistrationUrl      String?
+  operationRegistrationFileName String?
   isActive     Boolean  @default(true)
   // Soft-delete (§ CLAUDE.md §4/§9.9 — nunca borrado físico): oculta el
   // cliente de todas las listas y selectores, distinto de isActive (que solo

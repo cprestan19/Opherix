@@ -7,7 +7,7 @@
  */
 
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
+import { Trash2, FileText } from "lucide-react";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { listClients, listDeletedClients } from "@/services/client.service";
 import { getCompany } from "@/repositories/config.repository";
@@ -135,11 +135,25 @@ export default async function ClientesPage({
                     <p className="truncate text-xs text-muted-foreground">
                       {client.contactName} · {client.contactEmail}
                       {client.contactPhone ? ` · ${client.contactPhone}` : ""}
+                      {client.taxId ? ` · RUC ${client.taxId}` : ""}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
                       {client._count.events} solicitud(es) · Registrado: {dateFormatter.format(client.createdAt)} ·
                       Última solicitud:{" "}
                       {client.events[0] ? dateFormatter.format(client.events[0].createdAt) : "—"}
+                      {client.operationRegistrationUrl ? (
+                        <>
+                          {" · "}
+                          <a
+                            href={client.operationRegistrationUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-primary hover:underline"
+                          >
+                            <FileText className="size-3" /> Registro de operación
+                          </a>
+                        </>
+                      ) : null}
                     </p>
                   </div>
                   {isViewer ? null : (

@@ -11,7 +11,7 @@ import "server-only";
 // Carpetas donde la app sube fotos/documentos reemplazables — cualquier URL
 // fuera de estas nunca se borra, aunque alguien la pase al endpoint público
 // (protege assets fijos como el logo de marca en /brand).
-const DELETABLE_FOLDER_PREFIXES = ["/applicants", "/workers", "/checkins", "/documents", "/staff"];
+const DELETABLE_FOLDER_PREFIXES = ["/applicants", "/workers", "/checkins", "/documents", "/staff", "/clients"];
 
 function extractFilePath(url: string): string | null {
   const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT;

@@ -61,7 +61,12 @@ const MAX_REQUESTS_PER_IP = 15;
 export async function findReturningContact(companyId: string, email: string) {
   const client = await clientRepo.findClientByEmail(companyId, email);
   if (!client) return null;
-  return { contactName: client.contactName, contactPhone: client.contactPhone ?? "" };
+  return {
+    contactName: client.contactName,
+    contactPhone: client.contactPhone ?? "",
+    businessName: client.businessName,
+    taxId: client.taxId ?? "",
+  };
 }
 
 /**
@@ -99,10 +104,13 @@ export async function submitPublicEventRequest(
   if (!client) {
     client = await clientRepo.createClient({
       companyId,
-      businessName: input.contactName,
+      businessName: input.businessName,
+      taxId: input.taxId,
       contactName: input.contactName,
       contactEmail,
       contactPhone: input.contactPhone,
+      operationRegistrationUrl: input.operationRegistration?.url,
+      operationRegistrationFileName: input.operationRegistration?.name,
     });
   }
 

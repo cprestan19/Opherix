@@ -39,6 +39,8 @@ export function createClient(data: {
   contactEmail: string;
   contactPhone?: string;
   address?: string;
+  operationRegistrationUrl?: string;
+  operationRegistrationFileName?: string;
 }) {
   return prisma.client.create({ data });
 }
