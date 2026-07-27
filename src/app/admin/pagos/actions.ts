@@ -82,10 +82,11 @@ export async function setEventAmountAction(eventId: string, amount: number): Pro
     throw error;
   }
   revalidatePath("/admin/pagos");
+  revalidatePath(`/admin/eventos/${eventId}`);
   return {};
 }
 
-export async function markInvoicePaidAction(invoiceId: string): Promise<PaymentActionResult> {
+export async function markInvoicePaidAction(invoiceId: string, eventId?: string): Promise<PaymentActionResult> {
   const { user, companyId } = await requireCompanyStaff();
 
   try {
@@ -95,5 +96,6 @@ export async function markInvoicePaidAction(invoiceId: string): Promise<PaymentA
     throw error;
   }
   revalidatePath("/admin/pagos");
+  if (eventId) revalidatePath(`/admin/eventos/${eventId}`);
   return {};
 }

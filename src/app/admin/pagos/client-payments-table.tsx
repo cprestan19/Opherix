@@ -87,7 +87,7 @@ function ClientPaymentRowItem({ row }: { row: ClientPaymentRow }) {
   async function handleMarkCancelled() {
     if (!row.invoice) return;
     setIsCancelling(true);
-    const result = await markInvoicePaidAction(row.invoice.id);
+    const result = await markInvoicePaidAction(row.invoice.id, row.eventId);
     setIsCancelling(false);
     if (result?.error) {
       toast.error(result.error);

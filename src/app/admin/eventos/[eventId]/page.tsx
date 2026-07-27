@@ -14,6 +14,7 @@ import {
   findAvailableWorkersForSpecialty,
   listPreferredWorkerSummaries,
 } from "@/repositories/event.repository";
+import { findInvoiceForEvent } from "@/repositories/invoice.repository";
 import { getCompany } from "@/repositories/config.repository";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,11 +24,13 @@ import { asStringArray } from "@/lib/worker-fields";
 import { AssignmentPanel } from "./assignment-panel";
 import { EventActions } from "./event-actions";
 import { EventCheckInCode } from "@/components/shared/event-checkin-code";
-import { InvoiceAction } from "./invoice-action";
+import { EventAmountCard } from "./event-amount-card";
 import { EditEventForm } from "./edit-event-form";
 import { ArchiveEventAction } from "./archive-event-action";
 import { EventDeleteAction } from "./event-delete-action";
 import { EventAccessLinkPanel } from "./event-access-link-panel";
+
+const INVOICEABLE_STATUSES = ["CONFIRMED", "IN_PROGRESS", "COMPLETED", "ARCHIVED"];
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Borrador",
@@ -59,6 +62,8 @@ export default async function EventDetailPage({
   const companyId = await getEffectiveCompanyId();
   const [event, company] = await Promise.all([getEventDetail(companyId, eventId), getCompany(companyId)]);
   if (!event) notFound();
+
+  const invoice = INVOICEABLE_STATUSES.includes(event.status) ? await findInvoiceForEvent(event.id) : null;
 
   const ratedAssignments = event.assignments.filter((a) => a.ratingScore !== null);
 
@@ -135,13 +140,19 @@ export default async function EventDetailPage({
           {event.deletedAt ? null : (
             <>
               <EventActions eventId={event.id} status={event.status} />
-              {event.status === "COMPLETED" ? <InvoiceAction eventId={event.id} /> : null}
               {event.status === "COMPLETED" ? <ArchiveEventAction eventId={event.id} /> : null}
             </>
           )}
           <EventDeleteAction eventId={event.id} deleted={Boolean(event.deletedAt)} />
         </div>
       )}
+
+      {!isViewer && !event.deletedAt && INVOICEABLE_STATUSES.includes(event.status) ? (
+        <EventAmountCard
+          eventId={event.id}
+          invoice={invoice ? { id: invoice.id, amount: invoice.amount.toString(), status: invoice.status } : null}
+        />
+      ) : null}
 
       {event.status === "CONFIRMED" || event.status === "IN_PROGRESS" ? (
         <EventCheckInCode eventId={event.id} />

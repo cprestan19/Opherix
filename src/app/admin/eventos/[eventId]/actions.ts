@@ -25,8 +25,6 @@ import {
   reopenEventAccessLink,
   EventError,
 } from "@/services/event.service";
-import { getEventDetail } from "@/repositories/event.repository";
-import { issueInvoiceForEvent, InvoiceError } from "@/services/invoice.service";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
 
 export interface EventActionResult {
@@ -183,25 +181,3 @@ export async function reopenEventAccessLinkAction(eventId: string): Promise<Even
   return {};
 }
 
-export async function issueInvoiceAction(eventId: string, amount: number): Promise<EventActionResult> {
-  const { user, companyId } = await requireCompanyStaff();
-  const event = await getEventDetail(companyId, eventId);
-  if (!event) return { error: "Evento no encontrado." };
-
-  try {
-    await issueInvoiceForEvent(
-      companyId,
-      user.id,
-      eventId,
-      event.clientId,
-      event.startAt,
-      event.endAt,
-      amount,
-    );
-  } catch (error) {
-    if (error instanceof InvoiceError) return { error: error.message };
-    throw error;
-  }
-  revalidatePath(`/admin/eventos/${eventId}`);
-  return {};
-}
