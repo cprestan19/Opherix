@@ -11,13 +11,21 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
-import { updatePayRules, addHoliday, removeHoliday, updateAutoArchiveDelay } from "@/services/config.service";
+import {
+  updatePayRules,
+  addHoliday,
+  removeHoliday,
+  updateAutoArchiveDelay,
+  updateEmailConfig,
+  sendTestEmail,
+} from "@/services/config.service";
 import { updateCompanyBranding } from "@/repositories/config.repository";
 import {
   saveClientSpecialtyRates,
   ClientSpecialtyRateError,
 } from "@/services/client-specialty-rate.service";
 import { clientSpecialtyRateSchema, type ClientSpecialtyRateInput } from "@/lib/validations/client-specialty-rate";
+import { emailConfigSchema, type EmailConfigInput } from "@/lib/validations/email-config";
 import type { AutoArchiveDelay } from "@/generated/prisma/enums";
 
 export interface ConfigActionResult {
@@ -80,5 +88,23 @@ export async function saveClientSpecialtyRatesAction(
   }
 
   revalidatePath("/admin/configuracion");
+  return {};
+}
+
+export async function updateEmailConfigAction(input: EmailConfigInput): Promise<ConfigActionResult> {
+  const parsed = emailConfigSchema.safeParse(input);
+  if (!parsed.success) return { error: "Revisa los valores ingresados." };
+
+  const { user, companyId } = await requireAdmin();
+  await updateEmailConfig(companyId, user.id, parsed.data);
+  revalidatePath("/admin/configuracion");
+  return {};
+}
+
+export async function sendTestEmailAction(): Promise<ConfigActionResult> {
+  const { user, companyId } = await requireAdmin();
+  if (!user.email) return { error: "Tu cuenta no tiene un correo asociado." };
+  const sent = await sendTestEmail(companyId, user.email);
+  if (!sent) return { error: "No se pudo enviar el correo de prueba. Revisa los datos SMTP." };
   return {};
 }

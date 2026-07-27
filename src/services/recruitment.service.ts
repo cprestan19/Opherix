@@ -120,12 +120,16 @@ export async function approveApplication(companyId: string, workerId: string, ac
     entityId: workerId,
   });
 
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   await dispatchNotification({
     companyId,
     userId: worker.userId,
     type: "APPLICATION_APPROVED",
     title: "¡Postulación aprobada!",
-    body: "Tu perfil fue aprobado. Ya puedes configurar tu disponibilidad y recibir asignaciones.",
+    body:
+      "Tu perfil fue aprobado. Ya puedes configurar tu disponibilidad y recibir asignaciones.\n\n" +
+      `Ingresa aquí: ${baseUrl}/trabajador\n\n` +
+      `¿Primera vez? Configura tu contraseña con tu correo (${worker.user.email}) en ${baseUrl}/forgot-password.`,
     relatedEntityType: "Worker",
     relatedEntityId: workerId,
   });

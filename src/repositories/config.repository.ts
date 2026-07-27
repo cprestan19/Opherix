@@ -54,3 +54,31 @@ export async function deleteHoliday(companyId: string, id: string) {
   const result = await prisma.holiday.deleteMany({ where: { id, companyId } });
   return result.count > 0;
 }
+
+export function getEmailConfig(companyId: string) {
+  return prisma.company.findUniqueOrThrow({
+    where: { id: companyId },
+    select: {
+      smtpHost: true,
+      smtpPort: true,
+      smtpUser: true,
+      smtpPasswordEncrypted: true,
+      smtpFromEmail: true,
+      smtpFromName: true,
+    },
+  });
+}
+
+export function upsertEmailConfig(
+  companyId: string,
+  data: {
+    smtpHost: string;
+    smtpPort: number;
+    smtpUser: string;
+    smtpPasswordEncrypted?: string;
+    smtpFromEmail: string;
+    smtpFromName?: string;
+  },
+) {
+  return prisma.company.update({ where: { id: companyId }, data });
+}

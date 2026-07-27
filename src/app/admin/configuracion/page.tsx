@@ -9,6 +9,7 @@
 import { redirect } from "next/navigation";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { getCompany, getOrCreatePayRuleSet, listHolidays } from "@/repositories/config.repository";
+import { getEmailConfigStatus } from "@/services/config.service";
 import { listClients } from "@/repositories/client.repository";
 import { listRatesForCompany } from "@/repositories/client-specialty-rate.repository";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { PayRulesForm } from "./pay-rules-form";
 import { HolidaysPanel } from "./holidays-panel";
 import { AutoArchiveForm } from "./auto-archive-form";
 import { ClientRatesForm } from "./client-rates-form";
+import { EmailConfigForm } from "./email-config-form";
 
 const DEFAULT_RULES = { overtimeMultiplier: "1.5", sundayMultiplier: "1.5", holidayMultiplier: "2" };
 
@@ -26,11 +28,12 @@ export default async function ConfiguracionPage() {
 
   const companyId = await getEffectiveCompanyId();
   const company = await getCompany(companyId);
-  const [payRules, holidays, clients, specialtyRates] = await Promise.all([
+  const [payRules, holidays, clients, specialtyRates, emailConfig] = await Promise.all([
     getOrCreatePayRuleSet(companyId, company.country),
     listHolidays(companyId, company.country),
     listClients(companyId),
     listRatesForCompany(companyId),
+    getEmailConfigStatus(companyId),
   ]);
 
   return (
@@ -81,6 +84,27 @@ export default async function ConfiguracionPage() {
               payToWorker: r.payToWorker.toString(),
               chargeToClient: r.chargeToClient.toString(),
             }))}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base font-medium">Correo</CardTitle>
+          <CardDescription>
+            Configura el Gmail (u otro SMTP) propio de tu empresa para que las notificaciones (aprobaciones,
+            confirmaciones de evento, restablecer contraseña) salgan desde tu propio correo. Si no lo configuras,
+            se usa el correo compartido de la plataforma.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EmailConfigForm
+            smtpHost={emailConfig.smtpHost}
+            smtpPort={emailConfig.smtpPort}
+            smtpUser={emailConfig.smtpUser}
+            smtpFromEmail={emailConfig.smtpFromEmail}
+            smtpFromName={emailConfig.smtpFromName}
+            hasPassword={emailConfig.hasPassword}
           />
         </CardContent>
       </Card>

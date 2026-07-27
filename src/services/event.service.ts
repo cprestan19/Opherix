@@ -231,6 +231,7 @@ export async function resendEventAccessLink(
     `Hola ${event.client.contactName},\n\n` +
       `Aquí tienes el enlace de tu solicitud "${event.title}":\n${link}\n\n` +
       `Úsalo para ver el estado y, una vez finalizado el evento, calificar el servicio.`,
+    companyId,
   );
 
   await logAudit({ companyId, actorId, action: "EVENT_ACCESS_LINK_RESENT", entityType: "Event", entityId: eventId });
@@ -422,6 +423,7 @@ export async function confirmEvent(companyId: string, eventId: string, actorId: 
       `Hola ${event.client.contactName},\n\n` +
         `Confirmamos tu solicitud de personal para "${event.title}". Ya estamos asignando al equipo.\n\n` +
         `Puedes ver el estado en cualquier momento con el mismo enlace que usaste para solicitar.`,
+      companyId,
     );
   }
 
@@ -464,6 +466,7 @@ export async function cancelEvent(companyId: string, eventId: string, actorId: s
         `Lamentablemente no pudimos confirmar tu solicitud de personal para "${event.title}".\n` +
         `Motivo: ${reason}\n\n` +
         `Si quieres, puedes enviar una nueva solicitud con otra fecha u horario.`,
+      companyId,
     );
   }
 

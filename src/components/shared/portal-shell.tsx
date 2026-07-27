@@ -12,6 +12,7 @@ import { AppSidebar, type NavGroup, type NavItem } from "@/components/shared/app
 import { BottomTabBar } from "@/components/shared/bottom-tab-bar";
 import { OpherixLogo } from "@/components/shared/opherix-logo";
 import { PushPermission } from "@/components/shared/push-permission";
+import { InstallPrompt } from "@/components/shared/install-prompt";
 import { TopbarSearch } from "@/components/shared/topbar-search";
 import { NotificationBell } from "@/components/shared/notification-bell";
 import { UserMenu } from "@/components/shared/user-menu";
@@ -85,6 +86,7 @@ export function PortalShell({
             />
           </div>
         </header>
+        <InstallPrompt />
         <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:p-6 md:pb-6">{children}</div>
         <footer className="py-4 text-center text-xs text-muted-foreground pb-20 md:pb-4">
           © {new Date().getFullYear()} Opherix. Desarrollado por Cristhian Prestán.

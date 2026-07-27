@@ -111,6 +111,17 @@ model Company {
   // el cron /api/cron/archive-events solo actúa sobre tenants con esto != OFF.
   autoArchiveDelay AutoArchiveDelay @default(OFF)
 
+  // Configuración de correo propia del tenant (§ Configuración > Correo) —
+  // si no está configurada, el envío cae al SMTP global de la plataforma
+  // (EMAIL_SERVER_* en variables de entorno). smtpPasswordEncrypted nunca se
+  // expone al navegador ni se guarda en claro — ver src/lib/crypto.ts.
+  smtpHost              String?
+  smtpPort              Int?
+  smtpUser              String?
+  smtpPasswordEncrypted String?
+  smtpFromEmail         String?
+  smtpFromName          String?
+
   users              User[]
   clients            Client[]
   workers            Worker[]

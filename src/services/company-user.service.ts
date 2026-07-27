@@ -70,6 +70,7 @@ export async function createCompanyUser(companyId: string, actorId: string, inpu
     `Se creó una cuenta para ti en Opherix con el rol de ${companyUserRoleLabels[input.role]}.\n\n` +
       `Elige tu contraseña para activarla (este enlace vence en 1 hora):\n${setPasswordUrl}\n\n` +
       `Luego podrás iniciar sesión con tu correo (${user.email}) en ${baseUrl}/login.`,
+    companyId,
   );
 
   if (!sent && process.env.NODE_ENV !== "production") {
@@ -160,6 +161,7 @@ export async function setCompanyUserPassword(
     "Tu contraseña en Opherix fue actualizada",
     `Un administrador de tu empresa estableció una nueva contraseña para tu cuenta (${target.email}).\n\n` +
       `Si no lo esperabas, contacta a tu administrador de inmediato.`,
+    companyId,
   );
 
   return true;

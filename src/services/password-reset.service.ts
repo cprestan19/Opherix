@@ -60,6 +60,7 @@ export async function requestPasswordReset(emailRaw: string): Promise<{ message:
     email,
     "Restablecer tu contraseña — Opherix",
     `Recibimos una solicitud para restablecer tu contraseña.\n\nEste enlace vence en 1 hora:\n${resetUrl}\n\nSi no fuiste tú, ignora este correo.`,
+    user?.companyId,
   );
 
   if (!sent && process.env.NODE_ENV !== "production") {

@@ -56,7 +56,7 @@ export async function dispatchNotification(input: DispatchNotificationInput) {
   });
   if (!user) return;
 
-  await recordAndSend(input, "EMAIL", () => sendEmail(user.email, input.title, input.body));
+  await recordAndSend(input, "EMAIL", () => sendEmail(user.email, input.title, input.body, input.companyId));
 
   if (user.fcmToken) {
     await recordAndSend(input, "PUSH", () => sendPushNotification(user.fcmToken, input.title, input.body));

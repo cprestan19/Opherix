@@ -9,7 +9,10 @@
 import "server-only";
 import * as configRepo from "@/repositories/config.repository";
 import { logAudit } from "@/lib/audit";
+import { encryptSecret } from "@/lib/crypto";
+import { sendEmail } from "@/lib/notifications/email";
 import type { AutoArchiveDelay } from "@/generated/prisma/enums";
+import type { EmailConfigInput } from "@/lib/validations/email-config";
 
 export async function updatePayRules(
   companyId: string,
@@ -65,4 +68,52 @@ export async function updateAutoArchiveDelay(
     metadata: { autoArchiveDelay },
   });
   return updated;
+}
+
+export async function getEmailConfigStatus(companyId: string) {
+  const config = await configRepo.getEmailConfig(companyId);
+  return {
+    smtpHost: config.smtpHost ?? "",
+    smtpPort: config.smtpPort ?? 587,
+    smtpUser: config.smtpUser ?? "",
+    smtpFromEmail: config.smtpFromEmail ?? "",
+    smtpFromName: config.smtpFromName ?? "",
+    hasPassword: Boolean(config.smtpPasswordEncrypted),
+  };
+}
+
+/**
+ * smtpPassword vacío ("") significa "no cambiar la contraseña guardada" —
+ * evita que reabrir el formulario (que nunca recibe la contraseña real de
+ * vuelta, ver getEmailConfigStatus) la borre por accidente al guardar.
+ */
+export async function updateEmailConfig(companyId: string, actorId: string, input: EmailConfigInput) {
+  const updated = await configRepo.upsertEmailConfig(companyId, {
+    smtpHost: input.smtpHost,
+    smtpPort: input.smtpPort,
+    smtpUser: input.smtpUser,
+    smtpPasswordEncrypted: input.smtpPassword ? encryptSecret(input.smtpPassword) : undefined,
+    smtpFromEmail: input.smtpFromEmail,
+    smtpFromName: input.smtpFromName,
+  });
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "EMAIL_CONFIG_UPDATED",
+    entityType: "Company",
+    entityId: companyId,
+    metadata: { smtpHost: input.smtpHost, smtpUser: input.smtpUser, smtpFromEmail: input.smtpFromEmail },
+  });
+
+  return updated;
+}
+
+export async function sendTestEmail(companyId: string, toEmail: string) {
+  return sendEmail(
+    toEmail,
+    "Correo de prueba — Opherix",
+    "Este es un correo de prueba de tu configuración SMTP en Opherix. Si lo recibiste, tu configuración funciona correctamente.",
+    companyId,
+  );
 }
