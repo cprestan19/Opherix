@@ -132,6 +132,7 @@ model Company {
 enum UserRole {
   ADMIN
   SUPERVISOR
+  VIEWER // usuario de solo lectura del portal Administrador — sin acceso a Pagos ni Configuración
   CLIENT
   WORKER
   APPLICANT

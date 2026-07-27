@@ -27,7 +27,15 @@ function occupiedWeekdays(assignments: WorkerAssignmentPreview[]): Set<number> {
   return new Set(assignments.map((a) => a.event.startAt.getDay()));
 }
 
-export function AvailabilityOverview({ workers, events }: { workers: WorkerAvailability[]; events: AssignableEvent[] }) {
+export function AvailabilityOverview({
+  workers,
+  events,
+  readOnly = false,
+}: {
+  workers: WorkerAvailability[];
+  events: AssignableEvent[];
+  readOnly?: boolean;
+}) {
   const { start, end } = getCurrentWeekRange();
 
   return (
@@ -69,7 +77,7 @@ export function AvailabilityOverview({ workers, events }: { workers: WorkerAvail
                   ))}
                   <th className="text-xs font-medium text-muted-foreground">Ausencias próximas</th>
                   <th className="text-xs font-medium text-muted-foreground">Próxima asignación</th>
-                  <th className="text-xs font-medium text-muted-foreground">Acción</th>
+                  {readOnly ? null : <th className="text-xs font-medium text-muted-foreground">Acción</th>}
                 </tr>
               </thead>
               <tbody>
@@ -83,7 +91,7 @@ export function AvailabilityOverview({ workers, events }: { workers: WorkerAvail
                         <WorkerScheduleDialog
                           workerName={worker.user.name}
                           assignments={worker.assignments}
-                          onRemove={removeAssignmentFromAvailabilityAction}
+                          onRemove={readOnly ? undefined : removeAssignmentFromAvailabilityAction}
                         >
                           <div className="flex items-center gap-2 rounded-md px-1 py-1 hover:bg-muted/60">
                             <Avatar className="size-7">
@@ -124,9 +132,11 @@ export function AvailabilityOverview({ workers, events }: { workers: WorkerAvail
                             }).format(nextAssignment.event.startAt)}`
                           : "Sin asignar"}
                       </td>
-                      <td className="text-center">
-                        <AssignEventModal workerId={worker.id} workerName={worker.user.name} events={events} />
-                      </td>
+                      {readOnly ? null : (
+                        <td className="text-center">
+                          <AssignEventModal workerId={worker.id} workerName={worker.user.name} events={events} />
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

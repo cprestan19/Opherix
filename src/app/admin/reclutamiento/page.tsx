@@ -6,13 +6,14 @@
  * expreso por escrito del autor.
  */
 
-import { getEffectiveCompanyId } from "@/lib/tenant";
+import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { listPendingApplications } from "@/services/recruitment.service";
 import { getCompany } from "@/repositories/config.repository";
 import { ApplicationReviewList } from "./application-review-list";
 import { SharePostulationLink } from "./share-postulation-link";
 
 export default async function ReclutamientoPage() {
+  const currentUser = await getCurrentUser();
   const companyId = await getEffectiveCompanyId();
   const [applications, company] = await Promise.all([
     listPendingApplications(companyId),
@@ -31,7 +32,7 @@ export default async function ReclutamientoPage() {
         </p>
       </div>
       <SharePostulationLink url={postulationUrl} companyName={company.name} />
-      <ApplicationReviewList applications={applications} />
+      <ApplicationReviewList applications={applications} readOnly={currentUser.role === "VIEWER"} />
     </div>
   );
 }

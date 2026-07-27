@@ -7,8 +7,9 @@
  */
 
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Wallet, Hourglass, CheckCircle2, TrendingUp } from "lucide-react";
-import { getEffectiveCompanyId } from "@/lib/tenant";
+import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { listPaymentRecords, getPaymentStats } from "@/repositories/payment.repository";
 import { listWorkers } from "@/repositories/worker.repository";
 import { listEventsForInvoicing, getClientPaymentStats } from "@/repositories/invoice.repository";
@@ -40,6 +41,9 @@ export default async function PagosAdminPage({
     view?: string;
   }>;
 }) {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role === "VIEWER") redirect("/admin");
+
   const companyId = await getEffectiveCompanyId();
   const params = await searchParams;
   const periodStart = params.periodStart ?? startOfMonthIso();

@@ -32,7 +32,13 @@ import { approveApplicationAction, rejectApplicationAction } from "./actions";
 
 type Application = Awaited<ReturnType<typeof listPendingApplications>>[number];
 
-export function ApplicationReviewList({ applications }: { applications: Application[] }) {
+export function ApplicationReviewList({
+  applications,
+  readOnly = false,
+}: {
+  applications: Application[];
+  readOnly?: boolean;
+}) {
   if (applications.length === 0) {
     return (
       <Card className="border-dashed">
@@ -46,13 +52,13 @@ export function ApplicationReviewList({ applications }: { applications: Applicat
   return (
     <div className="flex flex-col gap-3">
       {applications.map((application) => (
-        <ApplicationCard key={application.id} application={application} />
+        <ApplicationCard key={application.id} application={application} readOnly={readOnly} />
       ))}
     </div>
   );
 }
 
-function ApplicationCard({ application }: { application: Application }) {
+function ApplicationCard({ application, readOnly }: { application: Application; readOnly: boolean }) {
   const [isPending, startTransition] = useTransition();
   const [rejectReason, setRejectReason] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -103,40 +109,44 @@ function ApplicationCard({ application }: { application: Application }) {
               <FileSearch className="size-4" /> Ver postulación completa
             </Link>
           </Button>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1 text-danger" disabled={isPending}>
-                <X className="size-4" /> Rechazar
+          {readOnly ? null : (
+            <>
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1 text-danger" disabled={isPending}>
+                    <X className="size-4" /> Rechazar
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Rechazar postulación</DialogTitle>
+                    <DialogDescription>
+                      Indica el motivo. {application.user.name} podrá verlo en su portal.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Motivo del rechazo"
+                    rows={3}
+                  />
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button variant="destructive" onClick={handleReject} disabled={isPending}>
+                      {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+                      Confirmar rechazo
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <Button size="sm" className="gap-1" onClick={handleApprove} disabled={isPending}>
+                {isPending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+                Aprobar
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Rechazar postulación</DialogTitle>
-                <DialogDescription>
-                  Indica el motivo. {application.user.name} podrá verlo en su portal.
-                </DialogDescription>
-              </DialogHeader>
-              <Textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Motivo del rechazo"
-                rows={3}
-              />
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button variant="destructive" onClick={handleReject} disabled={isPending}>
-                  {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-                  Confirmar rechazo
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Button size="sm" className="gap-1" onClick={handleApprove} disabled={isPending}>
-            {isPending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
-            Aprobar
-          </Button>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { getEffectiveCompanyId } from "@/lib/tenant";
+import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { listEventsForCompany } from "@/repositories/event.repository";
 import { listClients } from "@/services/client.service";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,6 +48,8 @@ export default async function EventosPage({
 }: {
   searchParams: Promise<{ archived?: string }>;
 }) {
+  const currentUser = await getCurrentUser();
+  const isViewer = currentUser.role === "VIEWER";
   const companyId = await getEffectiveCompanyId();
   const { archived: archivedParam } = await searchParams;
   const archived = archivedParam === "1";
@@ -69,10 +71,12 @@ export default async function EventosPage({
               : `${events.length} evento(s) activos. Asigna personal y confirma cada solicitud.`}
           </p>
         </div>
-        <div className="flex gap-2">
-          <ClientForm />
-          <EventForm clients={activeClients} />
-        </div>
+        {isViewer ? null : (
+          <div className="flex gap-2">
+            <ClientForm />
+            <EventForm clients={activeClients} />
+          </div>
+        )}
       </div>
 
       <div className="flex w-fit items-center gap-1 rounded-lg bg-muted p-1 text-sm">

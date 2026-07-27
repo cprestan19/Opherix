@@ -6,7 +6,7 @@
  * expreso por escrito del autor.
  */
 
-import { getEffectiveCompanyId } from "@/lib/tenant";
+import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { listClients } from "@/services/client.service";
 import { getCompany } from "@/repositories/config.repository";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +19,8 @@ import { ClientStatusToggle } from "./client-status-toggle";
 const dateFormatter = new Intl.DateTimeFormat("es", { day: "2-digit", month: "short", year: "numeric" });
 
 export default async function ClientesPage() {
+  const currentUser = await getCurrentUser();
+  const isViewer = currentUser.role === "VIEWER";
   const companyId = await getEffectiveCompanyId();
   const [clients, company] = await Promise.all([listClients(companyId), getCompany(companyId)]);
 
@@ -32,7 +34,7 @@ export default async function ClientesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
           <p className="text-sm text-muted-foreground">{clients.length} cuenta(s) cliente registradas.</p>
         </div>
-        <ClientForm />
+        {isViewer ? null : <ClientForm />}
       </div>
 
       <ShareEventRequestLink url={eventRequestUrl} companyName={company.name} />
@@ -69,7 +71,7 @@ export default async function ClientesPage() {
                       {client.events[0] ? dateFormatter.format(client.events[0].createdAt) : "—"}
                     </p>
                   </div>
-                  <ClientStatusToggle clientId={client.id} isActive={client.isActive} />
+                  {isViewer ? null : <ClientStatusToggle clientId={client.id} isActive={client.isActive} />}
                 </div>
               </li>
             ))}

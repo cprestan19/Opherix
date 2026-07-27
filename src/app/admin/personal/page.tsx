@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { getEffectiveCompanyId } from "@/lib/tenant";
+import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { listWorkers } from "@/repositories/worker.repository";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarBadge, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,6 +29,8 @@ export default async function PersonalPage({
 }: {
   searchParams: Promise<{ search?: string; specialty?: string; status?: string }>;
 }) {
+  const currentUser = await getCurrentUser();
+  const isViewer = currentUser.role === "VIEWER";
   const companyId = await getEffectiveCompanyId();
   const params = await searchParams;
 
@@ -37,19 +39,19 @@ export default async function PersonalPage({
 
   const [workers, pendingModerations] = await Promise.all([
     listWorkers(companyId, { search: params.search, specialty, status }),
-    listPendingModerations(companyId),
+    isViewer ? Promise.resolve([]) : listPendingModerations(companyId),
   ]);
 
   return (
     <div className="flex flex-col gap-6">
-      <RatingModerationPanel items={pendingModerations} />
+      {isViewer ? null : <RatingModerationPanel items={pendingModerations} />}
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Personal</h1>
           <p className="text-sm text-muted-foreground">{workers.length} trabajador(es) en el directorio.</p>
         </div>
-        <WorkerForm />
+        {isViewer ? null : <WorkerForm />}
       </div>
 
       <WorkerFilters />

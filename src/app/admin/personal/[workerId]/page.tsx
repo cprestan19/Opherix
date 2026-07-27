@@ -49,17 +49,19 @@ export default async function WorkerDetailPage({
             </Badge>
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <WorkerStatusToggle workerId={worker.id} status={worker.status} />
-          <Button asChild size="sm" className="gap-1.5">
-            <Link href={`/admin/personal/${worker.id}/editar`}>
-              <Pencil className="size-3.5" /> Editar
-            </Link>
-          </Button>
-        </div>
+        {currentUser.role === "VIEWER" ? null : (
+          <div className="flex items-center gap-2">
+            <WorkerStatusToggle workerId={worker.id} status={worker.status} />
+            <Button asChild size="sm" className="gap-1.5">
+              <Link href={`/admin/personal/${worker.id}/editar`}>
+                <Pencil className="size-3.5" /> Editar
+              </Link>
+            </Button>
+          </div>
+        )}
       </div>
 
-      {worker.status === "PENDING_REVIEW" ? (
+      {worker.status === "PENDING_REVIEW" && currentUser.role !== "VIEWER" ? (
         <ApplicationDecisionPanel workerId={worker.id} workerName={worker.user.name} />
       ) : null}
 

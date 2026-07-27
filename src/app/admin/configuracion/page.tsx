@@ -6,7 +6,8 @@
  * expreso por escrito del autor.
  */
 
-import { getEffectiveCompanyId } from "@/lib/tenant";
+import { redirect } from "next/navigation";
+import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { getCompany, getOrCreatePayRuleSet, listHolidays } from "@/repositories/config.repository";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandingForm } from "./branding-form";
@@ -17,6 +18,9 @@ import { AutoArchiveForm } from "./auto-archive-form";
 const DEFAULT_RULES = { overtimeMultiplier: "1.5", sundayMultiplier: "1.5", holidayMultiplier: "2" };
 
 export default async function ConfiguracionPage() {
+  const currentUser = await getCurrentUser();
+  if (currentUser.role !== "ADMIN") redirect("/admin");
+
   const companyId = await getEffectiveCompanyId();
   const company = await getCompany(companyId);
   const [payRules, holidays] = await Promise.all([

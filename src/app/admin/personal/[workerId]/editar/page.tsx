@@ -6,7 +6,7 @@
  * expreso por escrito del autor.
  */
 
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { getWorkerDetail } from "@/repositories/worker.repository";
 import { asStringArray, asEmployers, asUniformSizes } from "@/lib/worker-fields";
@@ -18,8 +18,10 @@ export default async function EditWorkerPage({
   params: Promise<{ workerId: string }>;
 }) {
   const { workerId } = await params;
-  const companyId = await getEffectiveCompanyId();
   const user = await getCurrentUser();
+  if (user.role === "VIEWER") redirect(`/admin/personal/${workerId}`);
+
+  const companyId = await getEffectiveCompanyId();
   const worker = await getWorkerDetail(companyId, workerId);
 
   if (!worker) notFound();

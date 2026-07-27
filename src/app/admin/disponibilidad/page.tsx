@@ -6,12 +6,13 @@
  * expreso por escrito del autor.
  */
 
-import { getEffectiveCompanyId } from "@/lib/tenant";
+import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { listWorkersWithAvailability } from "@/repositories/availability.repository";
 import { listAssignableEvents } from "@/repositories/event.repository";
 import { AvailabilityOverview } from "./availability-overview";
 
 export default async function DisponibilidadAdminPage() {
+  const currentUser = await getCurrentUser();
   const companyId = await getEffectiveCompanyId();
   const [workers, events] = await Promise.all([
     listWorkersWithAvailability(companyId),
@@ -25,7 +26,7 @@ export default async function DisponibilidadAdminPage() {
         <p className="text-sm text-muted-foreground">Vista consolidada de disponibilidad del personal.</p>
       </div>
 
-      <AvailabilityOverview workers={workers} events={events} />
+      <AvailabilityOverview workers={workers} events={events} readOnly={currentUser.role === "VIEWER"} />
     </div>
   );
 }

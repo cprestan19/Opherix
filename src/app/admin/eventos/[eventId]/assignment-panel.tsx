@@ -57,6 +57,7 @@ interface AssignmentPanelProps {
   requirements: Requirement[];
   assignments: Assignment[];
   availableWorkersBySpecialty: Record<string, AvailableWorker[]>;
+  readOnly?: boolean;
 }
 
 export function AssignmentPanel({
@@ -64,6 +65,7 @@ export function AssignmentPanel({
   requirements,
   assignments,
   availableWorkersBySpecialty,
+  readOnly = false,
 }: AssignmentPanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -111,35 +113,37 @@ export function AssignmentPanel({
                     Requiere {req.quantity} · {assignedCount} asignado(s) en total al evento
                   </span>
                 </div>
-                <div className="flex gap-2">
-                  <Select
-                    value={selected[req.id] ?? ""}
-                    onValueChange={(value) => setSelected((prev) => ({ ...prev, [req.id]: value }))}
-                  >
-                    <SelectTrigger className="w-56">
-                      <SelectValue placeholder="Seleccionar trabajador" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {workers.length === 0 ? (
-                        <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin trabajadores disponibles</div>
-                      ) : (
-                        workers.map((w) => (
-                          <SelectItem key={w.id} value={w.id}>
-                            {w.user.name}
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    size="sm"
-                    disabled={!selected[req.id] || isPending}
-                    onClick={() => handleAssign(req.id, req.specialty)}
-                  >
-                    {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-                    Asignar
-                  </Button>
-                </div>
+                {readOnly ? null : (
+                  <div className="flex gap-2">
+                    <Select
+                      value={selected[req.id] ?? ""}
+                      onValueChange={(value) => setSelected((prev) => ({ ...prev, [req.id]: value }))}
+                    >
+                      <SelectTrigger className="w-56">
+                        <SelectValue placeholder="Seleccionar trabajador" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workers.length === 0 ? (
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin trabajadores disponibles</div>
+                        ) : (
+                          workers.map((w) => (
+                            <SelectItem key={w.id} value={w.id}>
+                              {w.user.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      disabled={!selected[req.id] || isPending}
+                      onClick={() => handleAssign(req.id, req.specialty)}
+                    >
+                      {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+                      Asignar
+                    </Button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -176,15 +180,17 @@ export function AssignmentPanel({
                     <Badge variant={ASSIGNMENT_STATUS_VARIANTS[assignment.status]}>
                       {ASSIGNMENT_STATUS_LABELS[assignment.status]}
                     </Badge>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Quitar asignación"
-                      disabled={isPending}
-                      onClick={() => handleRemove(assignment.id)}
-                    >
-                      <X className="size-4" />
-                    </Button>
+                    {readOnly ? null : (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Quitar asignación"
+                        disabled={isPending}
+                        onClick={() => handleRemove(assignment.id)}
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    )}
                   </div>
                 </li>
               ))}

@@ -7,7 +7,7 @@
  */
 
 import { notFound } from "next/navigation";
-import { getEffectiveCompanyId } from "@/lib/tenant";
+import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { getEventDetail, findAvailableWorkersForSpecialty } from "@/repositories/event.repository";
 import { getCompany } from "@/repositories/config.repository";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +46,8 @@ export default async function EventDetailPage({
   params: Promise<{ eventId: string }>;
 }) {
   const { eventId } = await params;
+  const currentUser = await getCurrentUser();
+  const isViewer = currentUser.role === "VIEWER";
   const companyId = await getEffectiveCompanyId();
   const [event, company] = await Promise.all([getEventDetail(companyId, eventId), getCompany(companyId)]);
   if (!event) notFound();
@@ -71,7 +73,7 @@ export default async function EventDetailPage({
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline">{STATUS_LABELS[event.status]}</Badge>
-          {event.status !== "CANCELLED" && event.status !== "ARCHIVED" ? (
+          {!isViewer && event.status !== "CANCELLED" && event.status !== "ARCHIVED" ? (
             <EditEventForm
               eventId={event.id}
               event={{
@@ -110,11 +112,13 @@ export default async function EventDetailPage({
         </CardContent>
       </Card>
 
-      <div className="flex items-center gap-2">
-        <EventActions eventId={event.id} status={event.status} />
-        {event.status === "COMPLETED" ? <InvoiceAction eventId={event.id} /> : null}
-        {event.status === "COMPLETED" ? <ArchiveEventAction eventId={event.id} /> : null}
-      </div>
+      {isViewer ? null : (
+        <div className="flex items-center gap-2">
+          <EventActions eventId={event.id} status={event.status} />
+          {event.status === "COMPLETED" ? <InvoiceAction eventId={event.id} /> : null}
+          {event.status === "COMPLETED" ? <ArchiveEventAction eventId={event.id} /> : null}
+        </div>
+      )}
 
       {event.status === "CONFIRMED" || event.status === "IN_PROGRESS" ? (
         <EventCheckInCode eventId={event.id} />
@@ -160,6 +164,7 @@ export default async function EventDetailPage({
         requirements={event.staffRequirements}
         assignments={event.assignments}
         availableWorkersBySpecialty={availableWorkersBySpecialty}
+        readOnly={isViewer}
       />
     </div>
   );
