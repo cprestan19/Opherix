@@ -15,7 +15,11 @@ import * as passwordResetRepo from "@/repositories/password-reset.repository";
 import { generatePasswordResetToken } from "@/lib/password-reset-token";
 import { sendEmail } from "@/lib/notifications/email";
 import { logAudit } from "@/lib/audit";
-import { companyUserRoleLabels, type CreateCompanyUserInput } from "@/lib/validations/company-user";
+import {
+  companyUserRoleLabels,
+  type CreateCompanyUserInput,
+  type EditCompanyUserInput,
+} from "@/lib/validations/company-user";
 import type { UserRole } from "@/generated/prisma/enums";
 
 export class CompanyUserError extends Error {}
@@ -77,6 +81,44 @@ export async function createCompanyUser(companyId: string, actorId: string, inpu
 
 export async function listCompanyUsers(companyId: string) {
   return repo.listCompanyUsers(companyId);
+}
+
+export async function editCompanyUser(
+  companyId: string,
+  actorId: string,
+  targetUserId: string,
+  input: EditCompanyUserInput,
+) {
+  const target = await repo.findCompanyUserById(companyId, targetUserId);
+  if (!target) {
+    throw new CompanyUserError("Usuario no encontrado.");
+  }
+
+  if (input.email.toLowerCase() !== target.email.toLowerCase()) {
+    const existing = await repo.findUserByEmail(input.email);
+    if (existing && existing.id !== targetUserId) {
+      throw new CompanyUserError("Ya existe una cuenta con ese correo.");
+    }
+  }
+
+  const updated = await repo.updateCompanyUser(companyId, targetUserId, {
+    name: input.name,
+    email: input.email,
+    phone: input.phone,
+  });
+  if (!updated) {
+    throw new CompanyUserError("Usuario no encontrado.");
+  }
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "COMPANY_USER_UPDATED",
+    entityType: "User",
+    entityId: targetUserId,
+  });
+
+  return updated;
 }
 
 export async function setCompanyUserRole(

@@ -10,8 +10,19 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/tenant";
-import { createCompanyUserSchema, type CreateCompanyUserInput } from "@/lib/validations/company-user";
-import { createCompanyUser, setCompanyUserRole, setCompanyUserStatus, CompanyUserError } from "@/services/company-user.service";
+import {
+  createCompanyUserSchema,
+  editCompanyUserSchema,
+  type CreateCompanyUserInput,
+  type EditCompanyUserInput,
+} from "@/lib/validations/company-user";
+import {
+  createCompanyUser,
+  editCompanyUser,
+  setCompanyUserRole,
+  setCompanyUserStatus,
+  CompanyUserError,
+} from "@/services/company-user.service";
 import type { UserRole } from "@/generated/prisma/enums";
 
 export interface CompanyUserActionResult {
@@ -26,6 +37,26 @@ export async function createCompanyUserAction(input: CreateCompanyUserInput): Pr
 
   try {
     await createCompanyUser(companyId, user.id, parsed.data);
+  } catch (error) {
+    if (error instanceof CompanyUserError) return { error: error.message };
+    throw error;
+  }
+
+  revalidatePath("/admin/usuarios");
+  return {};
+}
+
+export async function editCompanyUserAction(
+  targetUserId: string,
+  input: EditCompanyUserInput,
+): Promise<CompanyUserActionResult> {
+  const parsed = editCompanyUserSchema.safeParse(input);
+  if (!parsed.success) return { error: "Revisa los campos del formulario." };
+
+  const { user, companyId } = await requireAdmin();
+
+  try {
+    await editCompanyUser(companyId, user.id, targetUserId, parsed.data);
   } catch (error) {
     if (error instanceof CompanyUserError) return { error: error.message };
     throw error;

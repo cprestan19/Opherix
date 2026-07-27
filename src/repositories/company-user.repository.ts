@@ -63,6 +63,19 @@ export function createCompanyUser(data: {
   });
 }
 
+export async function updateCompanyUser(
+  companyId: string,
+  userId: string,
+  data: { name: string; email: string; phone?: string },
+) {
+  const result = await prisma.user.updateMany({
+    where: { id: userId, companyId, role: { in: COMPANY_STAFF_ROLES } },
+    data: { name: data.name, email: data.email.toLowerCase(), phone: data.phone },
+  });
+  if (result.count === 0) return null;
+  return prisma.user.findUniqueOrThrow({ where: { id: userId } });
+}
+
 export async function setCompanyUserRole(companyId: string, userId: string, role: UserRole) {
   const result = await prisma.user.updateMany({
     where: { id: userId, companyId, role: { in: COMPANY_STAFF_ROLES } },
