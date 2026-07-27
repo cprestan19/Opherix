@@ -16,10 +16,12 @@ export async function approveApplicationAction(workerId: string) {
   const { user, companyId } = await requireCompanyStaff();
   await approveApplication(companyId, workerId, user.id);
   revalidatePath("/admin/reclutamiento");
+  revalidatePath("/admin/personal", "layout");
 }
 
 export async function rejectApplicationAction(workerId: string, reason: string) {
   const { user, companyId } = await requireCompanyStaff();
   await rejectApplication(companyId, workerId, user.id, reason);
   revalidatePath("/admin/reclutamiento");
+  revalidatePath("/admin/personal", "layout");
 }

@@ -9,7 +9,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, Check, X } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Check, X, FileSearch } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -96,7 +97,12 @@ function ApplicationCard({ application }: { application: Application }) {
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Link href={`/admin/personal/${application.id}`}>
+              <FileSearch className="size-4" /> Ver postulación completa
+            </Link>
+          </Button>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="gap-1 text-danger" disabled={isPending}>

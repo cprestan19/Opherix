@@ -8,12 +8,13 @@
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { FileText, Star, CalendarClock, Pencil } from "lucide-react";
+import { FileText, Star, CalendarClock, Pencil, ExternalLink } from "lucide-react";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { getWorkerDetail } from "@/repositories/worker.repository";
 import { listUpcomingAssignmentsForWorker } from "@/repositories/availability.repository";
 import { WorkerCv } from "@/components/shared/worker-cv";
 import { WorkerExperienceCards } from "@/components/shared/worker-experience-cards";
+import { WorkerPersonalInfoCard } from "@/components/shared/worker-personal-info-card";
 import { WorkerAvailabilityGrid } from "@/components/shared/worker-availability-grid";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { DOCUMENT_TYPE_LABELS, WORKER_STATUS_LABELS } from "@/lib/labels";
 import { WorkerStatusToggle } from "./worker-status-toggle";
 import { WorkerHourlyRate } from "./worker-hourly-rate";
+import { ApplicationDecisionPanel } from "./application-decision-panel";
 
 export default async function WorkerDetailPage({
   params,
@@ -57,6 +59,10 @@ export default async function WorkerDetailPage({
         </div>
       </div>
 
+      {worker.status === "PENDING_REVIEW" ? (
+        <ApplicationDecisionPanel workerId={worker.id} workerName={worker.user.name} />
+      ) : null}
+
       <WorkerCv
         worker={{
           id: worker.id,
@@ -74,6 +80,22 @@ export default async function WorkerDetailPage({
           licenses: worker.licenses,
           ratingAverage: worker.ratingAverage.toString(),
           ratingCount: worker.ratingCount,
+        }}
+      />
+
+      <WorkerPersonalInfoCard
+        worker={{
+          idNumber: worker.idNumber,
+          nationality: worker.nationality,
+          birthDate: worker.birthDate,
+          maritalStatus: worker.maritalStatus,
+          hasChildren: worker.hasChildren,
+          childrenCount: worker.childrenCount,
+          hasVehicle: worker.hasVehicle,
+          vehicleType: worker.vehicleType,
+          uniformSizes: worker.uniformSizes,
+          emergencyContactName: worker.emergencyContactName,
+          emergencyContactPhone: worker.emergencyContactPhone,
         }}
       />
 
@@ -137,7 +159,15 @@ export default async function WorkerDetailPage({
             <ul className="flex flex-col gap-2 text-sm">
               {worker.documents.map((doc) => (
                 <li key={doc.id} className="flex items-center justify-between">
-                  <span>{DOCUMENT_TYPE_LABELS[doc.type]}</span>
+                  <a
+                    href={doc.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-primary hover:underline"
+                  >
+                    {DOCUMENT_TYPE_LABELS[doc.type]}
+                    <ExternalLink className="size-3.5" />
+                  </a>
                   <span className="text-xs text-muted-foreground">
                     {doc.expiresAt
                       ? `Vence ${new Intl.DateTimeFormat("es").format(doc.expiresAt)}`
