@@ -102,7 +102,6 @@ export async function listPendingApplications(companyId: string) {
   // WorkerCv ya usa para ratingAverage).
   return applications.map((application) => ({
     ...application,
-    hourlyRate: application.hourlyRate?.toString() ?? null,
     ratingAverage: application.ratingAverage.toString(),
   }));
 }

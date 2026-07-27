@@ -26,15 +26,20 @@ import {
   EventError,
 } from "@/services/event.service";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
+import type { Specialty } from "@/generated/prisma/enums";
 
 export interface EventActionResult {
   error?: string;
 }
 
-export async function assignWorkerAction(eventId: string, workerId: string): Promise<EventActionResult> {
+export async function assignWorkerAction(
+  eventId: string,
+  workerId: string,
+  specialty?: Specialty,
+): Promise<EventActionResult> {
   const { user, companyId } = await requireCompanyStaff();
   try {
-    await assignWorkerToEvent(companyId, eventId, workerId, user.id);
+    await assignWorkerToEvent(companyId, eventId, workerId, user.id, specialty);
   } catch (error) {
     if (error instanceof EventError) return { error: error.message };
     throw error;

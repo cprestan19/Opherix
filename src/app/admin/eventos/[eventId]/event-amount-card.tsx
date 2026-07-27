@@ -25,9 +25,11 @@ function currency(value: number) {
 export function EventAmountCard({
   eventId,
   invoice,
+  suggestedAmount,
 }: {
   eventId: string;
   invoice: { id: string; amount: string; status: "DRAFT" | "ISSUED" | "PAID" } | null;
+  suggestedAmount?: number;
 }) {
   const router = useRouter();
   const [amount, setAmount] = useState(invoice?.amount ?? "");
@@ -91,6 +93,17 @@ export function EventAmountCard({
               {isSaving ? <Loader2 className="size-3.5 animate-spin" /> : null}
               Guardar
             </Button>
+            {suggestedAmount && suggestedAmount > 0 ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="text-muted-foreground"
+                onClick={() => setAmount(suggestedAmount.toFixed(2))}
+              >
+                Usar calculado: {currency(suggestedAmount)}
+              </Button>
+            ) : null}
           </div>
         )}
 

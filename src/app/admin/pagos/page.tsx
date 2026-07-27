@@ -117,10 +117,7 @@ async function PersonalPayments({
   const rows = records.map((r) => ({
     id: r.id,
     worker: { user: { name: r.worker.user.name } },
-    regularHours: r.regularHours.toString(),
-    overtimeHours: r.overtimeHours.toString(),
-    sundayHours: r.sundayHours.toString(),
-    holidayHours: r.holidayHours.toString(),
+    assignmentCount: r.assignmentCount,
     bonuses: r.bonuses.toString(),
     deductions: r.deductions.toString(),
     totalAmount: r.totalAmount.toString(),

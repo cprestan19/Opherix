@@ -72,6 +72,10 @@ export async function restoreClient(companyId: string, clientId: string) {
   return prisma.client.findUniqueOrThrow({ where: { id: clientId } });
 }
 
+export function findClientById(companyId: string, clientId: string) {
+  return prisma.client.findFirst({ where: { id: clientId, companyId, deletedAt: null } });
+}
+
 export function findClientByEmail(companyId: string, contactEmail: string) {
   return prisma.client.findFirst({
     where: { companyId, contactEmail: { equals: contactEmail, mode: "insensitive" }, deletedAt: null },

@@ -8,60 +8,56 @@
 
 import "server-only";
 import * as paymentRepo from "@/repositories/payment.repository";
-import { computeHoursBreakdown, computeTotalAmount } from "@/lib/pay-calculation";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification } from "@/services/notification.service";
 import { prisma } from "@/lib/prisma";
 
 export class PaymentError extends Error {}
 
-const DEFAULT_RULES = { overtimeMultiplier: 1.5, sundayMultiplier: 1.5, holidayMultiplier: 2.0 };
-
+/**
+ * Suma, por trabajador, las tarifas fijas por especialidad (§ ClientSpecialtyRate.payToWorker)
+ * de cada asignación ACCEPTED con check-in/out dentro del periodo — reemplaza el cálculo
+ * anterior por hora trabajada (Worker.hourlyRate, ya eliminado).
+ */
 export async function calculatePaymentsForPeriod(
   companyId: string,
-  companyCountry: string,
   actorId: string,
   periodStart: Date,
   periodEnd: Date,
 ) {
-  const [ruleSet, holidays, workers] = await Promise.all([
-    paymentRepo.getActivePayRuleSet(companyId, companyCountry),
-    paymentRepo.listHolidays(companyId, companyCountry),
-    paymentRepo.listActiveWorkersWithRate(companyId),
+  const [assignments, rates] = await Promise.all([
+    paymentRepo.listAcceptedAssignmentsForPeriod(companyId, periodStart, periodEnd),
+    paymentRepo.listClientSpecialtyRates(companyId),
   ]);
 
-  const rules = ruleSet
-    ? {
-        overtimeMultiplier: Number(ruleSet.overtimeMultiplier),
-        sundayMultiplier: Number(ruleSet.sundayMultiplier),
-        holidayMultiplier: Number(ruleSet.holidayMultiplier),
-      }
-    : DEFAULT_RULES;
-  const holidayDates = new Set(holidays.map((h) => h.date.toISOString().slice(0, 10)));
+  const rateByClientSpecialty = new Map(
+    rates.map((rate) => [`${rate.clientId}:${rate.specialty}`, Number(rate.payToWorker)]),
+  );
+
+  const totalsByWorker = new Map<string, { totalAmount: number; assignmentCount: number }>();
+  for (const assignment of assignments) {
+    if (!assignment.specialty) continue;
+    const rate = rateByClientSpecialty.get(`${assignment.event.clientId}:${assignment.specialty}`);
+    if (rate === undefined) continue;
+
+    const entry = totalsByWorker.get(assignment.workerId) ?? { totalAmount: 0, assignmentCount: 0 };
+    entry.totalAmount += rate;
+    entry.assignmentCount += 1;
+    totalsByWorker.set(assignment.workerId, entry);
+  }
 
   let created = 0;
-  for (const worker of workers) {
-    if (!worker.hourlyRate) continue;
-
-    const existing = await paymentRepo.findExistingRecord(worker.id, periodStart, periodEnd);
+  for (const [workerId, { totalAmount, assignmentCount }] of totalsByWorker) {
+    const existing = await paymentRepo.findExistingRecord(workerId, periodStart, periodEnd);
     if (existing) continue;
-
-    const shifts = await paymentRepo.listCompletedShifts(worker.id, periodStart, periodEnd);
-    if (shifts.length === 0) continue;
-
-    const validShifts = shifts.filter(
-      (s): s is { checkInAt: Date; checkOutAt: Date } => s.checkInAt !== null && s.checkOutAt !== null,
-    );
-    const breakdown = computeHoursBreakdown(validShifts, holidayDates);
-    const totalAmount = computeTotalAmount(breakdown, Number(worker.hourlyRate), rules);
 
     await paymentRepo.createPaymentRecord({
       companyId,
-      workerId: worker.id,
+      workerId,
       periodStart,
       periodEnd,
-      ...breakdown,
-      totalAmount,
+      assignmentCount,
+      totalAmount: Math.round(totalAmount * 100) / 100,
     });
     created += 1;
   }

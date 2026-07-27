@@ -37,13 +37,10 @@ export async function GET(request: NextRequest) {
 
   autoTable(doc, {
     startY: 28,
-    head: [["Trabajador", "Reg.", "Extra", "Dom.", "Fer.", "Bonos", "Desc.", "Total", "Estado"]],
+    head: [["Trabajador", "Asignaciones", "Bonos", "Desc.", "Total", "Estado"]],
     body: records.map((r) => [
       r.worker.user.name,
-      Number(r.regularHours).toFixed(1),
-      Number(r.overtimeHours).toFixed(1),
-      Number(r.sundayHours).toFixed(1),
-      Number(r.holidayHours).toFixed(1),
+      String(r.assignmentCount),
       Number(r.bonuses).toFixed(2),
       Number(r.deductions).toFixed(2),
       Number(r.totalAmount).toFixed(2),
@@ -52,9 +49,6 @@ export async function GET(request: NextRequest) {
     foot: [
       [
         "TOTAL",
-        "",
-        "",
-        "",
         "",
         "",
         "",

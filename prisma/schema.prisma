@@ -121,6 +121,7 @@ model Company {
   notifications      Notification[]
   auditLogs          AuditLog[]
   clientAccessTokens ClientAccessToken[]
+  clientSpecialtyRates ClientSpecialtyRate[]
 
   @@index([slug])
 }
@@ -221,7 +222,31 @@ model Client {
   events       Event[]
   invoices     ClientInvoice[]
   accessTokens ClientAccessToken[]
+  specialtyRates ClientSpecialtyRate[]
 
+  @@index([companyId])
+}
+
+// ---------------------------------------------------------------------------
+// Parametrización de tarifas por cliente y especialidad (§ Configuración —
+// reemplaza el cálculo por hora del trabajador): para cada Client, cuánto se
+// le paga al personal de cada especialidad y cuánto se le cobra al cliente
+// por ese mismo personal. Un evento calcula su total sumando, por cada
+// EventStaffRequirement (specialty × quantity), la tarifa correspondiente.
+// ---------------------------------------------------------------------------
+model ClientSpecialtyRate {
+  id             String    @id @default(cuid())
+  companyId      String
+  company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  clientId       String
+  client         Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  specialty      Specialty
+  payToWorker    Decimal   @db.Decimal(10, 2)
+  chargeToClient Decimal   @db.Decimal(10, 2)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([clientId, specialty])
   @@index([companyId])
 }
 
@@ -299,7 +324,6 @@ model Worker {
   uniformSizes          Json? // { shirt, pants, shoes }
   emergencyContactName  String?
   emergencyContactPhone String?
-  hourlyRate            Decimal?  @db.Decimal(10, 2)
   ratingAverage         Decimal   @default(0) @db.Decimal(3, 2)
   ratingCount           Int       @default(0)
 
@@ -498,6 +522,10 @@ model WorkerAssignment {
   workerId String
   worker   Worker           @relation(fields: [workerId], references: [id], onDelete: Cascade)
   status   AssignmentStatus @default(PROPOSED)
+  // Qué EventStaffRequirement (specialty) cubre esta asignación — necesario
+  // para saber qué tarifa de ClientSpecialtyRate aplica al calcular el pago
+  // del trabajador (§ un trabajador puede tener varias especialidades).
+  specialty Specialty?
 
   assignedById String
   assignedBy   User      @relation("AssignedBy", fields: [assignedById], references: [id])
@@ -600,10 +628,10 @@ model PaymentRecord {
   worker        Worker        @relation(fields: [workerId], references: [id], onDelete: Cascade)
   periodStart   DateTime
   periodEnd     DateTime
-  regularHours  Decimal       @default(0) @db.Decimal(8, 2)
-  overtimeHours Decimal       @default(0) @db.Decimal(8, 2)
-  sundayHours   Decimal       @default(0) @db.Decimal(8, 2)
-  holidayHours  Decimal       @default(0) @db.Decimal(8, 2)
+  // Cuántas asignaciones (eventos) del periodo entraron en el cálculo — ya
+  // no se calcula por hora, sino como suma de tarifas fijas por especialidad
+  // (§ ClientSpecialtyRate.payToWorker) de cada asignación ACCEPTED.
+  assignmentCount Int           @default(0)
   bonuses       Decimal       @default(0) @db.Decimal(10, 2)
   deductions    Decimal       @default(0) @db.Decimal(10, 2)
   totalAmount   Decimal       @db.Decimal(10, 2)

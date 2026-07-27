@@ -53,10 +53,7 @@ export default async function PagosTrabajadorPage() {
                     {formatDate(record.periodStart)} – {formatDate(record.periodEnd)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {Number(record.regularHours).toFixed(1)}h regulares ·{" "}
-                    {Number(record.overtimeHours).toFixed(1)}h extra ·{" "}
-                    {Number(record.sundayHours).toFixed(1)}h domingo ·{" "}
-                    {Number(record.holidayHours).toFixed(1)}h feriado
+                    {record.assignmentCount} asignación{record.assignmentCount === 1 ? "" : "es"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

@@ -21,7 +21,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DOCUMENT_TYPE_LABELS, WORKER_STATUS_LABELS } from "@/lib/labels";
 import { WorkerStatusToggle } from "./worker-status-toggle";
-import { WorkerHourlyRate } from "./worker-hourly-rate";
 import { ApplicationDecisionPanel } from "./application-decision-panel";
 import { WorkerDeleteAction } from "./worker-delete-action";
 
@@ -114,13 +113,6 @@ export default async function WorkerDetailPage({
           emergencyContactPhone: worker.emergencyContactPhone,
         }}
       />
-
-      {currentUser.role === "ADMIN" ? (
-        <WorkerHourlyRate
-          workerId={worker.id}
-          hourlyRate={worker.hourlyRate ? Number(worker.hourlyRate) : null}
-        />
-      ) : null}
 
       <Card>
         <CardHeader>

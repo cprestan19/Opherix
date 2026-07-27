@@ -29,10 +29,7 @@ import { markAsPaidAction, adjustPaymentAction } from "./actions";
 interface PaymentRecordRow {
   id: string;
   worker: { user: { name: string } };
-  regularHours: string;
-  overtimeHours: string;
-  sundayHours: string;
-  holidayHours: string;
+  assignmentCount: number;
   bonuses: string;
   deductions: string;
   totalAmount: string;
@@ -53,10 +50,7 @@ export function PaymentTable({ records }: { records: PaymentRecordRow[] }) {
       <TableHeader>
         <TableRow>
           <TableHead>Trabajador</TableHead>
-          <TableHead>Reg.</TableHead>
-          <TableHead>Extra</TableHead>
-          <TableHead>Dom.</TableHead>
-          <TableHead>Fer.</TableHead>
+          <TableHead>Asignaciones</TableHead>
           <TableHead>Bonos/Desc.</TableHead>
           <TableHead>Total</TableHead>
           <TableHead>Estado</TableHead>
@@ -99,10 +93,7 @@ function PaymentRow({ record }: { record: PaymentRecordRow }) {
   return (
     <TableRow>
       <TableCell>{record.worker.user.name}</TableCell>
-      <TableCell>{Number(record.regularHours).toFixed(1)}</TableCell>
-      <TableCell>{Number(record.overtimeHours).toFixed(1)}</TableCell>
-      <TableCell>{Number(record.sundayHours).toFixed(1)}</TableCell>
-      <TableCell>{Number(record.holidayHours).toFixed(1)}</TableCell>
+      <TableCell>{record.assignmentCount}</TableCell>
       <TableCell>
         +{currency(record.bonuses)} / -{currency(record.deductions)}
       </TableCell>

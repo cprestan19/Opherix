@@ -10,7 +10,6 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCompanyStaff } from "@/lib/tenant";
-import { prisma } from "@/lib/prisma";
 import {
   calculatePaymentsForPeriod,
   markPaymentAsPaid,
@@ -29,15 +28,8 @@ export async function calculatePaymentsAction(
   periodEnd: string,
 ): Promise<PaymentActionResult> {
   const { user, companyId } = await requireCompanyStaff();
-  const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
 
-  await calculatePaymentsForPeriod(
-    companyId,
-    company.country,
-    user.id,
-    new Date(periodStart),
-    new Date(periodEnd),
-  );
+  await calculatePaymentsForPeriod(companyId, user.id, new Date(periodStart), new Date(periodEnd));
 
   revalidatePath("/admin/pagos");
   return {};

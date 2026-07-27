@@ -244,7 +244,6 @@ export interface UpdateWorkerProfileData {
   experienceYears: number;
   previousEmployers: Prisma.InputJsonValue;
   licenses: string[];
-  hourlyRate?: number;
   hasVehicle: boolean;
   vehicleType?: string | null;
   uniformSizes: Prisma.InputJsonValue;
@@ -252,15 +251,6 @@ export interface UpdateWorkerProfileData {
   emergencyContactPhone: string;
   allergies?: string;
   conditions?: string;
-}
-
-export async function setHourlyRate(companyId: string, workerId: string, hourlyRate: number) {
-  const result = await prisma.worker.updateMany({
-    where: { id: workerId, companyId },
-    data: { hourlyRate },
-  });
-  if (result.count === 0) return null;
-  return prisma.worker.findUniqueOrThrow({ where: { id: workerId } });
 }
 
 export function updateWorkerProfile(workerId: string, userId: string, data: UpdateWorkerProfileData) {
@@ -290,7 +280,6 @@ export function updateWorkerProfile(workerId: string, userId: string, data: Upda
         experienceYears: workerFields.experienceYears,
         previousEmployers: workerFields.previousEmployers,
         licenses: workerFields.licenses,
-        hourlyRate: workerFields.hourlyRate,
         hasVehicle: workerFields.hasVehicle,
         vehicleType: workerFields.vehicleType,
         uniformSizes: workerFields.uniformSizes,

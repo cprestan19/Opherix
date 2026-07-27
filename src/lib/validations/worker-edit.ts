@@ -45,7 +45,6 @@ export const workerEditSchema = z.object({
   licenses: z.array(z.string()),
 
   // Laboral
-  hourlyRate: z.number().min(0).optional(),
   hasVehicle: z.boolean(),
   vehicleType: z.string().optional(),
   uniformShirtSize: z.string().min(1, "Requerido"),

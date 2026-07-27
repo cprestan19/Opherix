@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { specialtyLabels } from "@/lib/validations/worker-application";
 import { assignWorkerAction, removeAssignmentAction } from "./actions";
+import type { Specialty } from "@/generated/prisma/enums";
 
 const ASSIGNMENT_STATUS_LABELS: Record<string, string> = {
   PROPOSED: "Propuesta",
@@ -78,7 +79,7 @@ export function AssignmentPanel({
     if (!workerId) return;
     setError(null);
     startTransition(async () => {
-      const result = await assignWorkerAction(eventId, workerId);
+      const result = await assignWorkerAction(eventId, workerId, specialty as Specialty);
       if (result?.error) {
         setError(result.error);
         toast.error(result.error);

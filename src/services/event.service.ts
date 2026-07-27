@@ -348,6 +348,7 @@ export async function assignWorkerToEvent(
   eventId: string,
   workerId: string,
   assignedById: string,
+  specialty?: Specialty,
 ) {
   const event = await eventRepo.getEventDetail(companyId, eventId);
   if (!event) throw new EventError("Evento no encontrado.");
@@ -366,7 +367,7 @@ export async function assignWorkerToEvent(
     throw new EventError("Este trabajador ya está asignado a este evento.");
   }
 
-  const assignment = await eventRepo.createAssignment(eventId, workerId, assignedById);
+  const assignment = await eventRepo.createAssignment(eventId, workerId, assignedById, specialty);
 
   await logAudit({
     companyId,

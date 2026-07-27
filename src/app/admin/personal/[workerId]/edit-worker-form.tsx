@@ -52,8 +52,6 @@ interface EditWorkerFormProps {
   ratingCount: number;
   documents: WorkerDocumentItem[];
   availabilitySlots: { dayOfWeek: number; startTime: string; endTime: string }[];
-  /** Solo el rol ADMIN puede ver y editar la tarifa por hora — nunca Supervisor, Trabajador ni Cliente. */
-  viewerRole: string;
 }
 
 const TABS = [
@@ -85,7 +83,6 @@ const TAB_FIELDS: Record<(typeof TABS)[number]["value"], (keyof WorkerEditInput)
     "experienceYears",
     "previousEmployers",
     "licenses",
-    "hourlyRate",
     "hasVehicle",
     "vehicleType",
     "uniformShirtSize",
@@ -104,10 +101,8 @@ export function EditWorkerForm({
   ratingCount,
   documents,
   availabilitySlots,
-  viewerRole,
 }: EditWorkerFormProps) {
   const router = useRouter();
-  const canSeeHourlyRate = viewerRole === "ADMIN";
   const [serverError, setServerError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]["value"]>("perfil");
   const {
@@ -360,23 +355,6 @@ export function EditWorkerForm({
                         <FieldError errors={[errors.experienceYears]} />
                       </Field>
                     </div>
-                    {canSeeHourlyRate ? (
-                      <Field data-invalid={!!errors.hourlyRate}>
-                        <FieldLabel htmlFor="hourlyRate">Tarifa por hora</FieldLabel>
-                        <Input
-                          id="hourlyRate"
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          {...register("hourlyRate", { valueAsNumber: true })}
-                        />
-                        <FieldDescription>
-                          Usada para calcular los pagos automáticamente. Solo visible para el Administrador.
-                        </FieldDescription>
-                        <FieldError errors={[errors.hourlyRate]} />
-                      </Field>
-                    ) : null}
-
                     <Field>
                       <FieldLabel>Empresas anteriores</FieldLabel>
                       <FieldDescription className="-mt-1">

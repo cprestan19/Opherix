@@ -9,34 +9,29 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 
-export function getActivePayRuleSet(companyId: string, country: string) {
-  return prisma.payRuleSet.findFirst({
-    where: { companyId, country, isActive: true },
-    orderBy: { effectiveFrom: "desc" },
-  });
-}
-
-export function listHolidays(companyId: string, country: string) {
-  return prisma.holiday.findMany({ where: { companyId, country } });
-}
-
-export function listActiveWorkersWithRate(companyId: string) {
-  return prisma.worker.findMany({
-    where: { companyId, deletedAt: null, status: { in: ["ACTIVE", "APPROVED"] } },
-    include: { user: { select: { name: true } } },
-  });
-}
-
-export function listCompletedShifts(workerId: string, periodStart: Date, periodEnd: Date) {
+/**
+ * Asignaciones ACCEPTED con check-in/out dentro del periodo, para calcular
+ * el pago por especialidad (§ ClientSpecialtyRate.payToWorker) — ya no se
+ * calcula por hora trabajada.
+ */
+export function listAcceptedAssignmentsForPeriod(companyId: string, periodStart: Date, periodEnd: Date) {
   return prisma.workerAssignment.findMany({
     where: {
-      workerId,
       status: "ACCEPTED",
       checkInAt: { not: null, gte: periodStart },
       checkOutAt: { not: null, lte: periodEnd },
+      event: { companyId },
     },
-    select: { checkInAt: true, checkOutAt: true },
+    select: {
+      workerId: true,
+      specialty: true,
+      event: { select: { clientId: true } },
+    },
   });
+}
+
+export function listClientSpecialtyRates(companyId: string) {
+  return prisma.clientSpecialtyRate.findMany({ where: { companyId } });
 }
 
 export function findExistingRecord(workerId: string, periodStart: Date, periodEnd: Date) {
@@ -50,10 +45,7 @@ export function createPaymentRecord(data: {
   workerId: string;
   periodStart: Date;
   periodEnd: Date;
-  regularHours: number;
-  overtimeHours: number;
-  sundayHours: number;
-  holidayHours: number;
+  assignmentCount: number;
   totalAmount: number;
 }) {
   return prisma.paymentRecord.create({ data });

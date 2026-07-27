@@ -16,6 +16,7 @@ import {
 } from "@/repositories/event.repository";
 import { findInvoiceForEvent } from "@/repositories/invoice.repository";
 import { getCompany } from "@/repositories/config.repository";
+import { computeEventStaffTotals } from "@/services/client-specialty-rate.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +26,7 @@ import { AssignmentPanel } from "./assignment-panel";
 import { EventActions } from "./event-actions";
 import { EventCheckInCode } from "@/components/shared/event-checkin-code";
 import { EventAmountCard } from "./event-amount-card";
+import { EventStaffTotalsCard } from "./event-staff-totals-card";
 import { EditEventForm } from "./edit-event-form";
 import { ArchiveEventAction } from "./archive-event-action";
 import { EventDeleteAction } from "./event-delete-action";
@@ -64,6 +66,7 @@ export default async function EventDetailPage({
   if (!event) notFound();
 
   const invoice = INVOICEABLE_STATUSES.includes(event.status) ? await findInvoiceForEvent(event.id) : null;
+  const staffTotals = await computeEventStaffTotals(companyId, event.clientId, event.staffRequirements);
 
   const ratedAssignments = event.assignments.filter((a) => a.ratingScore !== null);
 
@@ -147,10 +150,19 @@ export default async function EventDetailPage({
         </div>
       )}
 
+      {!event.deletedAt ? (
+        <EventStaffTotalsCard
+          chargeToClientTotal={staffTotals.chargeToClientTotal}
+          payToWorkerTotal={staffTotals.payToWorkerTotal}
+          missingSpecialties={staffTotals.missingSpecialties}
+        />
+      ) : null}
+
       {!isViewer && !event.deletedAt && INVOICEABLE_STATUSES.includes(event.status) ? (
         <EventAmountCard
           eventId={event.id}
           invoice={invoice ? { id: invoice.id, amount: invoice.amount.toString(), status: invoice.status } : null}
+          suggestedAmount={staffTotals.chargeToClientTotal}
         />
       ) : null}
 

@@ -47,7 +47,6 @@ export async function createWorker(companyId: string, actorId: string, input: Cr
 export async function updateWorkerProfile(
   companyId: string,
   actorId: string,
-  actorRole: string,
   workerId: string,
   input: WorkerEditInput,
 ) {
@@ -60,11 +59,6 @@ export async function updateWorkerProfile(
       throw new WorkerError("Ya existe una cuenta con este correo.");
     }
   }
-
-  // La tarifa por hora es visible y editable solo por el Administrador — nunca
-  // por Supervisor, Trabajador ni Cliente. Se aplica también aquí (no solo
-  // ocultando el campo en la UI) para no confiar en el rol solo del lado del cliente.
-  const hourlyRate = actorRole === "ADMIN" ? input.hourlyRate : undefined;
 
   const updated = await workerRepo.updateWorkerProfile(workerId, worker.userId, {
     name: input.name,
@@ -85,7 +79,6 @@ export async function updateWorkerProfile(
     experienceYears: input.experienceYears,
     previousEmployers: input.previousEmployers,
     licenses: input.licenses,
-    hourlyRate,
     hasVehicle: input.hasVehicle,
     vehicleType: input.hasVehicle ? input.vehicleType : null,
     uniformSizes: {
@@ -105,40 +98,6 @@ export async function updateWorkerProfile(
     action: "WORKER_UPDATED",
     entityType: "Worker",
     entityId: workerId,
-  });
-
-  return updated;
-}
-
-/**
- * Tarifa fija por hora — de aquí sale el cálculo automático de pagos
- * (payment.service.ts). Exclusivo de ADMIN, nunca visible ni editable por
- * Supervisor/Trabajador/Cliente (§ misma regla que en updateWorkerProfile).
- */
-export async function setWorkerHourlyRate(
-  companyId: string,
-  actorId: string,
-  actorRole: string,
-  workerId: string,
-  hourlyRate: number,
-) {
-  if (actorRole !== "ADMIN") {
-    throw new WorkerError("Solo un administrador puede editar la tarifa por hora.");
-  }
-  if (hourlyRate < 0) {
-    throw new WorkerError("La tarifa debe ser mayor o igual a cero.");
-  }
-
-  const updated = await workerRepo.setHourlyRate(companyId, workerId, hourlyRate);
-  if (!updated) throw new WorkerError("Trabajador no encontrado.");
-
-  await logAudit({
-    companyId,
-    actorId,
-    action: "WORKER_HOURLY_RATE_UPDATED",
-    entityType: "Worker",
-    entityId: workerId,
-    metadata: { hourlyRate },
   });
 
   return updated;

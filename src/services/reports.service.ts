@@ -17,13 +17,18 @@ function startOfWeek(date: Date) {
   return d;
 }
 
+/**
+ * Horas trabajadas por semana, calculadas directamente de los check-in/out de
+ * WorkerAssignment (§6.7) — ya no depende de PaymentRecord, que desde la
+ * parametrización por especialidad solo registra montos, no horas.
+ */
 export async function getHoursWorkedByWeek(companyId: string, weeks = 8) {
   const since = startOfWeek(new Date());
   since.setDate(since.getDate() - (weeks - 1) * 7);
 
-  const records = await prisma.paymentRecord.findMany({
-    where: { companyId, periodStart: { gte: since } },
-    select: { periodStart: true, regularHours: true, overtimeHours: true, sundayHours: true, holidayHours: true },
+  const assignments = await prisma.workerAssignment.findMany({
+    where: { worker: { companyId }, checkInAt: { gte: since, not: null }, checkOutAt: { not: null } },
+    select: { checkInAt: true, checkOutAt: true },
   });
 
   const buckets = new Map<string, number>();
@@ -33,13 +38,10 @@ export async function getHoursWorkedByWeek(companyId: string, weeks = 8) {
     buckets.set(weekStart.toISOString().slice(0, 10), 0);
   }
 
-  for (const record of records) {
-    const weekStart = startOfWeek(record.periodStart).toISOString().slice(0, 10);
-    const hours =
-      Number(record.regularHours) +
-      Number(record.overtimeHours) +
-      Number(record.sundayHours) +
-      Number(record.holidayHours);
+  for (const a of assignments) {
+    const weekStart = startOfWeek(a.checkInAt!).toISOString().slice(0, 10);
+    const hours = (a.checkOutAt!.getTime() - a.checkInAt!.getTime()) / (1000 * 60 * 60);
+    if (hours <= 0) continue;
     buckets.set(weekStart, (buckets.get(weekStart) ?? 0) + hours);
   }
 

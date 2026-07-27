@@ -195,8 +195,8 @@ export function getEventDetail(companyId: string, eventId: string) {
       assignments: {
         include: {
           // `select` (no `include`) para no arrastrar campos `Decimal` del
-          // Worker (hourlyRate/ratingAverage) — no son serializables hacia
-          // el Client Component `AssignmentPanel`, que solo necesita esto.
+          // Worker (ratingAverage) — no son serializables hacia el Client
+          // Component `AssignmentPanel`, que solo necesita esto.
           worker: { select: { id: true, userId: true, user: { select: { name: true, phone: true } } } },
         },
         orderBy: { assignedAt: "asc" },
@@ -274,9 +274,14 @@ export function findOverlappingAssignments(workerId: string, startAt: Date, endA
   });
 }
 
-export function createAssignment(eventId: string, workerId: string, assignedById: string) {
+export function createAssignment(
+  eventId: string,
+  workerId: string,
+  assignedById: string,
+  specialty?: Specialty,
+) {
   return prisma.workerAssignment.create({
-    data: { eventId, workerId, assignedById, status: "PROPOSED" },
+    data: { eventId, workerId, assignedById, status: "PROPOSED", specialty },
   });
 }
 
@@ -324,8 +329,8 @@ export function findAvailableWorkersForSpecialty(companyId: string, specialty: S
   return prisma.worker.findMany({
     where: { companyId, deletedAt: null, status: "ACTIVE", specialties: { has: specialty } },
     // `select` (no `include`) — igual que en getEventDetail: evita arrastrar
-    // campos `Decimal` del Worker (hourlyRate/ratingAverage), que no son
-    // serializables hacia el Client Component `AssignmentPanel`.
+    // campos `Decimal` del Worker (ratingAverage), que no son serializables
+    // hacia el Client Component `AssignmentPanel`.
     select: { id: true, user: { select: { name: true } } },
     orderBy: { ratingAverage: "desc" },
   });

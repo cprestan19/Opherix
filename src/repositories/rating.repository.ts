@@ -46,8 +46,8 @@ export function listPendingModerations(companyId: string) {
       ratingScore: true,
       ratingComment: true,
       // `select` explícito (no `include`) para no arrastrar campos `Decimal`
-      // (ratingAverage/hourlyRate del Worker) hacia el Client Component —
-      // no son serializables al cruzar el límite Server→Client.
+      // (ratingAverage del Worker) hacia el Client Component — no son
+      // serializables al cruzar el límite Server→Client.
       worker: { select: { user: { select: { name: true } } } },
       event: { select: { title: true } },
     },

@@ -14,7 +14,6 @@ import { workerEditSchema, type WorkerEditInput } from "@/lib/validations/worker
 import {
   updateWorkerProfile,
   setWorkerAccountStatus,
-  setWorkerHourlyRate,
   deleteWorker,
   restoreWorker,
   WorkerError,
@@ -35,7 +34,7 @@ export async function updateWorkerAction(workerId: string, input: WorkerEditInpu
   const { user, companyId } = await requireCompanyStaff();
 
   try {
-    await updateWorkerProfile(companyId, user.id, user.role, workerId, parsed.data);
+    await updateWorkerProfile(companyId, user.id, workerId, parsed.data);
   } catch (error) {
     if (error instanceof WorkerError) return { error: error.message };
     throw error;
@@ -90,20 +89,6 @@ export async function restoreWorkerAction(workerId: string): Promise<ActionResul
 
   revalidatePath(`/admin/personal/${workerId}`);
   revalidatePath("/admin/personal");
-  return {};
-}
-
-export async function setWorkerHourlyRateAction(workerId: string, hourlyRate: number): Promise<ActionResult> {
-  const { user, companyId } = await requireCompanyStaff();
-
-  try {
-    await setWorkerHourlyRate(companyId, user.id, user.role, workerId, hourlyRate);
-  } catch (error) {
-    if (error instanceof WorkerError) return { error: error.message };
-    throw error;
-  }
-
-  revalidatePath(`/admin/personal/${workerId}`);
   return {};
 }
 

@@ -13,7 +13,16 @@ import { requireAdmin } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import { updatePayRules, addHoliday, removeHoliday, updateAutoArchiveDelay } from "@/services/config.service";
 import { updateCompanyBranding } from "@/repositories/config.repository";
+import {
+  saveClientSpecialtyRates,
+  ClientSpecialtyRateError,
+} from "@/services/client-specialty-rate.service";
+import { clientSpecialtyRateSchema, type ClientSpecialtyRateInput } from "@/lib/validations/client-specialty-rate";
 import type { AutoArchiveDelay } from "@/generated/prisma/enums";
+
+export interface ConfigActionResult {
+  error?: string;
+}
 
 // Configuración de empresa (branding, tarifas, feriados) es exclusiva de
 // ADMIN — un SUPERVISOR puede operar el día a día pero no cambiar reglas
@@ -53,4 +62,23 @@ export async function updateAutoArchiveDelayAction(autoArchiveDelay: AutoArchive
   const { user, companyId } = await requireAdmin();
   await updateAutoArchiveDelay(companyId, user.id, autoArchiveDelay);
   revalidatePath("/admin/configuracion");
+}
+
+export async function saveClientSpecialtyRatesAction(
+  input: ClientSpecialtyRateInput,
+): Promise<ConfigActionResult> {
+  const parsed = clientSpecialtyRateSchema.safeParse(input);
+  if (!parsed.success) return { error: "Revisa los valores ingresados." };
+
+  const { user, companyId } = await requireAdmin();
+
+  try {
+    await saveClientSpecialtyRates(companyId, user.id, parsed.data);
+  } catch (error) {
+    if (error instanceof ClientSpecialtyRateError) return { error: error.message };
+    throw error;
+  }
+
+  revalidatePath("/admin/configuracion");
+  return {};
 }

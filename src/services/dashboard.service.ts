@@ -47,7 +47,7 @@ export async function getAdminDashboardStats(companyId: string): Promise<AdminDa
     pendingApplications,
     activeClients,
     invoicesThisMonth,
-    paymentRecordsThisMonth,
+    assignmentsWorkedThisMonth,
     paymentsPending,
   ] = await Promise.all([
     prisma.event.count({
@@ -68,9 +68,12 @@ export async function getAdminDashboardStats(companyId: string): Promise<AdminDa
       where: { companyId, createdAt: { gte: monthStart } },
       _sum: { amount: true },
     }),
-    prisma.paymentRecord.aggregate({
-      where: { companyId, periodStart: { gte: monthStart } },
-      _sum: { regularHours: true, overtimeHours: true, sundayHours: true, holidayHours: true },
+    // Horas se calculan directamente de check-in/out (§6.7) — ya no de
+    // PaymentRecord, que desde la parametrización por especialidad solo
+    // registra montos.
+    prisma.workerAssignment.findMany({
+      where: { worker: { companyId }, checkInAt: { gte: monthStart, not: null }, checkOutAt: { not: null } },
+      select: { checkInAt: true, checkOutAt: true },
     }),
     prisma.paymentRecord.aggregate({
       where: { companyId, status: "PENDIENTE" },
@@ -78,11 +81,10 @@ export async function getAdminDashboardStats(companyId: string): Promise<AdminDa
     }),
   ]);
 
-  const totalHours =
-    Number(paymentRecordsThisMonth._sum.regularHours ?? 0) +
-    Number(paymentRecordsThisMonth._sum.overtimeHours ?? 0) +
-    Number(paymentRecordsThisMonth._sum.sundayHours ?? 0) +
-    Number(paymentRecordsThisMonth._sum.holidayHours ?? 0);
+  const totalHours = assignmentsWorkedThisMonth.reduce((sum, a) => {
+    const hours = (a.checkOutAt!.getTime() - a.checkInAt!.getTime()) / (1000 * 60 * 60);
+    return hours > 0 ? sum + hours : sum;
+  }, 0);
 
   return {
     eventsToday,
