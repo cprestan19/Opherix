@@ -18,6 +18,45 @@ export function findUserByEmail(email: string) {
   return prisma.user.findUnique({ where: { email: email.toLowerCase() } });
 }
 
+/**
+ * Roster público para el selector opcional de personal en
+ * /solicitar/[companySlug] (§ el Cliente puede elegir a quién prefiere, sin
+ * que eso reemplace la Asignación real que sigue siendo del Administrador).
+ * Expone deliberadamente solo foto/nombre/score/carnet de salud — nada de
+ * contacto, dirección ni datos sensibles del trabajador.
+ */
+export function listPublicAvailableWorkers(companyId: string) {
+  return prisma.worker.findMany({
+    where: { companyId, deletedAt: null, status: "ACTIVE" },
+    select: {
+      id: true,
+      photoUrl: true,
+      ratingAverage: true,
+      ratingCount: true,
+      user: { select: { name: true } },
+      documents: {
+        where: { type: "HEALTH_CARD" },
+        select: { expiresAt: true },
+      },
+    },
+    orderBy: { ratingAverage: "desc" },
+  });
+}
+
+/**
+ * Valida que los IDs de preferencia enviados desde el formulario público
+ * realmente pertenezcan a esta empresa y sigan activos — nunca confiar en
+ * los IDs tal cual llegan de un formulario sin sesión.
+ */
+export async function filterActiveWorkerIds(companyId: string, workerIds: string[]) {
+  if (workerIds.length === 0) return [];
+  const workers = await prisma.worker.findMany({
+    where: { id: { in: workerIds }, companyId, deletedAt: null, status: "ACTIVE" },
+    select: { id: true },
+  });
+  return workers.map((w) => w.id);
+}
+
 export function createWorkerDirect(data: {
   companyId: string;
   email: string;

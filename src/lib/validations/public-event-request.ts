@@ -27,6 +27,9 @@ export const publicEventRequestSchema = z.object({
       }),
     )
     .min(1, "Indica al menos un tipo de personal"),
+  // Selección opcional del selector de personal en línea — nunca reemplaza
+  // "Personal requerido" (staffNeeded), que sigue siendo obligatorio.
+  preferredWorkerIds: z.array(z.string()).max(100).optional(),
   turnstileToken: z.string().optional(),
 });
 

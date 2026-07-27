@@ -7,12 +7,19 @@
  */
 
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
-import { getEventDetail, findAvailableWorkersForSpecialty } from "@/repositories/event.repository";
+import {
+  getEventDetail,
+  findAvailableWorkersForSpecialty,
+  listPreferredWorkerSummaries,
+} from "@/repositories/event.repository";
 import { getCompany } from "@/repositories/config.repository";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Star } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Star, UserCheck } from "lucide-react";
+import { asStringArray } from "@/lib/worker-fields";
 import { AssignmentPanel } from "./assignment-panel";
 import { EventActions } from "./event-actions";
 import { EventCheckInCode } from "@/components/shared/event-checkin-code";
@@ -61,6 +68,12 @@ export default async function EventDetailPage({
   );
   const availableWorkersBySpecialty = Object.fromEntries(
     uniqueSpecialties.map((specialty, i) => [specialty, workersLists[i]]),
+  );
+
+  const preferredWorkerIds = asStringArray(event.preferredWorkerIds);
+  const preferredWorkers = await listPreferredWorkerSummaries(companyId, preferredWorkerIds);
+  const alreadyAssignedWorkerIds = new Set(
+    event.assignments.filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED").map((a) => a.worker.id),
   );
 
   return (
@@ -164,6 +177,36 @@ export default async function EventDetailPage({
                   {a.ratingScore}/5{a.ratingModerationStatus === "PENDING_REVIEW" ? " · en revisión" : ""}
                 </Badge>
               </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {preferredWorkers.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base font-medium">
+              <UserCheck className="size-4 text-primary" /> Personal preferido por el cliente
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-3">
+            {preferredWorkers.map((worker) => (
+              <Link
+                key={worker.id}
+                href={`/admin/personal/${worker.id}`}
+                className="flex items-center gap-2 rounded-lg border border-border p-2 pr-3 transition-colors hover:border-primary/40"
+              >
+                <Avatar className="size-8">
+                  <AvatarImage src={worker.photoUrl ?? undefined} alt={worker.user.name} />
+                  <AvatarFallback className="text-xs">{worker.user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <span className="text-sm">{worker.user.name}</span>
+                {alreadyAssignedWorkerIds.has(worker.id) ? (
+                  <Badge variant="secondary" className="text-xs">
+                    Ya asignado
+                  </Badge>
+                ) : null}
+              </Link>
             ))}
           </CardContent>
         </Card>

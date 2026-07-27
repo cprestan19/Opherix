@@ -10,12 +10,42 @@ import "server-only";
 import * as eventRepo from "@/repositories/event.repository";
 import * as clientRepo from "@/repositories/client.repository";
 import * as accessTokenRepo from "@/repositories/client-access-token.repository";
+import * as workerRepo from "@/repositories/worker.repository";
 import { generateClientAccessToken } from "@/lib/client-access-token";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { createEventRequest, generateEventAccessLink } from "@/services/event.service";
 import type { PublicEventRequestInput } from "@/lib/validations/public-event-request";
 
 export class PublicEventRequestError extends Error {}
+
+export interface PublicWorkerOption {
+  id: string;
+  name: string;
+  photoUrl: string | null;
+  ratingAverage: string;
+  ratingCount: number;
+  hasHealthCard: boolean;
+}
+
+/**
+ * Roster para el selector opcional de personal en /solicitar/[companySlug]
+ * (§ elegir a quién prefiere el Cliente, sin reemplazar la Asignación real
+ * del Administrador). `ratingAverage` se convierte a string — Decimal de
+ * Prisma no es serializable hacia un Client Component.
+ */
+export async function listPublicAvailableWorkers(companyId: string): Promise<PublicWorkerOption[]> {
+  const workers = await workerRepo.listPublicAvailableWorkers(companyId);
+  const now = new Date();
+
+  return workers.map((w) => ({
+    id: w.id,
+    name: w.user.name,
+    photoUrl: w.photoUrl,
+    ratingAverage: w.ratingAverage.toString(),
+    ratingCount: w.ratingCount,
+    hasHealthCard: w.documents.some((doc) => !doc.expiresAt || doc.expiresAt >= now),
+  }));
+}
 
 const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const MAX_REQUESTS_PER_EMAIL = 5;
@@ -76,6 +106,13 @@ export async function submitPublicEventRequest(
     });
   }
 
+  // Nunca confiar en los IDs tal cual llegan del formulario público (sin
+  // sesión) — se validan contra el roster real de esta empresa antes de
+  // guardarlos como preferencia.
+  const preferredWorkerIds = input.preferredWorkerIds?.length
+    ? await workerRepo.filterActiveWorkerIds(companyId, input.preferredWorkerIds)
+    : undefined;
+
   const event = await createEventRequest(
     companyId,
     client.id,
@@ -88,6 +125,7 @@ export async function submitPublicEventRequest(
       endAt: input.endAt,
       notes: input.notes,
       staffRequirements: input.staffNeeded,
+      preferredWorkerIds,
     },
     ip,
   );

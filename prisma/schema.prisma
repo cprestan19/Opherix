@@ -407,6 +407,11 @@ model Event {
   notes        String?
   cancelReason String?
   archivedAt   DateTime?
+  // Preferencia opcional del Cliente al solicitar (§ /solicitar/[companySlug],
+  // selector de personal en línea) — solo IDs de Worker, no crea
+  // WorkerAssignment directamente: la Asignación real sigue siendo exclusiva
+  // del Administrador (§4 paso 6), esto solo prioriza a quién debería asignar.
+  preferredWorkerIds Json?
   // Soft-delete (§ CLAUDE.md §4/§9.9 — nunca borrado físico): distinto de
   // CANCELLED/ARCHIVED, oculta el evento de ambas listas (Activos y
   // Archivados). Reversible desde la vista de "Eliminados".

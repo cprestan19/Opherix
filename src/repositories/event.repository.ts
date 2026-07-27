@@ -26,6 +26,9 @@ export function createEvent(data: {
   // Solo se llena en eventos creados desde /solicitar/[companySlug] — usado
   // únicamente para el rate limiting por IP de ese formulario público.
   ipAddress?: string;
+  // Preferencia opcional del selector de personal en línea del formulario
+  // público — no crea asignaciones, solo prioriza a quién debería asignar el Administrador.
+  preferredWorkerIds?: string[];
   staffRequirements: { specialty: Specialty; quantity: number }[];
 }) {
   const { staffRequirements, status, ...eventFields } = data;
@@ -171,6 +174,15 @@ export function listAssignableEvents(companyId: string) {
       client: { select: { businessName: true } },
     },
     orderBy: { startAt: "asc" },
+  });
+}
+
+/** Resumen de los trabajadores que el Cliente marcó como preferidos al solicitar (§ event.preferredWorkerIds). */
+export function listPreferredWorkerSummaries(companyId: string, workerIds: string[]) {
+  if (workerIds.length === 0) return Promise.resolve([]);
+  return prisma.worker.findMany({
+    where: { id: { in: workerIds }, companyId },
+    select: { id: true, photoUrl: true, user: { select: { name: true } } },
   });
 }
 

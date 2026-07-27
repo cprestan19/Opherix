@@ -62,6 +62,9 @@ export interface CreateEventInput {
   endAt: string;
   notes?: string;
   staffRequirements: { specialty: Specialty; quantity: number }[];
+  // Solo aplica al crear desde el formulario público (§ selector de personal
+  // en línea) — ignorado por el resto de flujos (admin, edición).
+  preferredWorkerIds?: string[];
 }
 
 /**
@@ -325,6 +328,7 @@ export async function createEventRequest(
     endAt,
     notes: input.notes,
     ipAddress,
+    preferredWorkerIds: input.preferredWorkerIds,
     staffRequirements: input.staffRequirements,
   });
 
