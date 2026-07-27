@@ -11,7 +11,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCompanyStaff } from "@/lib/tenant";
 import { createClientSchema, type CreateClientInput } from "@/lib/validations/client";
-import { createClient, setClientActiveStatus, ClientError } from "@/services/client.service";
+import { createClient, setClientActiveStatus, deleteClient, restoreClient, ClientError } from "@/services/client.service";
 
 export interface CreateClientResult {
   error?: string;
@@ -44,6 +44,36 @@ export async function setClientActiveAction(clientId: string, isActive: boolean)
 
   try {
     await setClientActiveStatus(companyId, user.id, clientId, isActive);
+  } catch (error) {
+    if (error instanceof ClientError) return { error: error.message };
+    throw error;
+  }
+
+  revalidatePath("/admin/clientes");
+  revalidatePath("/admin/eventos");
+  return {};
+}
+
+export async function deleteClientAction(clientId: string, reason: string): Promise<SetClientActiveResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await deleteClient(companyId, user.id, clientId, reason);
+  } catch (error) {
+    if (error instanceof ClientError) return { error: error.message };
+    throw error;
+  }
+
+  revalidatePath("/admin/clientes");
+  revalidatePath("/admin/eventos");
+  return {};
+}
+
+export async function restoreClientAction(clientId: string): Promise<SetClientActiveResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await restoreClient(companyId, user.id, clientId);
   } catch (error) {
     if (error instanceof ClientError) return { error: error.message };
     throw error;

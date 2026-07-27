@@ -11,12 +11,20 @@ import { prisma } from "@/lib/prisma";
 
 export function listClients(companyId: string) {
   return prisma.client.findMany({
-    where: { companyId },
+    where: { companyId, deletedAt: null },
     include: {
       _count: { select: { events: true } },
       events: { orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true } },
     },
     orderBy: { businessName: "asc" },
+  });
+}
+
+export function listDeletedClients(companyId: string) {
+  return prisma.client.findMany({
+    where: { companyId, deletedAt: { not: null } },
+    include: { _count: { select: { events: true } } },
+    orderBy: { deletedAt: "desc" },
   });
 }
 
@@ -37,8 +45,26 @@ export function createClient(data: {
 
 export async function setClientActive(companyId: string, clientId: string, isActive: boolean) {
   const result = await prisma.client.updateMany({
-    where: { id: clientId, companyId },
+    where: { id: clientId, companyId, deletedAt: null },
     data: { isActive },
+  });
+  if (result.count === 0) return null;
+  return prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+}
+
+export async function softDeleteClient(companyId: string, clientId: string, reason: string) {
+  const result = await prisma.client.updateMany({
+    where: { id: clientId, companyId, deletedAt: null },
+    data: { deletedAt: new Date(), deletedReason: reason, isActive: false },
+  });
+  if (result.count === 0) return null;
+  return prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+}
+
+export async function restoreClient(companyId: string, clientId: string) {
+  const result = await prisma.client.updateMany({
+    where: { id: clientId, companyId, deletedAt: { not: null } },
+    data: { deletedAt: null, deletedReason: null },
   });
   if (result.count === 0) return null;
   return prisma.client.findUniqueOrThrow({ where: { id: clientId } });
@@ -46,7 +72,7 @@ export async function setClientActive(companyId: string, clientId: string, isAct
 
 export function findClientByEmail(companyId: string, contactEmail: string) {
   return prisma.client.findFirst({
-    where: { companyId, contactEmail: { equals: contactEmail, mode: "insensitive" } },
+    where: { companyId, contactEmail: { equals: contactEmail, mode: "insensitive" }, deletedAt: null },
   });
 }
 
@@ -61,6 +87,7 @@ export function findClientByEmailOrPhone(companyId: string, contactEmail: string
   return prisma.client.findFirst({
     where: {
       companyId,
+      deletedAt: null,
       OR: [
         { contactEmail: { equals: contactEmail, mode: "insensitive" } },
         ...(contactPhone ? [{ contactPhone: { equals: contactPhone, mode: "insensitive" as const } }] : []),

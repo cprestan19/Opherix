@@ -23,6 +23,7 @@ import { DOCUMENT_TYPE_LABELS, WORKER_STATUS_LABELS } from "@/lib/labels";
 import { WorkerStatusToggle } from "./worker-status-toggle";
 import { WorkerHourlyRate } from "./worker-hourly-rate";
 import { ApplicationDecisionPanel } from "./application-decision-panel";
+import { WorkerDeleteAction } from "./worker-delete-action";
 
 export default async function WorkerDetailPage({
   params,
@@ -47,16 +48,29 @@ export default async function WorkerDetailPage({
             <Badge variant="secondary" className="align-middle">
               {WORKER_STATUS_LABELS[worker.status]}
             </Badge>
+            {worker.deletedAt ? (
+              <Badge variant="destructive" className="ml-1.5 align-middle">
+                Eliminado
+              </Badge>
+            ) : null}
           </p>
+          {worker.deletedAt && worker.deletedReason ? (
+            <p className="mt-1 text-xs text-muted-foreground">Motivo: {worker.deletedReason}</p>
+          ) : null}
         </div>
         {currentUser.role === "VIEWER" ? null : (
           <div className="flex items-center gap-2">
-            <WorkerStatusToggle workerId={worker.id} status={worker.status} />
-            <Button asChild size="sm" className="gap-1.5">
-              <Link href={`/admin/personal/${worker.id}/editar`}>
-                <Pencil className="size-3.5" /> Editar
-              </Link>
-            </Button>
+            {worker.deletedAt ? null : (
+              <>
+                <WorkerStatusToggle workerId={worker.id} status={worker.status} />
+                <Button asChild size="sm" className="gap-1.5">
+                  <Link href={`/admin/personal/${worker.id}/editar`}>
+                    <Pencil className="size-3.5" /> Editar
+                  </Link>
+                </Button>
+              </>
+            )}
+            <WorkerDeleteAction workerId={worker.id} deleted={Boolean(worker.deletedAt)} />
           </div>
         )}
       </div>

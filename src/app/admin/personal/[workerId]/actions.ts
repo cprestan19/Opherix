@@ -15,6 +15,8 @@ import {
   updateWorkerProfile,
   setWorkerAccountStatus,
   setWorkerHourlyRate,
+  deleteWorker,
+  restoreWorker,
   WorkerError,
 } from "@/services/worker.service";
 import { findWorkerById } from "@/repositories/worker.repository";
@@ -58,6 +60,36 @@ export async function setWorkerStatusAction(
   }
 
   revalidatePath(`/admin/personal/${workerId}`);
+  return {};
+}
+
+export async function deleteWorkerAction(workerId: string, reason: string): Promise<ActionResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await deleteWorker(companyId, user.id, workerId, reason);
+  } catch (error) {
+    if (error instanceof WorkerError) return { error: error.message };
+    throw error;
+  }
+
+  revalidatePath(`/admin/personal/${workerId}`);
+  revalidatePath("/admin/personal");
+  return {};
+}
+
+export async function restoreWorkerAction(workerId: string): Promise<ActionResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await restoreWorker(companyId, user.id, workerId);
+  } catch (error) {
+    if (error instanceof WorkerError) return { error: error.message };
+    throw error;
+  }
+
+  revalidatePath(`/admin/personal/${workerId}`);
+  revalidatePath("/admin/personal");
   return {};
 }
 

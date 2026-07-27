@@ -127,6 +127,7 @@ export function listWorkers(companyId: string, filters: WorkerListFilters = {}) 
   return prisma.worker.findMany({
     where: {
       companyId,
+      deletedAt: null,
       status: status ?? { in: ["APPROVED", "ACTIVE"] },
       specialties: specialty ? { has: specialty } : undefined,
       user: search
@@ -137,6 +138,14 @@ export function listWorkers(companyId: string, filters: WorkerListFilters = {}) 
       user: { select: { name: true, email: true, phone: true } },
     },
     orderBy: { ratingAverage: "desc" },
+  });
+}
+
+export function listDeletedWorkers(companyId: string) {
+  return prisma.worker.findMany({
+    where: { companyId, deletedAt: { not: null } },
+    include: { user: { select: { name: true, email: true, phone: true } } },
+    orderBy: { deletedAt: "desc" },
   });
 }
 
@@ -263,4 +272,38 @@ export function updateWorkerProfile(workerId: string, userId: string, data: Upda
 
 export function setWorkerStatus(workerId: string, status: "ACTIVE" | "INACTIVE") {
   return prisma.worker.update({ where: { id: workerId }, data: { status } });
+}
+
+/**
+ * Soft-delete (§ CLAUDE.md §4/§9.9 — nunca borrado físico): además de ocultar
+ * al trabajador del directorio, suspende su cuenta (User.status) para que
+ * pierda acceso al portal — a diferencia de status=INACTIVE, que solo lo
+ * pausa sin tocar su acceso.
+ */
+export async function softDeleteWorker(companyId: string, workerId: string, reason: string) {
+  const worker = await prisma.worker.findFirst({ where: { id: workerId, companyId, deletedAt: null } });
+  if (!worker) return null;
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.worker.update({
+      where: { id: workerId },
+      data: { deletedAt: new Date(), deletedReason: reason, status: "INACTIVE" },
+    });
+    await tx.user.update({ where: { id: worker.userId }, data: { status: "SUSPENDED" } });
+    return updated;
+  });
+}
+
+export async function restoreWorker(companyId: string, workerId: string) {
+  const worker = await prisma.worker.findFirst({ where: { id: workerId, companyId, deletedAt: { not: null } } });
+  if (!worker) return null;
+
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.worker.update({
+      where: { id: workerId },
+      data: { deletedAt: null, deletedReason: null },
+    });
+    await tx.user.update({ where: { id: worker.userId }, data: { status: "ACTIVE" } });
+    return updated;
+  });
 }

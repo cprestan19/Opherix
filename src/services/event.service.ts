@@ -464,3 +464,52 @@ export async function cancelEvent(companyId: string, eventId: string, actorId: s
 
   return updated;
 }
+
+/**
+ * Eliminación lógica (soft-delete, § CLAUDE.md §4/§9.9 — nunca borrado
+ * físico): distinto de cancelar/archivar, oculta el evento de las listas
+ * Activos y Archivados por igual. Reversible desde la vista de "Eliminados".
+ */
+export async function deleteEvent(companyId: string, actorId: string, eventId: string, reason: string) {
+  const event = await eventRepo.getEventDetail(companyId, eventId);
+  if (!event) throw new EventError("Evento no encontrado.");
+
+  const updated = await eventRepo.softDeleteEvent(companyId, eventId, reason);
+  if (!updated) throw new EventError("Evento no encontrado.");
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "EVENT_DELETED",
+    entityType: "Event",
+    entityId: eventId,
+    metadata: { reason },
+  });
+
+  const affectedWorkers = event.assignments.filter((a) => a.status === "PROPOSED" || a.status === "ACCEPTED");
+  for (const assignment of affectedWorkers) {
+    await dispatchNotification({
+      companyId,
+      userId: assignment.worker.userId,
+      type: "EVENT_CANCELLED",
+      title: "Evento eliminado",
+      body: `El evento "${event.title}" fue eliminado. Motivo: ${reason}`,
+      relatedEntityType: "Event",
+      relatedEntityId: eventId,
+    });
+  }
+
+  return updated;
+}
+
+export async function restoreEvent(companyId: string, actorId: string, eventId: string) {
+  const updated = await eventRepo.restoreEvent(companyId, eventId);
+  if (!updated) throw new EventError("Evento no encontrado.");
+
+  await logAudit({ companyId, actorId, action: "EVENT_RESTORED", entityType: "Event", entityId: eventId });
+  return updated;
+}
+
+export async function listDeletedEvents(companyId: string) {
+  return eventRepo.listDeletedEvents(companyId);
+}

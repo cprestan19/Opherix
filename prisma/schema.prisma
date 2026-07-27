@@ -203,6 +203,12 @@ model Client {
   contactPhone String?
   address      String?
   isActive     Boolean  @default(true)
+  // Soft-delete (§ CLAUDE.md §4/§9.9 — nunca borrado físico): oculta el
+  // cliente de todas las listas y selectores, distinto de isActive (que solo
+  // lo saca de las opciones al crear un evento nuevo pero lo sigue mostrando
+  // en /admin/clientes). Reversible desde la vista de "Eliminados".
+  deletedAt     DateTime?
+  deletedReason String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -296,6 +302,12 @@ model Worker {
   approvedBy      User?     @relation("ApprovedBy", fields: [approvedById], references: [id])
   approvedAt      DateTime?
   rejectionReason String?
+
+  // Soft-delete (§ CLAUDE.md §4/§9.9 — nunca borrado físico): distinto de
+  // status=INACTIVE (pausa reversible desde el perfil), esto oculta al
+  // trabajador de todo el directorio y suspende su acceso al portal.
+  deletedAt     DateTime?
+  deletedReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -395,6 +407,11 @@ model Event {
   notes        String?
   cancelReason String?
   archivedAt   DateTime?
+  // Soft-delete (§ CLAUDE.md §4/§9.9 — nunca borrado físico): distinto de
+  // CANCELLED/ARCHIVED, oculta el evento de ambas listas (Activos y
+  // Archivados). Reversible desde la vista de "Eliminados".
+  deletedAt     DateTime?
+  deletedReason String?
   // Solo se llena en eventos creados desde /solicitar/[companySlug] (formulario
   // público sin cuenta) — usado únicamente para el rate limiting por IP de ese
   // flujo, nunca para eventos creados por un Administrador.

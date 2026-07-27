@@ -19,6 +19,7 @@ import { EventCheckInCode } from "@/components/shared/event-checkin-code";
 import { InvoiceAction } from "./invoice-action";
 import { EditEventForm } from "./edit-event-form";
 import { ArchiveEventAction } from "./archive-event-action";
+import { EventDeleteAction } from "./event-delete-action";
 import { EventAccessLinkPanel } from "./event-access-link-panel";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -70,10 +71,14 @@ export default async function EventDetailPage({
           <p className="text-sm text-muted-foreground">
             {event.client.businessName} · {formatRange(event.startAt, event.endAt)}
           </p>
+          {event.deletedAt && event.deletedReason ? (
+            <p className="mt-1 text-xs text-muted-foreground">Motivo de eliminación: {event.deletedReason}</p>
+          ) : null}
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline">{STATUS_LABELS[event.status]}</Badge>
-          {!isViewer && event.status !== "CANCELLED" && event.status !== "ARCHIVED" ? (
+          {event.deletedAt ? <Badge variant="destructive">Eliminado</Badge> : null}
+          {!isViewer && !event.deletedAt && event.status !== "CANCELLED" && event.status !== "ARCHIVED" ? (
             <EditEventForm
               eventId={event.id}
               event={{
@@ -113,10 +118,15 @@ export default async function EventDetailPage({
       </Card>
 
       {isViewer ? null : (
-        <div className="flex items-center gap-2">
-          <EventActions eventId={event.id} status={event.status} />
-          {event.status === "COMPLETED" ? <InvoiceAction eventId={event.id} /> : null}
-          {event.status === "COMPLETED" ? <ArchiveEventAction eventId={event.id} /> : null}
+        <div className="flex flex-wrap items-center gap-2">
+          {event.deletedAt ? null : (
+            <>
+              <EventActions eventId={event.id} status={event.status} />
+              {event.status === "COMPLETED" ? <InvoiceAction eventId={event.id} /> : null}
+              {event.status === "COMPLETED" ? <ArchiveEventAction eventId={event.id} /> : null}
+            </>
+          )}
+          <EventDeleteAction eventId={event.id} deleted={Boolean(event.deletedAt)} />
         </div>
       )}
 

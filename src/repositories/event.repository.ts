@@ -84,9 +84,35 @@ export function archiveEvent(eventId: string) {
   return prisma.event.update({ where: { id: eventId }, data: { status: "ARCHIVED", archivedAt: new Date() } });
 }
 
+export function listDeletedEvents(companyId: string) {
+  return prisma.event.findMany({
+    where: { companyId, deletedAt: { not: null } },
+    include: { client: { select: { businessName: true } } },
+    orderBy: { deletedAt: "desc" },
+  });
+}
+
+export async function softDeleteEvent(companyId: string, eventId: string, reason: string) {
+  const result = await prisma.event.updateMany({
+    where: { id: eventId, companyId, deletedAt: null },
+    data: { deletedAt: new Date(), deletedReason: reason },
+  });
+  if (result.count === 0) return null;
+  return prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+}
+
+export async function restoreEvent(companyId: string, eventId: string) {
+  const result = await prisma.event.updateMany({
+    where: { id: eventId, companyId, deletedAt: { not: null } },
+    data: { deletedAt: null, deletedReason: null },
+  });
+  if (result.count === 0) return null;
+  return prisma.event.findUniqueOrThrow({ where: { id: eventId } });
+}
+
 export function listEventsForClient(companyId: string, clientId: string) {
   return prisma.event.findMany({
-    where: { companyId, clientId },
+    where: { companyId, clientId, deletedAt: null },
     include: {
       staffRequirements: true,
       assignments: {
@@ -106,6 +132,7 @@ export function listEventsForCompany(companyId: string, options: { archived?: bo
   return prisma.event.findMany({
     where: {
       companyId,
+      deletedAt: null,
       status: options.archived ? "ARCHIVED" : { notIn: ["CANCELLED", "ARCHIVED"] },
     },
     include: {
@@ -132,6 +159,7 @@ export function listAssignableEvents(companyId: string) {
   return prisma.event.findMany({
     where: {
       companyId,
+      deletedAt: null,
       status: { in: ["REQUESTED", "CONFIRMED", "IN_PROGRESS"] },
       endAt: { gte: new Date() },
     },
@@ -280,7 +308,7 @@ export function findAssignmentForWorker(assignmentId: string, workerId: string) 
 
 export function findAvailableWorkersForSpecialty(companyId: string, specialty: Specialty) {
   return prisma.worker.findMany({
-    where: { companyId, status: "ACTIVE", specialties: { has: specialty } },
+    where: { companyId, deletedAt: null, status: "ACTIVE", specialties: { has: specialty } },
     // `select` (no `include`) — igual que en getEventDetail: evita arrastrar
     // campos `Decimal` del Worker (hourlyRate/ratingAverage), que no son
     // serializables hacia el Client Component `AssignmentPanel`.

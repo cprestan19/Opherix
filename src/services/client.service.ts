@@ -76,3 +76,43 @@ export async function setClientActiveStatus(
 
   return client;
 }
+
+/**
+ * Eliminación lógica (soft-delete, § CLAUDE.md §4/§9.9 — nunca borrado
+ * físico): distinto de archivar/inactivar, oculta al cliente de toda la
+ * app. Reversible desde la vista de "Eliminados".
+ */
+export async function deleteClient(companyId: string, actorId: string, clientId: string, reason: string) {
+  const client = await clientRepo.softDeleteClient(companyId, clientId, reason);
+  if (!client) throw new ClientError("Cliente no encontrado.");
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "CLIENT_DELETED",
+    entityType: "Client",
+    entityId: clientId,
+    metadata: { reason },
+  });
+
+  return client;
+}
+
+export async function restoreClient(companyId: string, actorId: string, clientId: string) {
+  const client = await clientRepo.restoreClient(companyId, clientId);
+  if (!client) throw new ClientError("Cliente no encontrado.");
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "CLIENT_RESTORED",
+    entityType: "Client",
+    entityId: clientId,
+  });
+
+  return client;
+}
+
+export async function listDeletedClients(companyId: string) {
+  return clientRepo.listDeletedClients(companyId);
+}

@@ -84,7 +84,7 @@ export async function updateTimeOffStatus(companyId: string, id: string, status:
 
 export function listWorkersWithAvailability(companyId: string) {
   return prisma.worker.findMany({
-    where: { companyId, status: { in: ["APPROVED", "ACTIVE"] } },
+    where: { companyId, deletedAt: null, status: { in: ["APPROVED", "ACTIVE"] } },
     include: {
       user: { select: { name: true } },
       availabilitySlots: true,

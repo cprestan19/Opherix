@@ -178,3 +178,45 @@ export async function setWorkerAccountStatus(
 
   return updated;
 }
+
+/**
+ * Eliminación lógica (soft-delete, § CLAUDE.md §4/§9.9 — nunca borrado
+ * físico): distinto de status=INACTIVE (pausa reversible), esto oculta al
+ * trabajador de todo el directorio y suspende su acceso al portal
+ * (workerRepo.softDeleteWorker también pone User.status=SUSPENDED).
+ * Reversible desde la vista de "Eliminados".
+ */
+export async function deleteWorker(companyId: string, actorId: string, workerId: string, reason: string) {
+  const worker = await workerRepo.softDeleteWorker(companyId, workerId, reason);
+  if (!worker) throw new WorkerError("Trabajador no encontrado.");
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "WORKER_DELETED",
+    entityType: "Worker",
+    entityId: workerId,
+    metadata: { reason },
+  });
+
+  return worker;
+}
+
+export async function restoreWorker(companyId: string, actorId: string, workerId: string) {
+  const worker = await workerRepo.restoreWorker(companyId, workerId);
+  if (!worker) throw new WorkerError("Trabajador no encontrado.");
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "WORKER_RESTORED",
+    entityType: "Worker",
+    entityId: workerId,
+  });
+
+  return worker;
+}
+
+export async function listDeletedWorkers(companyId: string) {
+  return workerRepo.listDeletedWorkers(companyId);
+}

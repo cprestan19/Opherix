@@ -17,6 +17,8 @@ import {
   cancelEvent,
   updateEventFull,
   archiveEvent,
+  deleteEvent,
+  restoreEvent,
   generateEventAccessLink,
   resendEventAccessLink,
   closeEventAccessLink,
@@ -82,6 +84,34 @@ export async function archiveEventAction(eventId: string): Promise<EventActionRe
 
   try {
     await archiveEvent(companyId, user.id, eventId);
+  } catch (error) {
+    if (error instanceof EventError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath(`/admin/eventos/${eventId}`);
+  revalidatePath("/admin/eventos");
+  return {};
+}
+
+export async function deleteEventAction(eventId: string, reason: string): Promise<EventActionResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await deleteEvent(companyId, user.id, eventId, reason);
+  } catch (error) {
+    if (error instanceof EventError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath(`/admin/eventos/${eventId}`);
+  revalidatePath("/admin/eventos");
+  return {};
+}
+
+export async function restoreEventAction(eventId: string): Promise<EventActionResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await restoreEvent(companyId, user.id, eventId);
   } catch (error) {
     if (error instanceof EventError) return { error: error.message };
     throw error;
