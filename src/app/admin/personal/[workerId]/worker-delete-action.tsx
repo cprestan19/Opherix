@@ -25,21 +25,37 @@ import {
 } from "@/components/shared/responsive-dialog";
 import { deleteWorkerAction, restoreWorkerAction } from "./actions";
 
-export function WorkerDeleteAction({ workerId, deleted }: { workerId: string; deleted: boolean }) {
+export function WorkerDeleteAction({
+  workerId,
+  deleted,
+  compact = false,
+}: {
+  workerId: string;
+  deleted: boolean;
+  /** Botón solo-ícono para usarlo dentro de filas de lista (ej. /admin/personal). */
+  compact?: boolean;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [reason, setReason] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  function stopRowNavigation(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
   if (deleted) {
     return (
       <Button
         type="button"
-        size="sm"
+        size={compact ? "icon" : "sm"}
         variant="outline"
-        className="gap-1.5"
+        className={compact ? "shrink-0" : "gap-1.5"}
         disabled={isPending}
-        onClick={() =>
+        aria-label={compact ? "Restaurar" : undefined}
+        onClick={(e) => {
+          if (compact) stopRowNavigation(e);
           startTransition(async () => {
             const result = await restoreWorkerAction(workerId);
             if (result?.error) {
@@ -48,11 +64,11 @@ export function WorkerDeleteAction({ workerId, deleted }: { workerId: string; de
             }
             toast.success("Trabajador restaurado");
             router.refresh();
-          })
-        }
+          });
+        }}
       >
         {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <ArchiveRestore className="size-3.5" />}
-        Restaurar
+        {compact ? null : "Restaurar"}
       </Button>
     );
   }
@@ -60,8 +76,16 @@ export function WorkerDeleteAction({ workerId, deleted }: { workerId: string; de
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
-        <Button type="button" size="sm" variant="outline" className="gap-1.5 text-danger">
-          <Trash2 className="size-3.5" /> Eliminar
+        <Button
+          type="button"
+          size={compact ? "icon" : "sm"}
+          variant="outline"
+          className={compact ? "shrink-0 text-danger" : "gap-1.5 text-danger"}
+          aria-label={compact ? "Eliminar" : undefined}
+          onClick={compact ? stopRowNavigation : undefined}
+        >
+          <Trash2 className="size-3.5" />
+          {compact ? null : "Eliminar"}
         </Button>
       </DialogTrigger>
       <DialogContent>

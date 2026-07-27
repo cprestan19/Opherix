@@ -22,6 +22,7 @@ import { RatingModerationPanel } from "./rating-moderation-panel";
 import { listPendingModerations } from "@/services/rating.service";
 import { asStringArray } from "@/lib/worker-fields";
 import { WorkerForm } from "./worker-form";
+import { WorkerDeleteAction } from "./[workerId]/worker-delete-action";
 import type { WorkerStatus } from "@/generated/prisma/enums";
 
 const WORKER_STATUS_VALUES: WorkerStatus[] = ["ACTIVE", "APPROVED", "INACTIVE"];
@@ -62,21 +63,19 @@ export default async function PersonalPage({
             <ul className="divide-y divide-border">
               {deletedWorkers.map((worker) => (
                 <li key={worker.id}>
-                  <Link
-                    href={`/admin/personal/${worker.id}`}
-                    className="flex items-center justify-between gap-3 py-2.5 pr-4 pl-3.5 transition-colors hover:bg-muted/50"
-                  >
-                    <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-3 py-2.5 pr-4 pl-3.5 transition-colors hover:bg-muted/50">
+                    <Link href={`/admin/personal/${worker.id}`} className="min-w-0 flex-1">
                       <p className="truncate font-medium">{worker.user.name}</p>
                       <p className="truncate text-xs text-muted-foreground">
                         {worker.user.email} · Eliminado {worker.deletedAt ? dateFormatter.format(worker.deletedAt) : ""}
                         {worker.deletedReason ? ` · ${worker.deletedReason}` : ""}
                       </p>
-                    </div>
+                    </Link>
                     <Badge variant="destructive" className="shrink-0">
                       Eliminado
                     </Badge>
-                  </Link>
+                    {isViewer ? null : <WorkerDeleteAction workerId={worker.id} deleted compact />}
+                  </div>
                 </li>
               ))}
             </ul>
@@ -131,39 +130,42 @@ export default async function PersonalPage({
               const age = calculateAge(worker.birthDate);
               return (
                 <li key={worker.id}>
-                  <Link
-                    href={`/admin/personal/${worker.id}`}
-                    className="flex items-center gap-3 py-2 pr-3.5 pl-2.5 transition-colors hover:bg-muted/50 sm:gap-4 sm:py-2.5 sm:pr-4"
-                  >
-                    <Avatar className="size-16 shrink-0 shadow-sm ring-2 ring-background sm:size-18">
-                      <AvatarImage src={worker.photoUrl ?? undefined} alt={worker.user.name} />
-                      <AvatarFallback className="text-base">{worker.user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      {worker.status === "ACTIVE" ? (
-                        <AvatarBadge className="bg-success" title="Activo" />
-                      ) : null}
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate font-medium">{worker.user.name}</p>
-                        <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
-                          <Star className="size-3.5 fill-warning text-warning" />
-                          {Number(worker.ratingAverage).toFixed(1)}
-                        </span>
+                  <div className="flex items-center gap-3 py-2 pr-3.5 pl-2.5 transition-colors hover:bg-muted/50 sm:gap-4 sm:py-2.5 sm:pr-4">
+                    <Link
+                      href={`/admin/personal/${worker.id}`}
+                      className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4"
+                    >
+                      <Avatar className="size-16 shrink-0 shadow-sm ring-2 ring-background sm:size-18">
+                        <AvatarImage src={worker.photoUrl ?? undefined} alt={worker.user.name} />
+                        <AvatarFallback className="text-base">{worker.user.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        {worker.status === "ACTIVE" ? (
+                          <AvatarBadge className="bg-success" title="Activo" />
+                        ) : null}
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate font-medium">{worker.user.name}</p>
+                          <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                            <Star className="size-3.5 fill-warning text-warning" />
+                            {Number(worker.ratingAverage).toFixed(1)}
+                          </span>
+                        </div>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {age ? `${age} años · ` : ""}
+                          {worker.experienceYears ?? 0} años de experiencia
+                          {languages.length > 0 ? ` · ${languages.join(", ")}` : ""}
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          {worker.specialties.map((specialty) => (
+                            <Badge key={specialty} variant="secondary">
+                              {specialtyLabels[specialty]}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {age ? `${age} años · ` : ""}
-                        {worker.experienceYears ?? 0} años de experiencia
-                        {languages.length > 0 ? ` · ${languages.join(", ")}` : ""}
-                      </p>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                        {worker.specialties.map((specialty) => (
-                          <Badge key={specialty} variant="secondary">
-                            {specialtyLabels[specialty]}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </Link>
+                    </Link>
+                    {isViewer ? null : <WorkerDeleteAction workerId={worker.id} deleted={false} compact />}
+                  </div>
                 </li>
               );
             })}
