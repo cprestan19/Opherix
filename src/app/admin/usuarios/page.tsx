@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { companyUserRoleLabels } from "@/lib/validations/company-user";
 import { CreateUserForm } from "./create-user-form";
 import { EditUserForm } from "./edit-user-form";
+import { SetPasswordForm } from "./set-password-form";
 import { UserRowActions } from "./user-row-actions";
 
 const dateFormatter = new Intl.DateTimeFormat("es", { day: "2-digit", month: "short", year: "numeric" });
@@ -74,8 +75,9 @@ export default async function UsuariosPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
                     <EditUserForm userId={u.id} name={u.name} email={u.email} phone={u.phone} />
+                    <SetPasswordForm userId={u.id} userName={u.name} />
                     <UserRowActions
                       userId={u.id}
                       role={u.role}

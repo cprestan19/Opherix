@@ -121,6 +121,49 @@ export async function editCompanyUser(
   return updated;
 }
 
+/**
+ * El Administrador asigna directamente la contraseña de un usuario de su
+ * empresa (ej. cuando el correo de invitación no llega o prefiere entregarla
+ * en persona) — a diferencia de la creación de cuenta, aquí sí se maneja una
+ * contraseña en texto plano de un tercero, así que nunca se registra en
+ * logs/auditoría y se hashea de inmediato. Se avisa por correo al dueño de
+ * la cuenta para que note el cambio si no fue él quien lo pidió.
+ */
+export async function setCompanyUserPassword(
+  companyId: string,
+  actorId: string,
+  targetUserId: string,
+  password: string,
+) {
+  const target = await repo.findCompanyUserById(companyId, targetUserId);
+  if (!target) {
+    throw new CompanyUserError("Usuario no encontrado.");
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const ok = await repo.setCompanyUserPassword(companyId, targetUserId, passwordHash);
+  if (!ok) {
+    throw new CompanyUserError("Usuario no encontrado.");
+  }
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "COMPANY_USER_PASSWORD_SET",
+    entityType: "User",
+    entityId: targetUserId,
+  });
+
+  await sendEmail(
+    target.email,
+    "Tu contraseña en Opherix fue actualizada",
+    `Un administrador de tu empresa estableció una nueva contraseña para tu cuenta (${target.email}).\n\n` +
+      `Si no lo esperabas, contacta a tu administrador de inmediato.`,
+  );
+
+  return true;
+}
+
 export async function setCompanyUserRole(
   companyId: string,
   actorId: string,

@@ -76,6 +76,14 @@ export async function updateCompanyUser(
   return prisma.user.findUniqueOrThrow({ where: { id: userId } });
 }
 
+export async function setCompanyUserPassword(companyId: string, userId: string, passwordHash: string) {
+  const result = await prisma.user.updateMany({
+    where: { id: userId, companyId, role: { in: COMPANY_STAFF_ROLES } },
+    data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+  });
+  return result.count > 0;
+}
+
 export async function setCompanyUserRole(companyId: string, userId: string, role: UserRole) {
   const result = await prisma.user.updateMany({
     where: { id: userId, companyId, role: { in: COMPANY_STAFF_ROLES } },

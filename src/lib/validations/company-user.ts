@@ -38,3 +38,15 @@ export const editCompanyUserSchema = z.object({
 });
 
 export type EditCompanyUserInput = z.infer<typeof editCompanyUserSchema>;
+
+export const setCompanyUserPasswordSchema = z
+  .object({
+    password: z.string().min(8, "Mínimo 8 caracteres"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Las contraseñas no coinciden",
+    path: ["confirmPassword"],
+  });
+
+export type SetCompanyUserPasswordInput = z.infer<typeof setCompanyUserPasswordSchema>;

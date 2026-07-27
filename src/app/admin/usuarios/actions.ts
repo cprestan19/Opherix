@@ -13,12 +13,15 @@ import { requireAdmin } from "@/lib/tenant";
 import {
   createCompanyUserSchema,
   editCompanyUserSchema,
+  setCompanyUserPasswordSchema,
   type CreateCompanyUserInput,
   type EditCompanyUserInput,
+  type SetCompanyUserPasswordInput,
 } from "@/lib/validations/company-user";
 import {
   createCompanyUser,
   editCompanyUser,
+  setCompanyUserPassword,
   setCompanyUserRole,
   setCompanyUserStatus,
   CompanyUserError,
@@ -63,6 +66,25 @@ export async function editCompanyUserAction(
   }
 
   revalidatePath("/admin/usuarios");
+  return {};
+}
+
+export async function setCompanyUserPasswordAction(
+  targetUserId: string,
+  input: SetCompanyUserPasswordInput,
+): Promise<CompanyUserActionResult> {
+  const parsed = setCompanyUserPasswordSchema.safeParse(input);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Revisa la contraseña." };
+
+  const { user, companyId } = await requireAdmin();
+
+  try {
+    await setCompanyUserPassword(companyId, user.id, targetUserId, parsed.data.password);
+  } catch (error) {
+    if (error instanceof CompanyUserError) return { error: error.message };
+    throw error;
+  }
+
   return {};
 }
 
