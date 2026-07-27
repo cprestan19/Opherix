@@ -40,11 +40,6 @@ export function WorkerDeleteAction({
   const [reason, setReason] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  function stopRowNavigation(e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
   if (deleted) {
     return (
       <Button
@@ -54,8 +49,7 @@ export function WorkerDeleteAction({
         className={compact ? "shrink-0" : "gap-1.5"}
         disabled={isPending}
         aria-label={compact ? "Restaurar" : undefined}
-        onClick={(e) => {
-          if (compact) stopRowNavigation(e);
+        onClick={() =>
           startTransition(async () => {
             const result = await restoreWorkerAction(workerId);
             if (result?.error) {
@@ -64,8 +58,8 @@ export function WorkerDeleteAction({
             }
             toast.success("Trabajador restaurado");
             router.refresh();
-          });
-        }}
+          })
+        }
       >
         {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <ArchiveRestore className="size-3.5" />}
         {compact ? null : "Restaurar"}
@@ -82,7 +76,6 @@ export function WorkerDeleteAction({
           variant="outline"
           className={compact ? "shrink-0 text-danger" : "gap-1.5 text-danger"}
           aria-label={compact ? "Eliminar" : undefined}
-          onClick={compact ? stopRowNavigation : undefined}
         >
           <Trash2 className="size-3.5" />
           {compact ? null : "Eliminar"}

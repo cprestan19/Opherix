@@ -38,9 +38,7 @@ export function ClientDeleteAction({ clientId, deleted }: { clientId: string; de
         size="sm"
         variant="outline"
         className="shrink-0 gap-1.5"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
+        onClick={() =>
           startTransition(async () => {
             const result = await restoreClientAction(clientId);
             if (result?.error) {
@@ -49,8 +47,8 @@ export function ClientDeleteAction({ clientId, deleted }: { clientId: string; de
             }
             toast.success("Cliente restaurado");
             router.refresh();
-          });
-        }}
+          })
+        }
         disabled={isPending}
       >
         {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <ArchiveRestore className="size-3.5" />}
@@ -62,16 +60,7 @@ export function ClientDeleteAction({ clientId, deleted }: { clientId: string; de
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="shrink-0 gap-1.5 text-danger"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-        >
+        <Button type="button" size="sm" variant="outline" className="shrink-0 gap-1.5 text-danger">
           <Trash2 className="size-3.5" /> Eliminar
         </Button>
       </DialogTrigger>
