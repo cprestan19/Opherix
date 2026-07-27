@@ -10,7 +10,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/tenant";
 import { listCompanyUsers } from "@/services/company-user.service";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { companyUserRoleLabels } from "@/lib/validations/company-user";
 import { CreateUserForm } from "./create-user-form";
@@ -53,6 +53,7 @@ export default async function UsuariosPage() {
                 <div className="flex flex-col gap-3 py-3 pr-4 pl-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                   <div className="flex min-w-0 flex-1 items-center gap-3">
                     <Avatar className="size-10 shrink-0">
+                      <AvatarImage src={u.image ?? undefined} alt={u.name} />
                       <AvatarFallback className="text-xs">{u.name.slice(0, 2).toUpperCase()}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0 flex-1">
@@ -76,7 +77,7 @@ export default async function UsuariosPage() {
                     </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <EditUserForm userId={u.id} name={u.name} email={u.email} phone={u.phone} />
+                    <EditUserForm userId={u.id} name={u.name} email={u.email} phone={u.phone} image={u.image} />
                     <SetPasswordForm userId={u.id} userName={u.name} />
                     <UserRowActions
                       userId={u.id}

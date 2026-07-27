@@ -35,6 +35,7 @@ export const editCompanyUserSchema = z.object({
   name: z.string().trim().min(2, "Ingresa el nombre completo").max(120),
   email: z.email("Correo inválido"),
   phone: z.string().trim().max(30).optional(),
+  image: z.string().trim().optional(),
 });
 
 export type EditCompanyUserInput = z.infer<typeof editCompanyUserSchema>;

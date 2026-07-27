@@ -105,6 +105,7 @@ export async function editCompanyUser(
     name: input.name,
     email: input.email,
     phone: input.phone,
+    image: input.image,
   });
   if (!updated) {
     throw new CompanyUserError("Usuario no encontrado.");

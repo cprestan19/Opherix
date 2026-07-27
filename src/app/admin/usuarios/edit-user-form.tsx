@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Loader2, Pencil } from "lucide-react";
@@ -26,6 +26,7 @@ import {
   ResponsiveDialogTrigger as DialogTrigger,
 } from "@/components/shared/responsive-dialog";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { PhotoCaptureField } from "@/components/shared/photo-capture-field";
 import { editCompanyUserSchema, type EditCompanyUserInput } from "@/lib/validations/company-user";
 import { editCompanyUserAction } from "./actions";
 
@@ -34,20 +35,23 @@ export function EditUserForm({
   name,
   email,
   phone,
+  image,
 }: {
   userId: string;
   name: string;
   email: string;
   phone: string | null;
+  image: string | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const defaultValues: EditCompanyUserInput = { name, email, phone: phone ?? "" };
+  const defaultValues: EditCompanyUserInput = { name, email, phone: phone ?? "", image: image ?? "" };
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<EditCompanyUserInput>({ resolver: zodResolver(editCompanyUserSchema), defaultValues });
 
@@ -83,6 +87,17 @@ export function EditUserForm({
             <DialogTitle>Editar usuario</DialogTitle>
             <DialogDescription>Actualiza el nombre, correo o teléfono de esta cuenta.</DialogDescription>
           </DialogHeader>
+
+          <Field>
+            <FieldLabel>Foto de perfil</FieldLabel>
+            <Controller
+              control={control}
+              name="image"
+              render={({ field }) => (
+                <PhotoCaptureField folder="/staff/photos" value={field.value} onChange={field.onChange} />
+              )}
+            />
+          </Field>
 
           <Field data-invalid={!!errors.name}>
             <FieldLabel htmlFor="edit-name">Nombre completo</FieldLabel>

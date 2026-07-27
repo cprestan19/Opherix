@@ -24,6 +24,7 @@ export function listCompanyUsers(companyId: string) {
       name: true,
       email: true,
       phone: true,
+      image: true,
       role: true,
       status: true,
       lastLoginAt: true,
@@ -66,11 +67,11 @@ export function createCompanyUser(data: {
 export async function updateCompanyUser(
   companyId: string,
   userId: string,
-  data: { name: string; email: string; phone?: string },
+  data: { name: string; email: string; phone?: string; image?: string },
 ) {
   const result = await prisma.user.updateMany({
     where: { id: userId, companyId, role: { in: COMPANY_STAFF_ROLES } },
-    data: { name: data.name, email: data.email.toLowerCase(), phone: data.phone },
+    data: { name: data.name, email: data.email.toLowerCase(), phone: data.phone, image: data.image },
   });
   if (result.count === 0) return null;
   return prisma.user.findUniqueOrThrow({ where: { id: userId } });
