@@ -14,17 +14,36 @@ import { Loader2, Calculator, Download, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { calculatePaymentsAction } from "./actions";
 
-export function PeriodForm({ periodStart, periodEnd }: { periodStart: string; periodEnd: string }) {
+interface WorkerOption {
+  id: string;
+  name: string;
+}
+
+export function PeriodForm({
+  periodStart,
+  periodEnd,
+  workerId,
+  workers,
+}: {
+  periodStart: string;
+  periodEnd: string;
+  workerId: string;
+  workers: WorkerOption[];
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const [start, setStart] = useState(periodStart);
   const [end, setEnd] = useState(periodEnd);
+  const [selectedWorkerId, setSelectedWorkerId] = useState(workerId);
   const [isPending, startTransition] = useTransition();
 
   function applyPeriod() {
-    router.push(`${pathname}?periodStart=${start}&periodEnd=${end}`);
+    const params = new URLSearchParams({ periodStart: start, periodEnd: end });
+    if (selectedWorkerId) params.set("workerId", selectedWorkerId);
+    router.push(`${pathname}?${params.toString()}`);
   }
 
   function handleCalculate() {
@@ -45,6 +64,22 @@ export function PeriodForm({ periodStart, periodEnd }: { periodStart: string; pe
         <div className="flex flex-col gap-1">
           <label className="text-xs text-muted-foreground">Hasta</label>
           <Input type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs text-muted-foreground">Trabajador</label>
+          <Select value={selectedWorkerId || "all"} onValueChange={(v) => setSelectedWorkerId(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {workers.map((worker) => (
+                <SelectItem key={worker.id} value={worker.id}>
+                  {worker.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <Button variant="outline" onClick={applyPeriod}>
           Filtrar

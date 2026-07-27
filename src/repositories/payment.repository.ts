@@ -59,15 +59,55 @@ export function createPaymentRecord(data: {
   return prisma.paymentRecord.create({ data });
 }
 
-export function listPaymentRecords(companyId: string, periodStart?: Date, periodEnd?: Date) {
+export function listPaymentRecords(
+  companyId: string,
+  periodStart?: Date,
+  periodEnd?: Date,
+  workerId?: string,
+) {
   return prisma.paymentRecord.findMany({
     where: {
       companyId,
       ...(periodStart && periodEnd ? { periodStart: { gte: periodStart }, periodEnd: { lte: periodEnd } } : {}),
+      ...(workerId ? { workerId } : {}),
     },
     include: { worker: { select: { id: true, user: { select: { name: true } } } } },
     orderBy: { periodStart: "desc" },
   });
+}
+
+/** Estadísticas del periodo filtrado — para el resumen arriba de la tabla de pagos. */
+export async function getPaymentStats(
+  companyId: string,
+  periodStart?: Date,
+  periodEnd?: Date,
+  workerId?: string,
+) {
+  const baseWhere = {
+    companyId,
+    ...(periodStart && periodEnd ? { periodStart: { gte: periodStart }, periodEnd: { lte: periodEnd } } : {}),
+    ...(workerId ? { workerId } : {}),
+  };
+
+  const [pending, paid] = await Promise.all([
+    prisma.paymentRecord.aggregate({
+      where: { ...baseWhere, status: "PENDIENTE" },
+      _sum: { totalAmount: true },
+      _count: true,
+    }),
+    prisma.paymentRecord.aggregate({
+      where: { ...baseWhere, status: "PAGADO" },
+      _sum: { totalAmount: true },
+      _count: true,
+    }),
+  ]);
+
+  return {
+    pendingTotal: Number(pending._sum.totalAmount ?? 0),
+    pendingCount: pending._count,
+    paidTotal: Number(paid._sum.totalAmount ?? 0),
+    paidCount: paid._count,
+  };
 }
 
 export function listPaymentRecordsForWorker(workerId: string) {

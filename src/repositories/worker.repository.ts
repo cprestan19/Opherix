@@ -206,6 +206,15 @@ export interface UpdateWorkerProfileData {
   conditions?: string;
 }
 
+export async function setHourlyRate(companyId: string, workerId: string, hourlyRate: number) {
+  const result = await prisma.worker.updateMany({
+    where: { id: workerId, companyId },
+    data: { hourlyRate },
+  });
+  if (result.count === 0) return null;
+  return prisma.worker.findUniqueOrThrow({ where: { id: workerId } });
+}
+
 export function updateWorkerProfile(workerId: string, userId: string, data: UpdateWorkerProfileData) {
   const { allergies, conditions, ...workerFields } = data;
 

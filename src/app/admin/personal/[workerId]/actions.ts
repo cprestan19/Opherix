@@ -11,7 +11,12 @@
 import { revalidatePath } from "next/cache";
 import { requireCompanyStaff } from "@/lib/tenant";
 import { workerEditSchema, type WorkerEditInput } from "@/lib/validations/worker-edit";
-import { updateWorkerProfile, setWorkerAccountStatus, WorkerError } from "@/services/worker.service";
+import {
+  updateWorkerProfile,
+  setWorkerAccountStatus,
+  setWorkerHourlyRate,
+  WorkerError,
+} from "@/services/worker.service";
 import { findWorkerById } from "@/repositories/worker.repository";
 import { uploadDocument, updateDocument, deleteDocument, DocumentError } from "@/services/document.service";
 import { toggleSlot, AvailabilityError } from "@/services/availability.service";
@@ -47,6 +52,20 @@ export async function setWorkerStatusAction(
 
   try {
     await setWorkerAccountStatus(companyId, user.id, workerId, status);
+  } catch (error) {
+    if (error instanceof WorkerError) return { error: error.message };
+    throw error;
+  }
+
+  revalidatePath(`/admin/personal/${workerId}`);
+  return {};
+}
+
+export async function setWorkerHourlyRateAction(workerId: string, hourlyRate: number): Promise<ActionResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await setWorkerHourlyRate(companyId, user.id, user.role, workerId, hourlyRate);
   } catch (error) {
     if (error instanceof WorkerError) return { error: error.message };
     throw error;

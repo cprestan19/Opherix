@@ -110,6 +110,40 @@ export async function updateWorkerProfile(
   return updated;
 }
 
+/**
+ * Tarifa fija por hora — de aquí sale el cálculo automático de pagos
+ * (payment.service.ts). Exclusivo de ADMIN, nunca visible ni editable por
+ * Supervisor/Trabajador/Cliente (§ misma regla que en updateWorkerProfile).
+ */
+export async function setWorkerHourlyRate(
+  companyId: string,
+  actorId: string,
+  actorRole: string,
+  workerId: string,
+  hourlyRate: number,
+) {
+  if (actorRole !== "ADMIN") {
+    throw new WorkerError("Solo un administrador puede editar la tarifa por hora.");
+  }
+  if (hourlyRate < 0) {
+    throw new WorkerError("La tarifa debe ser mayor o igual a cero.");
+  }
+
+  const updated = await workerRepo.setHourlyRate(companyId, workerId, hourlyRate);
+  if (!updated) throw new WorkerError("Trabajador no encontrado.");
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "WORKER_HOURLY_RATE_UPDATED",
+    entityType: "Worker",
+    entityId: workerId,
+    metadata: { hourlyRate },
+  });
+
+  return updated;
+}
+
 export async function setWorkerAccountStatus(
   companyId: string,
   actorId: string,

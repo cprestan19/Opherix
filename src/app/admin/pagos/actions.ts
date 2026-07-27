@@ -17,6 +17,8 @@ import {
   adjustPayment,
   PaymentError,
 } from "@/services/payment.service";
+import { setEventInvoiceAmount, markInvoicePaid, InvoiceError } from "@/services/invoice.service";
+import { getEventDetail } from "@/repositories/event.repository";
 
 export interface PaymentActionResult {
   error?: string;
@@ -61,6 +63,35 @@ export async function adjustPaymentAction(
     await adjustPayment(companyId, user.id, paymentRecordId, bonuses, deductions);
   } catch (error) {
     if (error instanceof PaymentError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath("/admin/pagos");
+  return {};
+}
+
+export async function setEventAmountAction(eventId: string, amount: number): Promise<PaymentActionResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  const event = await getEventDetail(companyId, eventId);
+  if (!event) return { error: "Evento no encontrado." };
+
+  try {
+    await setEventInvoiceAmount(companyId, user.id, eventId, event.clientId, event.startAt, event.endAt, amount);
+  } catch (error) {
+    if (error instanceof InvoiceError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath("/admin/pagos");
+  return {};
+}
+
+export async function markInvoicePaidAction(invoiceId: string): Promise<PaymentActionResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await markInvoicePaid(companyId, user.id, invoiceId);
+  } catch (error) {
+    if (error instanceof InvoiceError) return { error: error.message };
     throw error;
   }
   revalidatePath("/admin/pagos");
