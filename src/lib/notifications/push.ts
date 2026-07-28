@@ -39,23 +39,38 @@ function getFirebaseApp() {
   });
 }
 
+export interface PushSendResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * Nunca debe lanzar — un push es un refuerzo (§9.3), no puede romper la
+ * acción de negocio que lo dispara (asignar, aprobar, etc.). Por eso TODO,
+ * incluso construir las credenciales de Firebase Admin (cert/initializeApp
+ * pueden lanzar si la clave está mal formada), va dentro del mismo try/catch
+ * — antes `getFirebaseApp()` se llamaba fuera del try y una clave inválida
+ * tumbaba la acción completa en vez de solo marcar el push como FAILED.
+ */
 export async function sendPushNotification(
   deviceToken: string | null | undefined,
   title: string,
   body: string,
-): Promise<boolean> {
-  if (!deviceToken) return false;
-  const app = getFirebaseApp();
-  if (!app) {
-    console.info(`[push:no-op] Firebase no configurado — se omite push a ${deviceToken.slice(0, 8)}...: ${title}`);
-    return false;
-  }
+): Promise<PushSendResult> {
+  if (!deviceToken) return { ok: false, error: "El usuario no tiene un dispositivo registrado para push." };
 
   try {
+    const app = getFirebaseApp();
+    if (!app) {
+      console.info(`[push:no-op] Firebase no configurado — se omite push a ${deviceToken.slice(0, 8)}...: ${title}`);
+      return { ok: false, error: "Firebase no está configurado (faltan variables de entorno del servidor)." };
+    }
+
     await getMessaging(app).send({ token: deviceToken, notification: { title, body } });
-    return true;
+    return { ok: true };
   } catch (error) {
     console.error("[push] Error enviando notificación push:", error);
-    return false;
+    const message = error instanceof Error ? error.message : "Error desconocido al enviar el push.";
+    return { ok: false, error: message };
   }
 }

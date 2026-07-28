@@ -748,6 +748,10 @@ model Notification {
   title             String
   body              String
   status            NotificationStatus  @default(PENDING)
+  // Motivo del fallo cuando status=FAILED (ej. error real de Firebase Admin/
+  // SMTP) — antes solo quedaba "FAILED" sin ninguna pista de por qué,
+  // obligando a revisar logs del servidor para cada caso.
+  errorMessage      String?
   relatedEntityType String?
   relatedEntityId   String?
   createdAt         DateTime            @default(now())

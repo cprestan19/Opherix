@@ -46,15 +46,20 @@ export default async function NotificacionesAdminPage() {
               <Card key={n.id}>
                 <CardContent className="flex items-center justify-between gap-4 p-4">
                   <div className="flex items-center gap-3">
-                    <Icon className="size-4 text-muted-foreground" />
+                    <Icon className="size-4 shrink-0 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium">
                         {n.title} — {n.user.name}
                       </p>
                       <p className="text-xs text-muted-foreground">{n.body}</p>
+                      {n.status === "FAILED" && n.errorMessage ? (
+                        <p className="mt-0.5 text-xs text-danger">Motivo: {n.errorMessage}</p>
+                      ) : null}
                     </div>
                   </div>
-                  <Badge variant={STATUS_VARIANTS[n.status]}>{n.status}</Badge>
+                  <Badge variant={STATUS_VARIANTS[n.status]} className="shrink-0">
+                    {n.status}
+                  </Badge>
                 </CardContent>
               </Card>
             );

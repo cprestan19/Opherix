@@ -24,7 +24,7 @@ export interface DispatchNotificationInput {
 async function recordAndSend(
   input: DispatchNotificationInput,
   channel: "EMAIL" | "PUSH",
-  send: () => Promise<boolean>,
+  send: () => Promise<{ ok: boolean; error?: string }>,
 ) {
   const notification = await prisma.notification.create({
     data: {
@@ -39,14 +39,18 @@ async function recordAndSend(
     },
   });
 
-  const sent = await send();
+  const result = await send();
 
   await prisma.notification.update({
     where: { id: notification.id },
-    data: { status: sent ? "SENT" : "FAILED", sentAt: sent ? new Date() : null },
+    data: {
+      status: result.ok ? "SENT" : "FAILED",
+      sentAt: result.ok ? new Date() : null,
+      errorMessage: result.ok ? null : (result.error ?? "Error desconocido"),
+    },
   });
 
-  return sent;
+  return result.ok;
 }
 
 export async function dispatchNotification(input: DispatchNotificationInput) {
@@ -56,7 +60,9 @@ export async function dispatchNotification(input: DispatchNotificationInput) {
   });
   if (!user) return;
 
-  await recordAndSend(input, "EMAIL", () => sendEmail(user.email, input.title, input.body, input.companyId));
+  await recordAndSend(input, "EMAIL", async () => ({
+    ok: await sendEmail(user.email, input.title, input.body, input.companyId),
+  }));
 
   if (user.fcmToken) {
     await recordAndSend(input, "PUSH", () => sendPushNotification(user.fcmToken, input.title, input.body));
