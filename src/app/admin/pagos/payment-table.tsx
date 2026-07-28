@@ -29,6 +29,7 @@ import { markAsPaidAction, adjustPaymentAction } from "./actions";
 interface PaymentRecordRow {
   id: string;
   worker: { user: { name: string } };
+  eventTitle: string | null;
   assignmentCount: number;
   bonuses: string;
   deductions: string;
@@ -50,6 +51,7 @@ export function PaymentTable({ records }: { records: PaymentRecordRow[] }) {
       <TableHeader>
         <TableRow>
           <TableHead>Trabajador</TableHead>
+          <TableHead>Evento</TableHead>
           <TableHead>Asignaciones</TableHead>
           <TableHead>Bonos/Desc.</TableHead>
           <TableHead>Total</TableHead>
@@ -93,6 +95,7 @@ function PaymentRow({ record }: { record: PaymentRecordRow }) {
   return (
     <TableRow>
       <TableCell>{record.worker.user.name}</TableCell>
+      <TableCell className="text-muted-foreground">{record.eventTitle ?? "—"}</TableCell>
       <TableCell>{record.assignmentCount}</TableCell>
       <TableCell>
         +{currency(record.bonuses)} / -{currency(record.deductions)}

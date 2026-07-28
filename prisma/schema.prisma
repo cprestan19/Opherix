@@ -503,6 +503,7 @@ model Event {
   staffRequirements EventStaffRequirement[]
   assignments       WorkerAssignment[]
   invoices          ClientInvoice[]
+  paymentRecords    PaymentRecord[]
 
   @@index([companyId, startAt])
   @@index([clientId])
@@ -655,6 +656,13 @@ model PaymentRecord {
   companyId     String
   workerId      String
   worker        Worker        @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  // Solo se llena cuando el pago se generó desde "Marcar completado" de UN
+  // evento puntual (§ event.service.ts completeEvent) — un cálculo por
+  // periodo (calculatePaymentsForPeriod) puede agrupar varios eventos, así
+  // que ahí queda null a propósito; el portal/admin usan periodStart-periodEnd
+  // como respaldo cuando no hay evento único.
+  eventId       String?
+  event         Event?        @relation(fields: [eventId], references: [id], onDelete: SetNull)
   periodStart   DateTime
   periodEnd     DateTime
   // Cuántas asignaciones (eventos) del periodo entraron en el cálculo — ya

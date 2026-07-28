@@ -28,7 +28,7 @@ function formatDateTime(date: Date) {
 export function EventAccessLinkPanel({
   eventId,
   companySlug,
-  hasAccessToken,
+  accessToken,
   accessTokenExpiresAt,
   accessClosedAt,
   eventEnded,
@@ -36,20 +36,20 @@ export function EventAccessLinkPanel({
 }: {
   eventId: string;
   companySlug: string;
-  hasAccessToken: boolean;
+  accessToken: string | null;
   accessTokenExpiresAt: Date | null;
   accessClosedAt: Date | null;
   eventEnded: boolean;
   baseUrl: string;
 }) {
   const [link, setLink] = useState<string | null>(
-    hasAccessToken ? `${baseUrl}/solicitar/${companySlug}/evento/${eventId}` : null,
+    accessToken ? `${baseUrl}/solicitar/${companySlug}/evento/${eventId}?token=${accessToken}` : null,
   );
   const [expiresAt, setExpiresAt] = useState(accessTokenExpiresAt);
   const [closedAt, setClosedAt] = useState(accessClosedAt);
   const [isPending, startTransition] = useTransition();
 
-  const isOpen = hasAccessToken || link !== null;
+  const isOpen = Boolean(accessToken) || link !== null;
   const isClosed = Boolean(closedAt) || (expiresAt !== null && expiresAt < new Date());
 
   function handleGenerate() {

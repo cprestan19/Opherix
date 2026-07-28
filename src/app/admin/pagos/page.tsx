@@ -121,6 +121,7 @@ async function PersonalPayments({
   const rows = records.map((r) => ({
     id: r.id,
     worker: { user: { name: r.worker.user.name } },
+    eventTitle: r.event?.title ?? null,
     assignmentCount: r.assignmentCount,
     bonuses: r.bonuses.toString(),
     deductions: r.deductions.toString(),

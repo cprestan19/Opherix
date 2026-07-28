@@ -180,7 +180,7 @@ export default async function EventDetailPage({
         <EventAccessLinkPanel
           eventId={event.id}
           companySlug={company.slug}
-          hasAccessToken={Boolean(event.accessToken)}
+          accessToken={event.accessToken}
           accessTokenExpiresAt={event.accessTokenExpiresAt}
           accessClosedAt={event.accessClosedAt}
           eventEnded={event.endAt < new Date()}

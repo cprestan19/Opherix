@@ -43,6 +43,7 @@ export function findExistingRecord(workerId: string, periodStart: Date, periodEn
 export function createPaymentRecord(data: {
   companyId: string;
   workerId: string;
+  eventId?: string;
   periodStart: Date;
   periodEnd: Date;
   assignmentCount: number;
@@ -63,7 +64,10 @@ export function listPaymentRecords(
       ...(periodStart && periodEnd ? { periodStart: { gte: periodStart }, periodEnd: { lte: periodEnd } } : {}),
       ...(workerId ? { workerId } : {}),
     },
-    include: { worker: { select: { id: true, user: { select: { name: true } } } } },
+    include: {
+      worker: { select: { id: true, user: { select: { name: true } } } },
+      event: { select: { title: true } },
+    },
     orderBy: { periodStart: "desc" },
   });
 }
@@ -105,6 +109,7 @@ export async function getPaymentStats(
 export function listPaymentRecordsForWorker(workerId: string) {
   return prisma.paymentRecord.findMany({
     where: { workerId },
+    include: { event: { select: { title: true } } },
     orderBy: { periodStart: "desc" },
   });
 }

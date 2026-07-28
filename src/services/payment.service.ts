@@ -128,6 +128,7 @@ export async function generatePaymentsForEvent(
     await paymentRepo.createPaymentRecord({
       companyId,
       workerId,
+      eventId,
       periodStart,
       periodEnd,
       assignmentCount: entry.assignmentCount,

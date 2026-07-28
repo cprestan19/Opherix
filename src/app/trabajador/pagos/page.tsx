@@ -50,9 +50,10 @@ export default async function PagosTrabajadorPage() {
               <CardContent className="flex items-center justify-between gap-4 p-4">
                 <div>
                   <p className="text-sm font-medium">
-                    {formatDate(record.periodStart)} – {formatDate(record.periodEnd)}
+                    {record.event ? record.event.title : `${formatDate(record.periodStart)} – ${formatDate(record.periodEnd)}`}
                   </p>
                   <p className="text-xs text-muted-foreground">
+                    {record.event ? `${formatDate(record.periodStart)} · ` : ""}
                     {record.assignmentCount} asignación{record.assignmentCount === 1 ? "" : "es"}
                   </p>
                 </div>

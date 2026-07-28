@@ -37,9 +37,10 @@ export async function GET(request: NextRequest) {
 
   autoTable(doc, {
     startY: 28,
-    head: [["Trabajador", "Asignaciones", "Bonos", "Desc.", "Total", "Estado"]],
+    head: [["Trabajador", "Evento", "Asignaciones", "Bonos", "Desc.", "Total", "Estado"]],
     body: records.map((r) => [
       r.worker.user.name,
+      r.event?.title ?? "—",
       String(r.assignmentCount),
       Number(r.bonuses).toFixed(2),
       Number(r.deductions).toFixed(2),
@@ -49,6 +50,7 @@ export async function GET(request: NextRequest) {
     foot: [
       [
         "TOTAL",
+        "",
         "",
         "",
         "",

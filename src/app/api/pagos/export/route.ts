@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
   const sheet = workbook.addWorksheet("Pagos");
   sheet.columns = [
     { header: "Trabajador", key: "worker", width: 28 },
+    { header: "Evento", key: "eventTitle", width: 24 },
     { header: "Periodo inicio", key: "periodStart", width: 14 },
     { header: "Periodo fin", key: "periodEnd", width: 14 },
     { header: "Asignaciones", key: "assignmentCount", width: 14 },
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
   for (const record of records) {
     sheet.addRow({
       worker: record.worker.user.name,
+      eventTitle: record.event?.title ?? "",
       periodStart: record.periodStart.toISOString().slice(0, 10),
       periodEnd: record.periodEnd.toISOString().slice(0, 10),
       assignmentCount: record.assignmentCount,
