@@ -56,6 +56,7 @@ export async function getTopWorkers(companyId: string, take = 8) {
     where: { companyId, status: { in: ["ACTIVE", "APPROVED"] } },
     select: {
       id: true,
+      photoUrl: true,
       ratingAverage: true,
       user: { select: { name: true } },
       _count: { select: { assignments: true } },
@@ -65,7 +66,9 @@ export async function getTopWorkers(companyId: string, take = 8) {
   });
 
   return workers.map((w) => ({
+    id: w.id,
     name: w.user.name,
+    photoUrl: w.photoUrl,
     assignments: w._count.assignments,
     rating: Number(w.ratingAverage),
   }));
