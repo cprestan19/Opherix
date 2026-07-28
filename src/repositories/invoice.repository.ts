@@ -46,6 +46,7 @@ export function findInvoiceWithDetails(companyId: string, invoiceId: string) {
           id: true,
           title: true,
           startAt: true,
+          deletedAt: true,
           accessToken: true,
           accessTokenExpiresAt: true,
           accessClosedAt: true,
@@ -87,7 +88,7 @@ export function listEventsForInvoicing(companyId: string, periodStart: Date, per
 export async function getClientPaymentStats(companyId: string, periodStart: Date, periodEnd: Date) {
   const baseWhere = {
     companyId,
-    event: { startAt: { gte: periodStart, lte: periodEnd } },
+    event: { deletedAt: null, startAt: { gte: periodStart, lte: periodEnd } },
   };
 
   const [issued, paid] = await Promise.all([
@@ -115,22 +116,30 @@ export async function getClientPaymentStats(companyId: string, periodStart: Date
 export async function getPendingTotalsByClient(companyId: string, periodStart: Date, periodEnd: Date) {
   const rows = await prisma.clientInvoice.groupBy({
     by: ["clientId"],
-    where: { companyId, status: "ISSUED", event: { startAt: { gte: periodStart, lte: periodEnd } } },
+    where: {
+      companyId,
+      status: "ISSUED",
+      event: { deletedAt: null, startAt: { gte: periodStart, lte: periodEnd } },
+    },
     _sum: { amount: true },
     _count: true,
   });
   if (rows.length === 0) return [];
 
+  // Cliente eliminado (§ soft-delete, se oculta de todas las listas) — se
+  // excluye del resumen aunque tenga facturas emitidas, igual que
+  // listEventsForInvoicing ya excluye eventos eliminados.
   const clients = await prisma.client.findMany({
-    where: { id: { in: rows.map((r) => r.clientId) } },
+    where: { id: { in: rows.map((r) => r.clientId) }, deletedAt: null },
     select: { id: true, businessName: true },
   });
   const nameById = new Map(clients.map((c) => [c.id, c.businessName]));
 
   return rows
+    .filter((r) => nameById.has(r.clientId))
     .map((r) => ({
       clientId: r.clientId,
-      clientName: nameById.get(r.clientId) ?? "Cliente",
+      clientName: nameById.get(r.clientId)!,
       total: Number(r._sum.amount ?? 0),
       count: r._count,
     }))

@@ -125,9 +125,9 @@ export default async function ClientesPage({
                   <Avatar className="size-10 shrink-0">
                     <AvatarFallback className="text-xs">{client.businessName.slice(0, 2).toUpperCase()}</AvatarFallback>
                   </Avatar>
-                  <div className="min-w-0 flex-1">
+                  <Link href={`/admin/clientes/${client.id}`} className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="truncate font-medium">{client.businessName}</p>
+                      <p className="truncate font-medium hover:underline">{client.businessName}</p>
                       <Badge variant={client.isActive ? "secondary" : "outline"} className="shrink-0">
                         {client.isActive ? "Activo" : "Inactivo"}
                       </Badge>
@@ -141,21 +141,18 @@ export default async function ClientesPage({
                       {client._count.events} solicitud(es) · Registrado: {dateFormatter.format(client.createdAt)} ·
                       Última solicitud:{" "}
                       {client.events[0] ? dateFormatter.format(client.events[0].createdAt) : "—"}
-                      {client.operationRegistrationUrl ? (
-                        <>
-                          {" · "}
-                          <a
-                            href={client.operationRegistrationUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-primary hover:underline"
-                          >
-                            <FileText className="size-3" /> Registro de operación
-                          </a>
-                        </>
-                      ) : null}
                     </p>
-                  </div>
+                  </Link>
+                  {client.operationRegistrationUrl ? (
+                    <a
+                      href={client.operationRegistrationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hidden shrink-0 items-center gap-1 text-xs text-primary hover:underline sm:inline-flex"
+                    >
+                      <FileText className="size-3" /> Registro
+                    </a>
+                  ) : null}
                   {isViewer ? null : (
                     <div className="flex shrink-0 items-center gap-2">
                       <ClientStatusToggle clientId={client.id} isActive={client.isActive} />

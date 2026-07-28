@@ -181,7 +181,7 @@ export function listAssignableEvents(companyId: string) {
 export function listPreferredWorkerSummaries(companyId: string, workerIds: string[]) {
   if (workerIds.length === 0) return Promise.resolve([]);
   return prisma.worker.findMany({
-    where: { id: { in: workerIds }, companyId },
+    where: { id: { in: workerIds }, companyId, deletedAt: null },
     select: { id: true, photoUrl: true, user: { select: { name: true } } },
   });
 }

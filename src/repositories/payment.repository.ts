@@ -20,7 +20,7 @@ export function listAcceptedAssignmentsForPeriod(companyId: string, periodStart:
       status: "ACCEPTED",
       checkInAt: { not: null, gte: periodStart },
       checkOutAt: { not: null, lte: periodEnd },
-      event: { companyId },
+      event: { companyId, deletedAt: null },
     },
     select: {
       workerId: true,

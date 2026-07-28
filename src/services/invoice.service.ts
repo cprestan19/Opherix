@@ -160,6 +160,9 @@ export async function getInvoiceWhatsAppLink(companyId: string, invoiceId: strin
   const invoice = await invoiceRepo.findInvoiceWithDetails(companyId, invoiceId);
   if (!invoice) throw new InvoiceError("Factura no encontrada.");
   if (!invoice.event) throw new InvoiceError("Este comprobante no está asociado a un evento.");
+  if (invoice.event.deletedAt) {
+    throw new InvoiceError("El evento de este comprobante fue eliminado — el enlace ya no funcionaría.");
+  }
   if (!invoice.client.contactPhone) {
     throw new InvoiceError("Este cliente no tiene teléfono registrado.");
   }

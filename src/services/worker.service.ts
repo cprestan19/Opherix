@@ -212,6 +212,7 @@ async function resolveAvailableUsername(fullName: string): Promise<string> {
 export async function grantPortalAccess(companyId: string, actorId: string, workerId: string) {
   const worker = await workerRepo.findWorkerById(companyId, workerId);
   if (!worker) throw new WorkerError("Trabajador no encontrado.");
+  if (worker.deletedAt) throw new WorkerError("No se puede otorgar acceso a un trabajador eliminado.");
 
   const username = worker.user.username ?? (await resolveAvailableUsername(worker.user.name));
   const password = generateReadablePassword();

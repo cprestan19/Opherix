@@ -11,7 +11,15 @@
 import { revalidatePath } from "next/cache";
 import { requireCompanyStaff } from "@/lib/tenant";
 import { createClientSchema, type CreateClientInput } from "@/lib/validations/client";
-import { createClient, setClientActiveStatus, deleteClient, restoreClient, ClientError } from "@/services/client.service";
+import {
+  createClient,
+  setClientActiveStatus,
+  deleteClient,
+  restoreClient,
+  getClientAccessToken,
+  regenerateClientAccessToken,
+  ClientError,
+} from "@/services/client.service";
 
 export interface CreateClientResult {
   error?: string;
@@ -82,4 +90,34 @@ export async function restoreClientAction(clientId: string): Promise<SetClientAc
   revalidatePath("/admin/clientes");
   revalidatePath("/admin/eventos");
   return {};
+}
+
+export interface ClientAccessLinkResult {
+  error?: string;
+  token?: string;
+}
+
+export async function getClientAccessLinkAction(clientId: string): Promise<ClientAccessLinkResult> {
+  const { companyId } = await requireCompanyStaff();
+
+  try {
+    const token = await getClientAccessToken(companyId, clientId);
+    return { token };
+  } catch (error) {
+    if (error instanceof ClientError) return { error: error.message };
+    throw error;
+  }
+}
+
+export async function regenerateClientAccessLinkAction(clientId: string): Promise<ClientAccessLinkResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    const token = await regenerateClientAccessToken(companyId, user.id, clientId);
+    revalidatePath(`/admin/clientes/${clientId}`);
+    return { token };
+  } catch (error) {
+    if (error instanceof ClientError) return { error: error.message };
+    throw error;
+  }
 }

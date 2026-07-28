@@ -121,6 +121,7 @@ export async function updateEventFull(
 ) {
   const event = await eventRepo.getEventDetail(companyId, eventId);
   if (!event) throw new EventError("Evento no encontrado.");
+  if (event.deletedAt) throw new EventError("No se puede editar un evento eliminado.");
   if (event.status === "CANCELLED" || event.status === "ARCHIVED") {
     throw new EventError("No se puede editar un evento cancelado o archivado.");
   }
@@ -353,6 +354,7 @@ export async function assignWorkerToEvent(
 ) {
   const event = await eventRepo.getEventDetail(companyId, eventId);
   if (!event) throw new EventError("Evento no encontrado.");
+  if (event.deletedAt) throw new EventError("No se puede asignar personal a un evento eliminado.");
 
   const overlaps = await eventRepo.findOverlappingAssignments(workerId, event.startAt, event.endAt);
   if (overlaps.length > 0) {
@@ -411,6 +413,7 @@ export async function removeAssignment(companyId: string, assignmentId: string, 
 export async function confirmEvent(companyId: string, eventId: string, actorId: string) {
   const event = await eventRepo.getEventDetail(companyId, eventId);
   if (!event) throw new EventError("Evento no encontrado.");
+  if (event.deletedAt) throw new EventError("No se puede confirmar un evento eliminado.");
   const updated = await eventRepo.updateEventStatus(companyId, eventId, "CONFIRMED");
   await logAudit({ companyId, actorId, action: "EVENT_CONFIRMED", entityType: "Event", entityId: eventId });
 
@@ -443,6 +446,7 @@ export async function confirmEvent(companyId: string, eventId: string, actorId: 
 export async function completeEvent(companyId: string, actorId: string, eventId: string) {
   const event = await eventRepo.getEventDetail(companyId, eventId);
   if (!event) throw new EventError("Evento no encontrado.");
+  if (event.deletedAt) throw new EventError("No se puede completar un evento eliminado.");
   if (event.status !== "CONFIRMED" && event.status !== "IN_PROGRESS") {
     throw new EventError("Solo puedes completar un evento confirmado o en curso.");
   }

@@ -246,7 +246,7 @@ export default async function EventDetailPage({
         requirements={event.staffRequirements}
         assignments={event.assignments}
         availableWorkersBySpecialty={availableWorkersBySpecialty}
-        readOnly={isViewer}
+        readOnly={isViewer || Boolean(event.deletedAt)}
       />
     </div>
   );

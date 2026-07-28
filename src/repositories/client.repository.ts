@@ -8,6 +8,7 @@
 
 import "server-only";
 import { prisma } from "@/lib/prisma";
+import { generateClientPortalToken } from "@/lib/client-portal-link";
 
 export function listClients(companyId: string) {
   return prisma.client.findMany({
@@ -42,7 +43,7 @@ export function createClient(data: {
   operationRegistrationUrl?: string;
   operationRegistrationFileName?: string;
 }) {
-  return prisma.client.create({ data });
+  return prisma.client.create({ data: { ...data, accessToken: generateClientPortalToken() } });
 }
 
 export async function setClientActive(companyId: string, clientId: string, isActive: boolean) {
@@ -76,6 +77,33 @@ export function findClientById(companyId: string, clientId: string) {
   return prisma.client.findFirst({ where: { id: clientId, companyId, deletedAt: null } });
 }
 
+/** URL propia del cliente (§ /solicitar/[companySlug]/cliente/[token]) — nunca resuelve un cliente eliminado. */
+export function findClientByAccessToken(companyId: string, accessToken: string) {
+  return prisma.client.findFirst({ where: { companyId, accessToken, deletedAt: null } });
+}
+
+/** Genera el token perezosamente si el cliente aún no tenía uno (creado antes de este feature). */
+export async function getOrCreateAccessToken(companyId: string, clientId: string): Promise<string | null> {
+  const client = await prisma.client.findFirst({ where: { id: clientId, companyId, deletedAt: null } });
+  if (!client) return null;
+  if (client.accessToken) return client.accessToken;
+
+  const accessToken = generateClientPortalToken();
+  await prisma.client.update({ where: { id: clientId }, data: { accessToken } });
+  return accessToken;
+}
+
+/** Reemplaza el token existente — invalida cualquier URL anterior que se haya compartido. */
+export async function regenerateAccessToken(companyId: string, clientId: string): Promise<string | null> {
+  const result = await prisma.client.updateMany({
+    where: { id: clientId, companyId, deletedAt: null },
+    data: { accessToken: generateClientPortalToken() },
+  });
+  if (result.count === 0) return null;
+  const client = await prisma.client.findUniqueOrThrow({ where: { id: clientId }, select: { accessToken: true } });
+  return client.accessToken;
+}
+
 export function findClientByEmail(companyId: string, contactEmail: string) {
   return prisma.client.findFirst({
     where: { companyId, contactEmail: { equals: contactEmail, mode: "insensitive" }, deletedAt: null },
@@ -89,6 +117,29 @@ export function findClientByEmail(companyId: string, contactEmail: string) {
  * solicitudes queda consolidado para análisis, aunque escriba desde otro
  * correo la próxima vez.
  */
+/**
+ * Historial de eventos del cliente (§ /admin/clientes/[clientId], pestaña
+ * "Historial") — cantidad de personal es la de asignaciones ACTIVAS
+ * (no canceladas/rechazadas), no lo originalmente solicitado, igual
+ * criterio que el total del evento (§ computeEventChargeTotal). El monto
+ * es la última factura emitida/pagada de ese evento, si existe.
+ */
+export function listEventsHistoryForClient(companyId: string, clientId: string) {
+  return prisma.event.findMany({
+    where: { companyId, clientId, deletedAt: null },
+    select: {
+      id: true,
+      title: true,
+      startAt: true,
+      endAt: true,
+      status: true,
+      assignments: { where: { status: { notIn: ["CANCELLED", "REJECTED"] } }, select: { id: true } },
+      invoices: { select: { amount: true, status: true }, orderBy: { createdAt: "desc" }, take: 1 },
+    },
+    orderBy: { startAt: "desc" },
+  });
+}
+
 export function findClientByEmailOrPhone(companyId: string, contactEmail: string, contactPhone?: string) {
   return prisma.client.findFirst({
     where: {

@@ -10,6 +10,20 @@ import "server-only";
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
 
+/**
+ * Normaliza errores comunes al copiar la clave privada del JSON de la cuenta
+ * de servicio a una variable de entorno: comillas envolventes pegadas por
+ * accidente (rompen el parseo PEM) y "\n" literales en vez de saltos de
+ * línea reales (el formato en que Firebase entrega el JSON).
+ */
+function normalizePrivateKey(rawKey: string): string {
+  let key = rawKey.trim();
+  if ((key.startsWith('"') && key.endsWith('"')) || (key.startsWith("'") && key.endsWith("'"))) {
+    key = key.slice(1, -1);
+  }
+  return key.replace(/\\n/g, "\n");
+}
+
 function getFirebaseApp() {
   if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
     return null;
@@ -20,7 +34,7 @@ function getFirebaseApp() {
     credential: cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+      privateKey: normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY),
     }),
   });
 }

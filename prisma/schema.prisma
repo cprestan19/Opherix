@@ -237,6 +237,13 @@ model Client {
   // otro documento (§ CLAUDE.md §2).
   operationRegistrationUrl      String?
   operationRegistrationFileName String?
+  // URL propia y permanente del cliente (§ /solicitar/[companySlug]/cliente/
+  // [accessToken]) — a diferencia de ClientAccessToken (cookie "recuérdame
+  // sin contraseña", 7 días, por dispositivo), este token vive en la URL
+  // misma, no expira, y le permite crear eventos nuevos sin volver a
+  // llenar sus datos. Nullable: se genera perezosamente la primera vez que
+  // el Administrador o el propio cliente lo necesitan.
+  accessToken  String?  @unique
   isActive     Boolean  @default(true)
   // Soft-delete (§ CLAUDE.md §4/§9.9 — nunca borrado físico): oculta el
   // cliente de todas las listas y selectores, distinto de isActive (que solo

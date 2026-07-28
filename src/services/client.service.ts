@@ -116,3 +116,46 @@ export async function restoreClient(companyId: string, actorId: string, clientId
 export async function listDeletedClients(companyId: string) {
   return clientRepo.listDeletedClients(companyId);
 }
+
+export async function getClientById(companyId: string, clientId: string) {
+  const client = await clientRepo.findClientById(companyId, clientId);
+  if (!client) throw new ClientError("Cliente no encontrado.");
+  return client;
+}
+
+/** URL propia del cliente para crear eventos nuevos sin volver a llenar sus datos (§ /solicitar/[companySlug]/cliente/[token]). */
+export async function getClientAccessToken(companyId: string, clientId: string) {
+  const token = await clientRepo.getOrCreateAccessToken(companyId, clientId);
+  if (!token) throw new ClientError("Cliente no encontrado.");
+  return token;
+}
+
+/** Invalida el enlace anterior y emite uno nuevo — para cuando se comparte por error o se quiere rotar. */
+export async function regenerateClientAccessToken(companyId: string, actorId: string, clientId: string) {
+  const token = await clientRepo.regenerateAccessToken(companyId, clientId);
+  if (!token) throw new ClientError("Cliente no encontrado.");
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "CLIENT_ACCESS_TOKEN_REGENERATED",
+    entityType: "Client",
+    entityId: clientId,
+  });
+
+  return token;
+}
+
+export async function getClientEventsHistory(companyId: string, clientId: string) {
+  const events = await clientRepo.listEventsHistoryForClient(companyId, clientId);
+  return events.map((e) => ({
+    id: e.id,
+    title: e.title,
+    startAt: e.startAt,
+    endAt: e.endAt,
+    status: e.status,
+    staffCount: e.assignments.length,
+    totalCharged: e.invoices[0] ? Number(e.invoices[0].amount) : null,
+    invoiceStatus: e.invoices[0]?.status ?? null,
+  }));
+}
