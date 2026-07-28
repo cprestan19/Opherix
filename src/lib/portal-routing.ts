@@ -14,8 +14,19 @@ import { auth } from "@/lib/auth";
 /**
  * Ruta base del portal según rol (y, para trabajadores, según su estado en la
  * máquina de estados Aspirante -> Trabajador, ver CLAUDE.md §5).
+ *
+ * `mustChangePassword` tiene prioridad sobre cualquier otra cosa: cuando un
+ * Administrador otorga/reenvía acceso al portal (§ admin/personal), la
+ * contraseña generada viaja por WhatsApp — no es realmente privada hasta que
+ * el dueño la cambia, así que se pinea a /cambiar-clave antes que nada más.
  */
-export function getPortalPath(role: SessionRole, workerStatus?: WorkerStatus | null): string {
+export function getPortalPath(
+  role: SessionRole,
+  workerStatus?: WorkerStatus | null,
+  mustChangePassword?: boolean,
+): string {
+  if (mustChangePassword) return "/cambiar-clave";
+
   switch (role) {
     case "PLATFORM_ADMIN":
       return "/platform";
@@ -41,5 +52,5 @@ export function getPortalPath(role: SessionRole, workerStatus?: WorkerStatus | n
 export async function getPortalPathForUser(): Promise<string> {
   const session = await auth();
   if (!session?.user) return "/login";
-  return getPortalPath(session.user.role, session.user.workerStatus);
+  return getPortalPath(session.user.role, session.user.workerStatus, session.user.mustChangePassword);
 }

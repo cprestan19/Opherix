@@ -17,5 +17,5 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  redirect(getPortalPath(session.user.role, session.user.workerStatus));
+  redirect(getPortalPath(session.user.role, session.user.workerStatus, session.user.mustChangePassword));
 }

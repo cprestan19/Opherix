@@ -30,7 +30,7 @@ export default async function PlatformLayout({ children }: { children: React.Rea
   if (!session?.user) redirect("/login");
   if (session.user.accountActive === false) redirect("/login");
   if (session.user.role !== "PLATFORM_ADMIN") {
-    redirect(getPortalPath(session.user.role, session.user.workerStatus));
+    redirect(getPortalPath(session.user.role, session.user.workerStatus, session.user.mustChangePassword));
   }
 
   return (

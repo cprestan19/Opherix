@@ -16,7 +16,7 @@ import {
 } from "@/repositories/event.repository";
 import { findInvoiceForEvent } from "@/repositories/invoice.repository";
 import { getCompany } from "@/repositories/config.repository";
-import { computeEventStaffTotals } from "@/services/client-specialty-rate.service";
+import { computeEventChargeTotal } from "@/services/client-specialty-rate.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -66,7 +66,7 @@ export default async function EventDetailPage({
   if (!event) notFound();
 
   const invoice = INVOICEABLE_STATUSES.includes(event.status) ? await findInvoiceForEvent(event.id) : null;
-  const staffTotals = await computeEventStaffTotals(companyId, event.clientId, event.staffRequirements);
+  const staffTotals = await computeEventChargeTotal(companyId, event.clientId, event.staffRequirements);
 
   const ratedAssignments = event.assignments.filter((a) => a.ratingScore !== null);
 
@@ -153,7 +153,7 @@ export default async function EventDetailPage({
       {!event.deletedAt ? (
         <EventStaffTotalsCard
           chargeToClientTotal={staffTotals.chargeToClientTotal}
-          payToWorkerTotal={staffTotals.payToWorkerTotal}
+          breakdown={staffTotals.breakdown}
           missingSpecialties={staffTotals.missingSpecialties}
         />
       ) : null}

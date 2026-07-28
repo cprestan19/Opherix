@@ -16,6 +16,8 @@ import {
   setWorkerAccountStatus,
   deleteWorker,
   restoreWorker,
+  grantPortalAccess,
+  revokePortalAccess,
   WorkerError,
 } from "@/services/worker.service";
 import { findWorkerById } from "@/repositories/worker.repository";
@@ -25,6 +27,12 @@ import type { DocumentType } from "@/generated/prisma/enums";
 
 export interface ActionResult {
   error?: string;
+}
+
+export interface GrantPortalAccessResult {
+  error?: string;
+  username?: string;
+  password?: string;
 }
 
 export async function updateWorkerAction(workerId: string, input: WorkerEditInput): Promise<ActionResult> {
@@ -53,6 +61,33 @@ export async function setWorkerStatusAction(
 
   try {
     await setWorkerAccountStatus(companyId, user.id, workerId, status);
+  } catch (error) {
+    if (error instanceof WorkerError) return { error: error.message };
+    throw error;
+  }
+
+  revalidatePath(`/admin/personal/${workerId}`);
+  return {};
+}
+
+export async function grantPortalAccessAction(workerId: string): Promise<GrantPortalAccessResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    const { username, password } = await grantPortalAccess(companyId, user.id, workerId);
+    revalidatePath(`/admin/personal/${workerId}`);
+    return { username, password };
+  } catch (error) {
+    if (error instanceof WorkerError) return { error: error.message };
+    throw error;
+  }
+}
+
+export async function revokePortalAccessAction(workerId: string): Promise<ActionResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await revokePortalAccess(companyId, user.id, workerId);
   } catch (error) {
     if (error instanceof WorkerError) return { error: error.message };
     throw error;

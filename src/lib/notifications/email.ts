@@ -61,7 +61,18 @@ async function getCompanyTransporter(companyId: string) {
   return { transporter, from };
 }
 
-export async function sendEmail(to: string, subject: string, body: string, companyId?: string): Promise<boolean> {
+export interface EmailAttachment {
+  filename: string;
+  content: Buffer;
+}
+
+export async function sendEmail(
+  to: string,
+  subject: string,
+  body: string,
+  companyId?: string,
+  attachments?: EmailAttachment[],
+): Promise<boolean> {
   const companyConfig = companyId ? await getCompanyTransporter(companyId) : null;
   const client = companyConfig?.transporter ?? getGlobalTransporter();
   const from = companyConfig?.from ?? process.env.EMAIL_FROM ?? "notificaciones@opherix.app";
@@ -72,10 +83,12 @@ export async function sendEmail(to: string, subject: string, body: string, compa
   }
 
   try {
-    // Solo campos básicos (to/from/subject/text) — se evita a propósito
-    // jsonTransport, `raw`, headers List-*, envelope.size y OAuth2, que son
-    // las superficies afectadas por los CVEs conocidos de nodemailer.
-    await client.sendMail({ from, to, subject, text: body });
+    // Solo campos básicos (to/from/subject/text/attachments con buffer ya
+    // generado por nosotros, nunca una ruta/URL externa) — se evita a
+    // propósito jsonTransport, `raw`, headers List-*, envelope.size y
+    // OAuth2, que son las superficies afectadas por los CVEs conocidos de
+    // nodemailer.
+    await client.sendMail({ from, to, subject, text: body, attachments });
     return true;
   } catch (error) {
     console.error("[email] Error enviando correo:", error);

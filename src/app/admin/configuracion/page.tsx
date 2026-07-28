@@ -46,10 +46,15 @@ export default async function ConfiguracionPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base font-medium">Branding</CardTitle>
-          <CardDescription>Nombre de tu empresa.</CardDescription>
+          <CardDescription>Datos de tu empresa — también se usan como emisor en las facturas.</CardDescription>
         </CardHeader>
         <CardContent>
-          <BrandingForm name={company.name} />
+          <BrandingForm
+            name={company.name}
+            taxId={company.taxId ?? ""}
+            phone={company.phone ?? ""}
+            address={company.address ?? ""}
+          />
         </CardContent>
       </Card>
 

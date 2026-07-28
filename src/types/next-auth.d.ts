@@ -22,6 +22,8 @@ declare module "next-auth" {
     companyId?: string;
     clientId?: string;
     workerStatus?: WorkerStatus;
+    /** true justo después de que un Administrador otorga/reenvía acceso al portal (ver /cambiar-clave). */
+    mustChangePassword?: boolean;
   }
 
   interface Session {
@@ -33,6 +35,7 @@ declare module "next-auth" {
       workerStatus?: WorkerStatus;
       /** false si la revalidación periódica (ver auth.ts) detectó la cuenta suspendida/borrada. */
       accountActive?: boolean;
+      mustChangePassword?: boolean;
     } & DefaultSession["user"];
   }
 }
@@ -44,6 +47,7 @@ declare module "next-auth/jwt" {
     clientId?: string;
     workerStatus?: WorkerStatus;
     accountActive?: boolean;
+    mustChangePassword?: boolean;
     /** epoch ms de la última vez que el jwt callback confirmó el estado contra la BD. */
     lastValidatedAt?: number;
   }

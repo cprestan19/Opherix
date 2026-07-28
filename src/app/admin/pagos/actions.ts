@@ -16,7 +16,13 @@ import {
   adjustPayment,
   PaymentError,
 } from "@/services/payment.service";
-import { setEventInvoiceAmount, markInvoicePaid, InvoiceError } from "@/services/invoice.service";
+import {
+  setEventInvoiceAmount,
+  markInvoicePaid,
+  sendInvoiceByEmail,
+  getInvoiceWhatsAppLink,
+  InvoiceError,
+} from "@/services/invoice.service";
 import { getEventDetail } from "@/repositories/event.repository";
 
 export interface PaymentActionResult {
@@ -90,4 +96,33 @@ export async function markInvoicePaidAction(invoiceId: string, eventId?: string)
   revalidatePath("/admin/pagos");
   if (eventId) revalidatePath(`/admin/eventos/${eventId}`);
   return {};
+}
+
+export async function sendInvoiceByEmailAction(invoiceId: string): Promise<PaymentActionResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await sendInvoiceByEmail(companyId, user.id, invoiceId);
+  } catch (error) {
+    if (error instanceof InvoiceError) return { error: error.message };
+    throw error;
+  }
+  return {};
+}
+
+export interface WhatsAppLinkResult {
+  error?: string;
+  url?: string;
+}
+
+export async function getInvoiceWhatsAppLinkAction(invoiceId: string): Promise<WhatsAppLinkResult> {
+  const { companyId } = await requireCompanyStaff();
+
+  try {
+    const url = await getInvoiceWhatsAppLink(companyId, invoiceId);
+    return { url };
+  } catch (error) {
+    if (error instanceof InvoiceError) return { error: error.message };
+    throw error;
+  }
 }

@@ -47,8 +47,13 @@ export default async function TrabajadorLayout({ children }: { children: React.R
   if (!session?.user) redirect("/login");
   if (session.user.accountActive === false) redirect("/login");
   if (session.user.role !== "WORKER" && session.user.role !== "APPLICANT") {
-    redirect(getPortalPath(session.user.role, session.user.workerStatus));
+    redirect(getPortalPath(session.user.role, session.user.workerStatus, session.user.mustChangePassword));
   }
+  // Gate explícito (no solo el redirect post-login en signInAction): si
+  // navegan directo a cualquier /trabajador/* con una contraseña generada
+  // pendiente de cambiar, los manda a /cambiar-clave antes de cualquier otra
+  // pantalla — mismo patrón que accountActive arriba.
+  if (session.user.mustChangePassword) redirect("/cambiar-clave");
 
   return (
     <PortalShell

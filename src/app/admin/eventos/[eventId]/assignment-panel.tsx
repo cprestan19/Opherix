@@ -11,7 +11,7 @@
 import { useState, useTransition } from "react";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,11 +45,12 @@ interface Requirement {
 interface Assignment {
   id: string;
   status: string;
-  worker: { id: string; user: { name: string; phone: string | null } };
+  worker: { id: string; photoUrl: string | null; user: { name: string; phone: string | null } };
 }
 
 interface AvailableWorker {
   id: string;
+  photoUrl: string | null;
   user: { name: string };
 }
 
@@ -168,6 +169,7 @@ export function AssignmentPanel({
                 >
                   <div className="flex items-center gap-2">
                     <Avatar className="size-8">
+                      <AvatarImage src={assignment.worker.photoUrl ?? undefined} alt={assignment.worker.user.name} />
                       <AvatarFallback className="text-xs">
                         {assignment.worker.user.name.slice(0, 2).toUpperCase()}
                       </AvatarFallback>

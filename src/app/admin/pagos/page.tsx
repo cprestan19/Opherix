@@ -12,8 +12,12 @@ import { Wallet, Hourglass, CheckCircle2, TrendingUp } from "lucide-react";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { listPaymentRecords, getPaymentStats } from "@/repositories/payment.repository";
 import { listWorkers } from "@/repositories/worker.repository";
-import { listEventsForInvoicing, getClientPaymentStats } from "@/repositories/invoice.repository";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  listEventsForInvoicing,
+  getClientPaymentStats,
+  getPendingTotalsByClient,
+} from "@/repositories/invoice.repository";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/shared/stat-card";
 import { StaggerContainer, StaggerItem } from "@/components/shared/motion/stagger";
 import { cn } from "@/lib/utils";
@@ -182,9 +186,10 @@ async function ClientPayments({
   periodStart: string;
   periodEnd: string;
 }) {
-  const [events, stats] = await Promise.all([
+  const [events, stats, pendingByClient] = await Promise.all([
     listEventsForInvoicing(companyId, new Date(periodStart), new Date(periodEnd)),
     getClientPaymentStats(companyId, new Date(periodStart), new Date(periodEnd)),
+    getPendingTotalsByClient(companyId, new Date(periodStart), new Date(periodEnd)),
   ]);
 
   const rows = events.map((event) => {
@@ -192,6 +197,7 @@ async function ClientPayments({
     return {
       eventId: event.id,
       eventTitle: event.title,
+      clientId: event.client.id,
       clientName: event.client.businessName,
       startAt: event.startAt,
       invoice: invoice
@@ -231,6 +237,31 @@ async function ClientPayments({
           />
         </StaggerItem>
       </StaggerContainer>
+
+      {pendingByClient.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base font-medium">Total pendiente por cliente</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ul className="divide-y divide-border">
+              {pendingByClient.map((row) => (
+                <li key={row.clientId} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+                  <span>
+                    {row.clientName}{" "}
+                    <span className="text-xs text-muted-foreground">
+                      ({row.count} factura{row.count === 1 ? "" : "s"})
+                    </span>
+                  </span>
+                  <span className="font-semibold">
+                    {new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD" }).format(row.total)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardContent className="p-0">

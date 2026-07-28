@@ -148,7 +148,7 @@ export function findWorkerById(companyId: string, workerId: string) {
   return prisma.worker.findFirst({
     where: { id: workerId, companyId },
     include: {
-      user: { select: { name: true, email: true, phone: true } },
+      user: { select: { name: true, email: true, phone: true, username: true, status: true } },
       documents: true,
     },
   });
@@ -192,7 +192,9 @@ export function getWorkerDetail(companyId: string, workerId: string) {
   return prisma.worker.findFirst({
     where: { id: workerId, companyId },
     include: {
-      user: { select: { name: true, email: true, phone: true, createdAt: true } },
+      user: {
+        select: { name: true, email: true, phone: true, createdAt: true, username: true, status: true },
+      },
       documents: { orderBy: { uploadedAt: "desc" } },
       availabilitySlots: { orderBy: { dayOfWeek: "asc" } },
       timeOffs: { orderBy: { startDate: "desc" }, take: 10 },
@@ -334,4 +336,36 @@ export async function restoreWorker(companyId: string, workerId: string) {
     await tx.user.update({ where: { id: worker.userId }, data: { status: "ACTIVE" } });
     return updated;
   });
+}
+
+/** username ya guardado (si existe) — para el bucle de resolución de colisiones en worker.service.ts. */
+export function findUserByUsername(username: string) {
+  return prisma.user.findUnique({ where: { username } });
+}
+
+/**
+ * Otorga/reenvía acceso al portal (§ /admin/personal "Dar acceso al portal"):
+ * fija username (solo la primera vez — ver worker.service.ts) y contraseña,
+ * reactiva la cuenta y limpia cualquier bloqueo previo por intentos fallidos.
+ */
+export function grantPortalAccess(
+  userId: string,
+  data: { username: string; passwordHash: string },
+) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: {
+      username: data.username,
+      passwordHash: data.passwordHash,
+      status: "ACTIVE",
+      mustChangePassword: true,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+    },
+  });
+}
+
+/** Revoca acceso al portal — bloquea el login de inmediato, sin afectar el estado operativo (Worker.status). */
+export function revokePortalAccess(userId: string) {
+  return prisma.user.update({ where: { id: userId }, data: { status: "SUSPENDED" } });
 }

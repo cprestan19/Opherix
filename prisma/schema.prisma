@@ -97,6 +97,13 @@ model Company {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Datos del emisor para la factura PDF (§ Configuración > Branding,
+  // Pagos > Clientes "Generar factura") — ninguno es obligatorio para no
+  // romper tenants ya creados, pero sin ellos la factura sale incompleta.
+  taxId   String?
+  phone   String?
+  address String?
+
   // Uso de la plataforma (visible solo para el dueño de Opherix en /platform)
   lastAccessedAt DateTime?
 
@@ -174,6 +181,17 @@ model User {
   lastLoginAt         DateTime?
   failedLoginAttempts Int        @default(0)
   lockedUntil         DateTime?
+  // Identificador alterno de login (§ admin/personal "Dar acceso al portal")
+  // — primera letra del nombre + apellido, único. Pensado para personal que
+  // no revisa correo con frecuencia; el login acepta email O username
+  // indistintamente (ver src/lib/auth.ts). Null hasta que un Administrador
+  // otorgue acceso explícitamente.
+  username            String?    @unique
+  // true justo después de que un Administrador otorga/reenvía acceso (la
+  // contraseña generada se compartió por WhatsApp, por lo tanto no es
+  // realmente privada hasta que el dueño la cambia) — fuerza el flujo de
+  // /cambiar-clave antes de dejar entrar a cualquier otra ruta del portal.
+  mustChangePassword  Boolean    @default(false)
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 

@@ -42,12 +42,16 @@ export async function getClientSpecialtyRates(companyId: string, clientId: strin
 }
 
 /**
- * Total del evento (§ Configuración > Tarifas por cliente): suma, por cada
- * EventStaffRequirement (specialty × quantity), la tarifa configurada para
- * ese cliente. `missingSpecialties` avisa cuando una especialidad requerida
- * no tiene tarifa configurada — el total en ese caso queda incompleto.
+ * Total a cobrar al cliente por el evento (§ Configuración > Tarifas por
+ * cliente): suma, por cada EventStaffRequirement (specialty × quantity), la
+ * tarifa `chargeToClient` configurada para ese cliente, con desglose por
+ * especialidad. Deliberadamente NO expone `payToWorker` — cuánto se le paga
+ * al personal es información exclusiva de Pagos > Personal, nunca visible
+ * en la pantalla de evento. `missingSpecialties` avisa cuando una
+ * especialidad requerida no tiene tarifa configurada — el total en ese caso
+ * queda incompleto.
  */
-export async function computeEventStaffTotals(
+export async function computeEventChargeTotal(
   companyId: string,
   clientId: string,
   staffRequirements: { specialty: Specialty; quantity: number }[],
@@ -56,8 +60,8 @@ export async function computeEventStaffTotals(
   const rateBySpecialty = new Map(rates.map((r) => [r.specialty, r]));
 
   let chargeToClientTotal = 0;
-  let payToWorkerTotal = 0;
   const missingSpecialties: Specialty[] = [];
+  const breakdown: { specialty: Specialty; quantity: number; chargeToClient: number; subtotal: number }[] = [];
 
   for (const requirement of staffRequirements) {
     const rate = rateBySpecialty.get(requirement.specialty);
@@ -65,9 +69,11 @@ export async function computeEventStaffTotals(
       missingSpecialties.push(requirement.specialty);
       continue;
     }
-    chargeToClientTotal += Number(rate.chargeToClient) * requirement.quantity;
-    payToWorkerTotal += Number(rate.payToWorker) * requirement.quantity;
+    const chargeToClient = Number(rate.chargeToClient);
+    const subtotal = chargeToClient * requirement.quantity;
+    chargeToClientTotal += subtotal;
+    breakdown.push({ specialty: requirement.specialty, quantity: requirement.quantity, chargeToClient, subtotal });
   }
 
-  return { chargeToClientTotal, payToWorkerTotal, missingSpecialties };
+  return { chargeToClientTotal, breakdown, missingSpecialties };
 }

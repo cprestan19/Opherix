@@ -13,16 +13,23 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { updateBrandingAction } from "./actions";
 
-export function BrandingForm({ name }: { name: string }) {
-  const [value, setValue] = useState(name);
+interface BrandingFormProps {
+  name: string;
+  taxId: string;
+  phone: string;
+  address: string;
+}
+
+export function BrandingForm({ name, taxId, phone, address }: BrandingFormProps) {
+  const [values, setValues] = useState({ name, taxId, phone, address });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSave() {
     setIsSubmitting(true);
-    await updateBrandingAction(value);
+    await updateBrandingAction(values);
     setIsSubmitting(false);
     toast.success("Branding guardado correctamente");
   }
@@ -31,7 +38,22 @@ export function BrandingForm({ name }: { name: string }) {
     <div className="flex flex-col gap-4">
       <Field className="max-w-sm">
         <FieldLabel>Nombre de la empresa</FieldLabel>
-        <Input value={value} onChange={(e) => setValue(e.target.value)} />
+        <Input value={values.name} onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))} />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field>
+          <FieldLabel>RUC</FieldLabel>
+          <Input value={values.taxId} onChange={(e) => setValues((v) => ({ ...v, taxId: e.target.value }))} />
+        </Field>
+        <Field>
+          <FieldLabel>Teléfono</FieldLabel>
+          <Input value={values.phone} onChange={(e) => setValues((v) => ({ ...v, phone: e.target.value }))} />
+        </Field>
+      </div>
+      <Field>
+        <FieldLabel>Dirección</FieldLabel>
+        <Input value={values.address} onChange={(e) => setValues((v) => ({ ...v, address: e.target.value }))} />
+        <FieldDescription>Se usan como datos del emisor en las facturas PDF (Pagos &gt; Clientes).</FieldDescription>
       </Field>
       <div className="flex items-center gap-3">
         <Button onClick={handleSave} disabled={isSubmitting} className="w-fit gap-2">

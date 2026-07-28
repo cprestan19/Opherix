@@ -197,7 +197,7 @@ export function getEventDetail(companyId: string, eventId: string) {
           // `select` (no `include`) para no arrastrar campos `Decimal` del
           // Worker (ratingAverage) — no son serializables hacia el Client
           // Component `AssignmentPanel`, que solo necesita esto.
-          worker: { select: { id: true, userId: true, user: { select: { name: true, phone: true } } } },
+          worker: { select: { id: true, userId: true, photoUrl: true, user: { select: { name: true, phone: true } } } },
         },
         orderBy: { assignedAt: "asc" },
       },
@@ -331,7 +331,7 @@ export function findAvailableWorkersForSpecialty(companyId: string, specialty: S
     // `select` (no `include`) — igual que en getEventDetail: evita arrastrar
     // campos `Decimal` del Worker (ratingAverage), que no son serializables
     // hacia el Client Component `AssignmentPanel`.
-    select: { id: true, user: { select: { name: true } } },
+    select: { id: true, photoUrl: true, user: { select: { name: true } } },
     orderBy: { ratingAverage: "desc" },
   });
 }

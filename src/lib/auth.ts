@@ -17,8 +17,11 @@ import { prisma } from "@/lib/prisma";
 import { provisionCompanyForGoogleUser } from "@/services/self-signup.service";
 import { logAudit } from "@/lib/audit";
 
+// "email" acepta tanto un correo como un username (§ /admin/personal "Dar
+// acceso al portal") — se mantiene el nombre del campo por compatibilidad
+// con el <form> de login existente, pero ya no exige forma de correo.
 const credentialsSchema = z.object({
-  email: z.email(),
+  email: z.string().min(1),
   password: z.string().min(1),
 });
 
@@ -35,7 +38,7 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
 // rol/companyId/estado tras un cambio hecho por un admin (ver jwt callback).
 const JWT_REVALIDATE_INTERVAL_MS = 5 * 60 * 1000;
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
@@ -43,10 +46,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(raw) {
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) return null;
-        const { email, password } = parsed.data;
+        const { email: rawIdentifier, password } = parsed.data;
+        const identifier = rawIdentifier.toLowerCase();
 
-        const user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase() },
+        const user = await prisma.user.findFirst({
+          where: { OR: [{ email: identifier }, { username: identifier }] },
           include: { worker: { select: { status: true } } },
         });
 
@@ -123,12 +127,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             companyId: user.companyId,
             clientId: user.clientId ?? undefined,
             workerStatus: user.worker?.status ?? undefined,
+            mustChangePassword: user.mustChangePassword,
           };
         }
 
         // Sin match en User (tenant) — probar como admin de plataforma (§ sin tenant).
+        // Un username nunca hace match aquí a propósito: PlatformAdmin no
+        // tiene ese campo, solo email.
         const platformAdmin = await prisma.platformAdmin.findUnique({
-          where: { email: email.toLowerCase() },
+          where: { email: identifier },
         });
         if (!platformAdmin) return null;
 
@@ -183,7 +190,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       await provisionCompanyForGoogleUser(user.email, user.name ?? "", user.image ?? undefined);
       return true;
     },
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
+      // Disparado por unstable_update() desde /cambiar-clave — parchea el JWT
+      // ya emitido in-place en vez de esperar los 5 min de revalidación
+      // periódica, si no el gate de mustChangePassword rebotaría al usuario
+      // de vuelta aunque ya haya cambiado su contraseña con éxito.
+      if (trigger === "update" && session?.user && "mustChangePassword" in session.user) {
+        token.mustChangePassword = Boolean(session.user.mustChangePassword);
+        return token;
+      }
+
       if (account?.provider === "google" && user?.email) {
         const dbUser = await prisma.user.findUnique({
           where: { email: user.email.toLowerCase() },
@@ -196,6 +212,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.clientId = dbUser.clientId ?? undefined;
           token.workerStatus = dbUser.worker?.status ?? undefined;
           token.accountActive = dbUser.status === "ACTIVE";
+          token.mustChangePassword = dbUser.mustChangePassword;
           token.lastValidatedAt = Date.now();
         }
         return token;
@@ -207,6 +224,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.clientId = user.clientId;
         token.workerStatus = user.workerStatus;
         token.accountActive = true;
+        token.mustChangePassword = user.mustChangePassword ?? false;
         token.lastValidatedAt = Date.now();
         return token;
       }
@@ -241,6 +259,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       token.clientId = dbUser.clientId ?? undefined;
       token.workerStatus = dbUser.worker?.status ?? undefined;
       token.accountActive = dbUser.status === "ACTIVE";
+      token.mustChangePassword = dbUser.mustChangePassword;
       token.lastValidatedAt = Date.now();
       return token;
     },
@@ -251,6 +270,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.companyId = token.companyId;
         session.user.clientId = token.clientId;
         session.user.workerStatus = token.workerStatus;
+        session.user.mustChangePassword = token.mustChangePassword ?? false;
         session.user.accountActive = token.accountActive ?? true;
       }
       return session;

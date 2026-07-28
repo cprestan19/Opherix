@@ -11,6 +11,8 @@ import bcrypt from "bcryptjs";
 import * as workerRepo from "@/repositories/worker.repository";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification } from "@/services/notification.service";
+import { buildUsernameCandidate } from "@/lib/username";
+import { generateReadablePassword } from "@/lib/generate-password";
 import type { WorkerEditInput } from "@/lib/validations/worker-edit";
 import type { CreateWorkerInput } from "@/lib/validations/worker-create";
 
@@ -178,4 +180,68 @@ export async function restoreWorker(companyId: string, actorId: string, workerId
 
 export async function listDeletedWorkers(companyId: string) {
   return workerRepo.listDeletedWorkers(companyId);
+}
+
+/**
+ * Resuelve un username libre a partir del nombre del trabajador, probando
+ * sufijos numéricos ante colisión (jperez, jperez2, jperez3...). Nunca se
+ * llama si el trabajador ya tiene username (ver grantPortalAccess) — una vez
+ * asignado, se mantiene estable aunque se reenvíe el acceso.
+ */
+async function resolveAvailableUsername(fullName: string): Promise<string> {
+  const base = buildUsernameCandidate(fullName);
+  let candidate = base;
+  let suffix = 2;
+  while (await workerRepo.findUserByUsername(candidate)) {
+    candidate = `${base}${suffix}`;
+    suffix += 1;
+  }
+  return candidate;
+}
+
+/**
+ * Otorga o reenvía acceso al portal (§ /admin/personal "Dar acceso al
+ * portal"): genera un username estable la primera vez (se conserva en
+ * reenvíos posteriores) y SIEMPRE una contraseña nueva — cada click es una
+ * emisión explícita de credenciales que el Administrador va a compartir por
+ * WhatsApp, así que no tiene sentido reciclar una contraseña ya compartida
+ * antes. La contraseña en claro se devuelve una sola vez a quien llama (la
+ * action del portal admin) para mostrarla/copiarla — nunca se persiste ni se
+ * escribe en logAudit.
+ */
+export async function grantPortalAccess(companyId: string, actorId: string, workerId: string) {
+  const worker = await workerRepo.findWorkerById(companyId, workerId);
+  if (!worker) throw new WorkerError("Trabajador no encontrado.");
+
+  const username = worker.user.username ?? (await resolveAvailableUsername(worker.user.name));
+  const password = generateReadablePassword();
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  await workerRepo.grantPortalAccess(worker.userId, { username, passwordHash });
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "WORKER_PORTAL_ACCESS_GRANTED",
+    entityType: "User",
+    entityId: worker.userId,
+    metadata: { username },
+  });
+
+  return { username, password };
+}
+
+export async function revokePortalAccess(companyId: string, actorId: string, workerId: string) {
+  const worker = await workerRepo.findWorkerById(companyId, workerId);
+  if (!worker) throw new WorkerError("Trabajador no encontrado.");
+
+  await workerRepo.revokePortalAccess(worker.userId);
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "WORKER_PORTAL_ACCESS_REVOKED",
+    entityType: "User",
+    entityId: worker.userId,
+  });
 }

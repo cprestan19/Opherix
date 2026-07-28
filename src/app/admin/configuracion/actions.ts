@@ -36,9 +36,14 @@ export interface ConfigActionResult {
 // ADMIN — un SUPERVISOR puede operar el día a día pero no cambiar reglas
 // de negocio de toda la compañía.
 
-export async function updateBrandingAction(name: string) {
+export async function updateBrandingAction(data: {
+  name: string;
+  taxId?: string;
+  phone?: string;
+  address?: string;
+}) {
   const { companyId } = await requireAdmin();
-  await updateCompanyBranding(companyId, { name });
+  await updateCompanyBranding(companyId, data);
   revalidatePath("/admin/configuracion");
 }
 

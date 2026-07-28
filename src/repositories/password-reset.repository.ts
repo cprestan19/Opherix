@@ -44,6 +44,14 @@ export function updateUserPassword(userId: string, passwordHash: string) {
   return prisma.user.update({ where: { id: userId }, data: { passwordHash } });
 }
 
+/** Usado por /cambiar-clave (§ cambio forzado tras "Dar acceso al portal") — también limpia el lockout. */
+export function updateOwnPassword(userId: string, passwordHash: string) {
+  return prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash, mustChangePassword: false, failedLoginAttempts: 0, lockedUntil: null },
+  });
+}
+
 export function updatePlatformAdminPassword(platformAdminId: string, passwordHash: string) {
   return prisma.platformAdmin.update({ where: { id: platformAdminId }, data: { passwordHash } });
 }

@@ -81,7 +81,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!session?.user) redirect("/login");
   if (session.user.accountActive === false) redirect("/login");
   if (session.user.role !== "ADMIN" && session.user.role !== "SUPERVISOR" && session.user.role !== "VIEWER") {
-    redirect(getPortalPath(session.user.role, session.user.workerStatus));
+    redirect(getPortalPath(session.user.role, session.user.workerStatus, session.user.mustChangePassword));
   }
 
   const notificationCount = await countUnreadForUser(session.user.id);

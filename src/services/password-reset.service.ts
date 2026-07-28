@@ -98,3 +98,27 @@ export async function confirmPasswordReset(token: string, newPassword: string): 
 
   await repo.markPasswordResetTokenUsed(record.id);
 }
+
+/**
+ * Cambio de contraseña de la propia sesión, sin token — usado por
+ * /cambiar-clave (§ gate forzado tras "Dar acceso al portal", ver
+ * portal-routing.ts). A diferencia de confirmPasswordReset, no valida ningún
+ * enlace: basta con ya estar autenticado, que es la garantía que exige
+ * requireCompanyStaff/getCurrentUser en la action que llama a esto.
+ */
+export async function changeOwnPassword(companyId: string, userId: string, newPassword: string): Promise<void> {
+  if (newPassword.length < 8) {
+    throw new PasswordResetError("La contraseña debe tener al menos 8 caracteres.");
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await repo.updateOwnPassword(userId, passwordHash);
+
+  await logAudit({
+    companyId,
+    actorId: userId,
+    action: "PASSWORD_CHANGED_SELF",
+    entityType: "User",
+    entityId: userId,
+  });
+}

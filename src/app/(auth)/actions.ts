@@ -26,12 +26,12 @@ export async function signInAction(
   _prevState: LoginActionState,
   formData: FormData,
 ): Promise<LoginActionState> {
-  const email = String(formData.get("email") ?? "");
+  const identifier = String(formData.get("email") ?? "").toLowerCase();
   const password = String(formData.get("password") ?? "");
 
   try {
     await signIn("credentials", {
-      email,
+      email: identifier,
       password,
       redirect: false,
     });
@@ -45,13 +45,15 @@ export async function signInAction(
   // No se reutiliza auth() aquí: la cookie de sesión recién emitida por
   // signIn() no es visible de forma confiable dentro de la misma invocación
   // de la server action, así que el rol se resuelve directo desde la BD.
-  const user = await prisma.user.findUnique({
-    where: { email: email.toLowerCase() },
+  // "email" en el form puede ser un correo real o un username (§ /admin/personal
+  // "Dar acceso al portal") — mismo OR que auth.ts's authorize().
+  const user = await prisma.user.findFirst({
+    where: { OR: [{ email: identifier }, { username: identifier }] },
     include: { worker: { select: { status: true } } },
   });
 
   if (user) {
-    redirect(getPortalPath(user.role, user.worker?.status));
+    redirect(getPortalPath(user.role, user.worker?.status, user.mustChangePassword));
   }
 
   // Sin match en User (tenant) — debe ser un admin de plataforma.

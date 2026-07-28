@@ -23,6 +23,7 @@ import { DOCUMENT_TYPE_LABELS, WORKER_STATUS_LABELS } from "@/lib/labels";
 import { WorkerStatusToggle } from "./worker-status-toggle";
 import { ApplicationDecisionPanel } from "./application-decision-panel";
 import { WorkerDeleteAction } from "./worker-delete-action";
+import { PortalAccessPanel } from "./portal-access-panel";
 
 export default async function WorkerDetailPage({
   params,
@@ -76,6 +77,16 @@ export default async function WorkerDetailPage({
 
       {worker.status === "PENDING_REVIEW" && currentUser.role !== "VIEWER" ? (
         <ApplicationDecisionPanel workerId={worker.id} workerName={worker.user.name} />
+      ) : null}
+
+      {currentUser.role !== "VIEWER" && !worker.deletedAt ? (
+        <PortalAccessPanel
+          workerId={worker.id}
+          workerName={worker.user.name}
+          username={worker.user.username}
+          userStatus={worker.user.status}
+          phone={worker.user.phone}
+        />
       ) : null}
 
       <WorkerCv
