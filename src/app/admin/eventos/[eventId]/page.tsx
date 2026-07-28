@@ -66,7 +66,7 @@ export default async function EventDetailPage({
   if (!event) notFound();
 
   const invoice = INVOICEABLE_STATUSES.includes(event.status) ? await findInvoiceForEvent(event.id) : null;
-  const staffTotals = await computeEventChargeTotal(companyId, event.clientId, event.staffRequirements);
+  const staffTotals = await computeEventChargeTotal(companyId, event.clientId, event.assignments);
 
   const ratedAssignments = event.assignments.filter((a) => a.ratingScore !== null);
 
@@ -155,6 +155,7 @@ export default async function EventDetailPage({
           chargeToClientTotal={staffTotals.chargeToClientTotal}
           breakdown={staffTotals.breakdown}
           missingSpecialties={staffTotals.missingSpecialties}
+          unassignedSpecialtyCount={staffTotals.unassignedSpecialtyCount}
         />
       ) : null}
 

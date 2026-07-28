@@ -24,16 +24,22 @@ interface BreakdownRow {
 
 // Deliberadamente solo muestra lo que se le cobra al cliente — cuánto se le
 // paga al personal es información exclusiva de Pagos > Personal, nunca de
-// la pantalla de evento (§ corrección explícita del usuario).
+// la pantalla de evento (§ corrección explícita del usuario). Se calcula a
+// partir del personal REALMENTE asignado (no de lo solicitado al inicio) —
+// si asignas más o distinto personal del que se pidió, el total se ajusta.
 export function EventStaffTotalsCard({
   chargeToClientTotal,
   breakdown,
   missingSpecialties,
+  unassignedSpecialtyCount,
 }: {
   chargeToClientTotal: number;
   breakdown: BreakdownRow[];
   missingSpecialties: string[];
+  unassignedSpecialtyCount: number;
 }) {
+  const hasNothingToShow = breakdown.length === 0 && missingSpecialties.length === 0 && unassignedSpecialtyCount === 0;
+
   return (
     <Card>
       <CardHeader>
@@ -43,6 +49,13 @@ export function EventStaffTotalsCard({
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-2xl font-semibold">{currency(chargeToClientTotal)}</p>
+
+        {hasNothingToShow ? (
+          <p className="text-sm text-muted-foreground">
+            Aún no hay personal asignado a este evento — el total se calcula del personal asignado, no de lo
+            solicitado.
+          </p>
+        ) : null}
 
         {breakdown.length > 0 ? (
           <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
@@ -67,6 +80,15 @@ export function EventStaffTotalsCard({
               configúralas aquí
             </Link>
             .
+          </p>
+        ) : null}
+
+        {unassignedSpecialtyCount > 0 ? (
+          <p className="flex items-start gap-1.5 text-xs text-warning">
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+            {unassignedSpecialtyCount} asignación{unassignedSpecialtyCount === 1 ? "" : "es"} sin especialidad
+            definida (asignada fuera de este evento) — no {unassignedSpecialtyCount === 1 ? "cuenta" : "cuentan"} en
+            el total. Quítala y reasígnala desde aquí para que sí cuente.
           </p>
         ) : null}
       </CardContent>
