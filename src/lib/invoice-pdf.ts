@@ -8,6 +8,7 @@
 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { fetchLogoForPdf } from "@/lib/pdf-logo";
 
 export interface InvoicePdfData {
   company: { name: string; taxId: string | null; phone: string | null; address: string | null; logoUrl: string | null };
@@ -28,37 +29,8 @@ const STATUS_LABELS: Record<string, string> = {
   PAID: "Cancelado",
 };
 
-const LOGO_FORMAT_BY_CONTENT_TYPE: Record<string, string> = {
-  "image/png": "PNG",
-  "image/jpeg": "JPEG",
-  "image/jpg": "JPEG",
-  "image/webp": "WEBP",
-};
-
 function currency(value: number) {
   return new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD" }).format(value);
-}
-
-/**
- * Descarga el logo de ImageKit y lo convierte a base64 para jsPDF — en el
- * servidor no hay `Image`/DOM, así que addImage necesita los bytes ya
- * resueltos. Si falla (red, formato no soportado como SVG), se omite en
- * silencio: el logo es un detalle visual, nunca debe romper la generación
- * del comprobante.
- */
-async function fetchLogoForPdf(logoUrl: string): Promise<{ dataUrl: string; format: string } | null> {
-  try {
-    const response = await fetch(logoUrl);
-    if (!response.ok) return null;
-    const contentType = response.headers.get("content-type")?.split(";")[0].trim() ?? "";
-    const format = LOGO_FORMAT_BY_CONTENT_TYPE[contentType];
-    if (!format) return null;
-
-    const buffer = Buffer.from(await response.arrayBuffer());
-    return { dataUrl: `data:${contentType};base64,${buffer.toString("base64")}`, format };
-  } catch {
-    return null;
-  }
 }
 
 /**
