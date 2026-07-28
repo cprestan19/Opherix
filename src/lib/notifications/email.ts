@@ -16,9 +16,14 @@ let globalTransporter: ReturnType<typeof nodemailer.createTransport> | null = nu
 function getGlobalTransporter() {
   if (!process.env.EMAIL_SERVER_HOST) return null;
   if (!globalTransporter) {
+    const port = Number(process.env.EMAIL_SERVER_PORT ?? 587);
     globalTransporter = nodemailer.createTransport({
       host: process.env.EMAIL_SERVER_HOST,
-      port: Number(process.env.EMAIL_SERVER_PORT ?? 587),
+      port,
+      // 465 es el puerto SSL directo (ej. Gmail) — sin esto nodemailer
+      // intenta STARTTLS en un puerto que espera TLS desde el inicio de la
+      // conexión y la conexión falla en silencio (§ notificaciones "FAILED").
+      secure: port === 465,
       auth: process.env.EMAIL_SERVER_USER
         ? { user: process.env.EMAIL_SERVER_USER, pass: process.env.EMAIL_SERVER_PASSWORD }
         : undefined,
@@ -48,9 +53,14 @@ async function getCompanyTransporter(companyId: string) {
   });
   if (!company?.smtpHost || !company.smtpUser || !company.smtpPasswordEncrypted) return null;
 
+  const port = company.smtpPort ?? 587;
   const transporter = nodemailer.createTransport({
     host: company.smtpHost,
-    port: company.smtpPort ?? 587,
+    port,
+    // 465 es el puerto SSL directo (ej. Gmail) — sin esto nodemailer intenta
+    // STARTTLS en un puerto que espera TLS desde el inicio de la conexión y
+    // la conexión falla en silencio (§ notificaciones "FAILED").
+    secure: port === 465,
     auth: { user: company.smtpUser, pass: decryptSecret(company.smtpPasswordEncrypted) },
   });
 
