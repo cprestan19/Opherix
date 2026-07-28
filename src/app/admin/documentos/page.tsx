@@ -6,7 +6,8 @@
  * expreso por escrito del autor.
  */
 
-import { FileText } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, FileText } from "lucide-react";
 import { getEffectiveCompanyId } from "@/lib/tenant";
 import { listDocumentsForCompany } from "@/repositories/document.repository";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,7 +57,19 @@ export default async function DocumentosAdminPage() {
                     <FileText className="size-4 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium">
-                        {doc.worker.user.name} — {DOCUMENT_TYPE_LABELS[doc.type]}
+                        <Link href={`/admin/personal/${doc.worker.id}`} className="hover:underline">
+                          {doc.worker.user.name}
+                        </Link>{" "}
+                        —{" "}
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          {DOCUMENT_TYPE_LABELS[doc.type]}
+                          <ExternalLink className="size-3.5" />
+                        </a>
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {doc.expiresAt
