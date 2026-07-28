@@ -12,15 +12,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { CheckCircle2, Loader2, Plus, ShieldCheck, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
 import { specialtyLabels, specialtyValues } from "@/lib/validations/worker-application";
+import type { PublicWorkerOption } from "@/services/public-event-request.service";
 import { createEventForClientAction } from "./actions";
 
 const defaultValues: EventRequestInput = {
@@ -31,19 +34,39 @@ const defaultValues: EventRequestInput = {
   endAt: "",
   notes: "",
   staffRequirements: [{ specialty: "WAITER", quantity: 1 }],
+  preferredWorkerIds: [],
 };
 
-export function NewEventForm({ companySlug, token }: { companySlug: string; token: string }) {
+export function NewEventForm({
+  companySlug,
+  token,
+  availableWorkers = [],
+}: {
+  companySlug: string;
+  token: string;
+  availableWorkers?: PublicWorkerOption[];
+}) {
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
     control,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<EventRequestInput>({ resolver: zodResolver(eventRequestSchema), defaultValues });
 
   const staffFields = useFieldArray({ control, name: "staffRequirements" });
+  const selectedWorkerIds = watch("preferredWorkerIds") ?? [];
+
+  function toggleWorker(workerId: string) {
+    const current = selectedWorkerIds;
+    setValue(
+      "preferredWorkerIds",
+      current.includes(workerId) ? current.filter((id) => id !== workerId) : [...current, workerId],
+    );
+  }
 
   async function onSubmit(values: EventRequestInput) {
     setServerError(null);
@@ -143,6 +166,61 @@ export function NewEventForm({ companySlug, token }: { companySlug: string; toke
         </div>
         <FieldError errors={[errors.staffRequirements]} />
       </Field>
+
+      {availableWorkers.length > 0 ? (
+        <Field>
+          <FieldLabel>Elige quién te atiende (opcional)</FieldLabel>
+          <p className="text-xs text-muted-foreground">
+            Puedes elegir a tu personal preferido — es solo una preferencia, la empresa confirma la
+            asignación final.
+          </p>
+          <div className="flex flex-col gap-3 pt-1 pl-6">
+            {availableWorkers.map((worker) => {
+              const isSelected = selectedWorkerIds.includes(worker.id);
+              return (
+                <button
+                  type="button"
+                  key={worker.id}
+                  onClick={() => toggleWorker(worker.id)}
+                  className={cn(
+                    "relative flex items-center gap-3 rounded-xl border py-2.5 pr-4 pl-12 text-left transition-colors",
+                    isSelected ? "border-primary bg-primary/5" : "border-border hover:border-primary/40",
+                  )}
+                >
+                  <div className="absolute top-1/2 -left-6 -translate-y-1/2">
+                    <Avatar className="size-16 shadow-md ring-4 ring-background">
+                      <AvatarImage src={worker.photoUrl ?? undefined} alt={worker.name} className="object-cover" />
+                      <AvatarFallback className="text-base">{worker.name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                    {isSelected ? (
+                      <CheckCircle2 className="absolute -right-1 -bottom-1 size-5 rounded-full bg-background text-success" />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{worker.name}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Star className="size-3 fill-warning text-warning" />
+                        {Number(worker.ratingAverage).toFixed(1)}
+                      </span>
+                      {worker.hasHealthCard ? (
+                        <span className="flex items-center gap-1">
+                          <ShieldCheck className="size-3 text-success" /> Carnet de salud
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                  {isSelected ? (
+                    <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-success">
+                      <CheckCircle2 className="size-3.5" /> Asignado
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+      ) : null}
 
       <Field>
         <FieldLabel htmlFor="notes">Observaciones</FieldLabel>

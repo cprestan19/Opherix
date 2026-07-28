@@ -41,6 +41,7 @@ export async function updateBrandingAction(data: {
   taxId?: string;
   phone?: string;
   address?: string;
+  logoUrl?: string;
 }) {
   const { companyId } = await requireAdmin();
   await updateCompanyBranding(companyId, data);

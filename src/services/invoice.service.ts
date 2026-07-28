@@ -105,8 +105,14 @@ async function loadInvoicePdf(companyId: string, invoiceId: string) {
 
   const company = await getCompany(companyId);
 
-  const buffer = buildInvoicePdf({
-    company: { name: company.name, taxId: company.taxId, phone: company.phone, address: company.address },
+  const buffer = await buildInvoicePdf({
+    company: {
+      name: company.name,
+      taxId: company.taxId,
+      phone: company.phone,
+      address: company.address,
+      logoUrl: company.logoUrl,
+    },
     client: invoice.client,
     event: invoice.event,
     invoice: { id: invoice.id, amount: Number(invoice.amount), issuedAt: invoice.issuedAt, status: invoice.status },

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
+import { LogoUploadField } from "@/components/shared/logo-upload-field";
 import { updateBrandingAction } from "./actions";
 
 interface BrandingFormProps {
@@ -21,10 +22,11 @@ interface BrandingFormProps {
   taxId: string;
   phone: string;
   address: string;
+  logoUrl: string;
 }
 
-export function BrandingForm({ name, taxId, phone, address }: BrandingFormProps) {
-  const [values, setValues] = useState({ name, taxId, phone, address });
+export function BrandingForm({ name, taxId, phone, address, logoUrl }: BrandingFormProps) {
+  const [values, setValues] = useState({ name, taxId, phone, address, logoUrl });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSave() {
@@ -36,6 +38,15 @@ export function BrandingForm({ name, taxId, phone, address }: BrandingFormProps)
 
   return (
     <div className="flex flex-col gap-4">
+      <Field>
+        <FieldLabel>Logo de la empresa</FieldLabel>
+        <LogoUploadField
+          folder="/company/branding"
+          value={values.logoUrl || undefined}
+          onChange={(url) => setValues((v) => ({ ...v, logoUrl: url }))}
+        />
+        <FieldDescription>Se muestra en los recibos PDF que se envían a tus clientes.</FieldDescription>
+      </Field>
       <Field className="max-w-sm">
         <FieldLabel>Nombre de la empresa</FieldLabel>
         <Input value={values.name} onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))} />

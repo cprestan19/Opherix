@@ -10,7 +10,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 
 export interface InvoicePdfData {
-  company: { name: string; taxId: string | null; phone: string | null; address: string | null };
+  company: { name: string; taxId: string | null; phone: string | null; address: string | null; logoUrl: string | null };
   client: {
     businessName: string;
     taxId: string | null;
@@ -28,8 +28,37 @@ const STATUS_LABELS: Record<string, string> = {
   PAID: "Cancelado",
 };
 
+const LOGO_FORMAT_BY_CONTENT_TYPE: Record<string, string> = {
+  "image/png": "PNG",
+  "image/jpeg": "JPEG",
+  "image/jpg": "JPEG",
+  "image/webp": "WEBP",
+};
+
 function currency(value: number) {
   return new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD" }).format(value);
+}
+
+/**
+ * Descarga el logo de ImageKit y lo convierte a base64 para jsPDF — en el
+ * servidor no hay `Image`/DOM, así que addImage necesita los bytes ya
+ * resueltos. Si falla (red, formato no soportado como SVG), se omite en
+ * silencio: el logo es un detalle visual, nunca debe romper la generación
+ * del comprobante.
+ */
+async function fetchLogoForPdf(logoUrl: string): Promise<{ dataUrl: string; format: string } | null> {
+  try {
+    const response = await fetch(logoUrl);
+    if (!response.ok) return null;
+    const contentType = response.headers.get("content-type")?.split(";")[0].trim() ?? "";
+    const format = LOGO_FORMAT_BY_CONTENT_TYPE[contentType];
+    if (!format) return null;
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return { dataUrl: `data:${contentType};base64,${buffer.toString("base64")}`, format };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -39,25 +68,36 @@ function currency(value: number) {
  * registro/comprobante interno para que el cliente sepa cuánto y por qué
  * debe pagar, con nota explícita de esa limitación al pie.
  */
-export function buildInvoicePdf(data: InvoicePdfData): Buffer {
+export async function buildInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
   const { company, client, event, invoice } = data;
   const doc = new jsPDF();
 
+  const logo = company.logoUrl ? await fetchLogoForPdf(company.logoUrl) : null;
+  const textStartX = logo ? 38 : 14;
+
+  if (logo) {
+    try {
+      doc.addImage(logo.dataUrl, logo.format, 14, 12, 20, 20);
+    } catch {
+      // Formato/imagen corrupta — el comprobante sigue sin el logo.
+    }
+  }
+
   doc.setFontSize(16);
-  doc.text(company.name, 14, 18);
+  doc.text(company.name, textStartX, 18);
   doc.setFontSize(9);
   doc.setTextColor(100);
   let y = 24;
   if (company.taxId) {
-    doc.text(`RUC: ${company.taxId}`, 14, y);
+    doc.text(`RUC: ${company.taxId}`, textStartX, y);
     y += 5;
   }
   if (company.phone) {
-    doc.text(`Tel: ${company.phone}`, 14, y);
+    doc.text(`Tel: ${company.phone}`, textStartX, y);
     y += 5;
   }
   if (company.address) {
-    doc.text(company.address, 14, y);
+    doc.text(company.address, textStartX, y);
     y += 5;
   }
 
@@ -75,7 +115,7 @@ export function buildInvoicePdf(data: InvoicePdfData): Buffer {
   );
   doc.text(`Estado: ${STATUS_LABELS[invoice.status] ?? invoice.status}`, 196, 34, { align: "right" });
 
-  y = Math.max(y, 34) + 10;
+  y = Math.max(y, 34, logo ? 34 : 0) + 10;
   doc.setDrawColor(220);
   doc.line(14, y, 196, y);
   y += 8;

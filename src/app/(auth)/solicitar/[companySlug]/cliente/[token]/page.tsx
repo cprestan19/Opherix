@@ -10,6 +10,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { findCompanyBySlug } from "@/repositories/worker.repository";
 import { findClientByAccessToken } from "@/repositories/client.repository";
+import { listPublicAvailableWorkers } from "@/services/public-event-request.service";
 import { Card, CardContent } from "@/components/ui/card";
 import { PublicFormHeader } from "@/components/shared/public-form-header";
 import { NewEventForm } from "./new-event-form";
@@ -43,6 +44,8 @@ export default async function ClientPortalPage({
     );
   }
 
+  const availableWorkers = await listPublicAvailableWorkers(company.id);
+
   return (
     <div className="min-h-svh w-full bg-secondary px-4 py-10">
       <div className="mx-auto w-full max-w-2xl">
@@ -52,7 +55,7 @@ export default async function ClientPortalPage({
             description={`Solicitando como ${client.businessName}. No necesitas volver a llenar tus datos de contacto.`}
           />
           <CardContent className="pt-4">
-            <NewEventForm companySlug={companySlug} token={token} />
+            <NewEventForm companySlug={companySlug} token={token} availableWorkers={availableWorkers} />
           </CardContent>
         </Card>
       </div>

@@ -54,6 +54,7 @@ export default async function ConfiguracionPage() {
             taxId={company.taxId ?? ""}
             phone={company.phone ?? ""}
             address={company.address ?? ""}
+            logoUrl={company.logoUrl ?? ""}
           />
         </CardContent>
       </Card>

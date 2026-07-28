@@ -24,6 +24,10 @@ export const eventRequestSchema = z.object({
       }),
     )
     .min(1, "Indica al menos un tipo de personal"),
+  // Selección opcional del selector de personal en línea (§ /solicitar/
+  // [companySlug] y /solicitar/[companySlug]/cliente/[token]) — preferencia
+  // del cliente, nunca reemplaza la asignación real que hace el Administrador.
+  preferredWorkerIds: z.array(z.string()).max(100).optional(),
 });
 
 export type EventRequestInput = z.infer<typeof eventRequestSchema>;

@@ -8,7 +8,7 @@
 
 "use server";
 
-import { findCompanyBySlug } from "@/repositories/worker.repository";
+import { findCompanyBySlug, filterActiveWorkerIds } from "@/repositories/worker.repository";
 import { findClientByAccessToken } from "@/repositories/client.repository";
 import { createEventRequest, generateEventAccessLink, EventError } from "@/services/event.service";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
@@ -39,8 +39,15 @@ export async function createEventForClientAction(
   const client = await findClientByAccessToken(company.id, token);
   if (!client) return { error: "Enlace no válido." };
 
+  // Nunca confiar en los IDs tal cual llegan del formulario público (sin
+  // sesión) — se validan contra el roster real de esta empresa antes de
+  // guardarlos como preferencia (mismo criterio que submitPublicEventRequest).
+  const preferredWorkerIds = parsed.data.preferredWorkerIds?.length
+    ? await filterActiveWorkerIds(company.id, parsed.data.preferredWorkerIds)
+    : undefined;
+
   try {
-    const event = await createEventRequest(company.id, client.id, null, parsed.data);
+    const event = await createEventRequest(company.id, client.id, null, { ...parsed.data, preferredWorkerIds });
     const { token: eventAccessToken } = await generateEventAccessLink(company.id, null, event.id);
     return { eventId: event.id, eventAccessToken };
   } catch (error) {

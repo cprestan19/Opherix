@@ -16,7 +16,7 @@ export function getCompany(companyId: string) {
 
 export function updateCompanyBranding(
   companyId: string,
-  data: { name: string; taxId?: string; phone?: string; address?: string },
+  data: { name: string; taxId?: string; phone?: string; address?: string; logoUrl?: string },
 ) {
   return prisma.company.update({ where: { id: companyId }, data });
 }
