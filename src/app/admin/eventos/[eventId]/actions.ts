@@ -15,6 +15,7 @@ import {
   removeAssignment,
   confirmEvent,
   cancelEvent,
+  completeEvent,
   updateEventFull,
   archiveEvent,
   deleteEvent,
@@ -25,6 +26,10 @@ import {
   reopenEventAccessLink,
   EventError,
 } from "@/services/event.service";
+import { getEventDetail } from "@/repositories/event.repository";
+import { computeEventChargeTotal } from "@/services/client-specialty-rate.service";
+import { setEventInvoiceAmount, InvoiceError } from "@/services/invoice.service";
+import { generatePaymentsForEvent, PaymentError } from "@/services/payment.service";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
 import type { Specialty } from "@/generated/prisma/enums";
 
@@ -64,6 +69,64 @@ export async function cancelEventAction(eventId: string, reason: string) {
   const { user, companyId } = await requireCompanyStaff();
   await cancelEvent(companyId, eventId, user.id, reason);
   revalidatePath(`/admin/eventos/${eventId}`);
+}
+
+export interface CompleteEventResult extends EventActionResult {
+  chargeToClientTotal?: number;
+  workersNotified?: number;
+}
+
+/**
+ * "Marcar completado" (§ /admin/eventos) — orquesta tres pasos con la MISMA
+ * fuente de verdad (las asignaciones activas del evento, no lo
+ * originalmente solicitado): pasa el evento a COMPLETED, emite/actualiza la
+ * factura al cliente con el total calculado, y genera los pagos pendientes
+ * al personal (uno por trabajador, notificándolo). Vive en la action layer
+ * (no en event.service.ts) para poder llamar a invoice.service.ts y
+ * payment.service.ts sin crear un import circular con event.service.ts.
+ */
+export async function completeEventAction(eventId: string): Promise<CompleteEventResult> {
+  const { user, companyId } = await requireCompanyStaff();
+
+  const event = await getEventDetail(companyId, eventId);
+  if (!event) return { error: "Evento no encontrado." };
+
+  try {
+    await completeEvent(companyId, user.id, eventId);
+
+    const staffTotals = await computeEventChargeTotal(companyId, event.clientId, event.assignments);
+    if (staffTotals.chargeToClientTotal > 0) {
+      await setEventInvoiceAmount(
+        companyId,
+        user.id,
+        eventId,
+        event.clientId,
+        event.startAt,
+        event.endAt,
+        staffTotals.chargeToClientTotal,
+      );
+    }
+
+    const paymentsResult = await generatePaymentsForEvent(
+      companyId,
+      user.id,
+      eventId,
+      event.title,
+      event.clientId,
+      event.startAt,
+      event.endAt,
+      event.assignments,
+    );
+
+    revalidatePath(`/admin/eventos/${eventId}`);
+    revalidatePath("/admin/pagos");
+    return { chargeToClientTotal: staffTotals.chargeToClientTotal, workersNotified: paymentsResult.created };
+  } catch (error) {
+    if (error instanceof EventError || error instanceof InvoiceError || error instanceof PaymentError) {
+      return { error: error.message };
+    }
+    throw error;
+  }
 }
 
 export async function updateEventAction(eventId: string, input: EventRequestInput): Promise<EventActionResult> {

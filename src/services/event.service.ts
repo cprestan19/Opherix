@@ -430,6 +430,28 @@ export async function confirmEvent(companyId: string, eventId: string, actorId: 
   return updated;
 }
 
+/**
+ * Marca el evento como completado manualmente — a diferencia del auto-
+ * complete que dispara checkin.repository.ts cuando el último trabajador
+ * hace check-out, esto lo puede forzar el Administrador aunque no se haya
+ * usado check-in/check-out. El resto (factura al cliente + pagos al
+ * personal) lo orquesta la action layer (§ admin/eventos/[eventId]/actions.ts)
+ * llamando a computeEventChargeTotal/setEventInvoiceAmount/
+ * generatePaymentsForEvent, no aquí, para evitar un import circular con
+ * invoice.service.ts (que ya importa de este archivo).
+ */
+export async function completeEvent(companyId: string, actorId: string, eventId: string) {
+  const event = await eventRepo.getEventDetail(companyId, eventId);
+  if (!event) throw new EventError("Evento no encontrado.");
+  if (event.status !== "CONFIRMED" && event.status !== "IN_PROGRESS") {
+    throw new EventError("Solo puedes completar un evento confirmado o en curso.");
+  }
+
+  const updated = await eventRepo.updateEventStatus(companyId, eventId, "COMPLETED");
+  await logAudit({ companyId, actorId, action: "EVENT_COMPLETED", entityType: "Event", entityId: eventId });
+  return updated;
+}
+
 export async function cancelEvent(companyId: string, eventId: string, actorId: string, reason: string) {
   const event = await eventRepo.getEventDetail(companyId, eventId);
   if (!event) throw new EventError("Evento no encontrado.");

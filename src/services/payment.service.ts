@@ -11,6 +11,7 @@ import * as paymentRepo from "@/repositories/payment.repository";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification } from "@/services/notification.service";
 import { prisma } from "@/lib/prisma";
+import type { Specialty } from "@/generated/prisma/enums";
 
 export class PaymentError extends Error {}
 
@@ -72,6 +73,90 @@ export async function calculatePaymentsForPeriod(
   });
 
   return { created };
+}
+
+/**
+ * Genera los pagos pendientes al personal de UN evento puntual (§ /admin/
+ * eventos "Marcar completado") — a diferencia de calculatePaymentsForPeriod
+ * (que exige check-in/out dentro de un periodo elegido a mano), esto usa
+ * directamente las asignaciones activas del evento, igual que
+ * computeEventChargeTotal (cliente) — misma fuente de verdad para lo que se
+ * cobra y lo que se paga. Idempotente: si ya se generó un registro para
+ * este trabajador en este rango exacto (periodStart/periodEnd = fechas del
+ * evento), no lo duplica. Notifica a cada trabajador con pago generado.
+ */
+export async function generatePaymentsForEvent(
+  companyId: string,
+  actorId: string,
+  eventId: string,
+  eventTitle: string,
+  clientId: string,
+  periodStart: Date,
+  periodEnd: Date,
+  assignments: { status: string; specialty: Specialty | null; worker: { id: string; userId: string } }[],
+) {
+  const rates = await paymentRepo.listClientSpecialtyRates(companyId);
+  const rateBySpecialty = new Map(
+    rates.filter((r) => r.clientId === clientId).map((r) => [r.specialty, Number(r.payToWorker)]),
+  );
+
+  const activeAssignments = assignments.filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED");
+
+  const totalsByWorker = new Map<string, { userId: string; totalAmount: number; assignmentCount: number }>();
+  for (const assignment of activeAssignments) {
+    if (!assignment.specialty) continue;
+    const rate = rateBySpecialty.get(assignment.specialty);
+    if (rate === undefined) continue;
+
+    const entry = totalsByWorker.get(assignment.worker.id) ?? {
+      userId: assignment.worker.userId,
+      totalAmount: 0,
+      assignmentCount: 0,
+    };
+    entry.totalAmount += rate;
+    entry.assignmentCount += 1;
+    totalsByWorker.set(assignment.worker.id, entry);
+  }
+
+  let created = 0;
+  let totalAmount = 0;
+  for (const [workerId, entry] of totalsByWorker) {
+    const existing = await paymentRepo.findExistingRecord(workerId, periodStart, periodEnd);
+    if (existing) continue;
+
+    const amount = Math.round(entry.totalAmount * 100) / 100;
+    await paymentRepo.createPaymentRecord({
+      companyId,
+      workerId,
+      periodStart,
+      periodEnd,
+      assignmentCount: entry.assignmentCount,
+      totalAmount: amount,
+    });
+    created += 1;
+    totalAmount += amount;
+
+    await dispatchNotification({
+      companyId,
+      userId: entry.userId,
+      type: "PAYMENT_PENDING",
+      title: "Pago pendiente registrado",
+      body: `Se registró tu pago pendiente por "${eventTitle}": ${new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD" }).format(amount)}. Consulta el detalle en Pagos.`,
+      relatedEntityType: "Event",
+      relatedEntityId: eventId,
+    });
+  }
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "EVENT_PAYMENTS_GENERATED",
+    entityType: "Event",
+    entityId: eventId,
+    metadata: { created, totalAmount },
+  });
+
+  return { created, totalAmount };
 }
 
 export async function markPaymentAsPaid(

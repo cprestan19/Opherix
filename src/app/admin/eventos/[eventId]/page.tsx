@@ -14,7 +14,6 @@ import {
   findAvailableWorkersForSpecialty,
   listPreferredWorkerSummaries,
 } from "@/repositories/event.repository";
-import { findInvoiceForEvent } from "@/repositories/invoice.repository";
 import { getCompany } from "@/repositories/config.repository";
 import { computeEventChargeTotal } from "@/services/client-specialty-rate.service";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,14 +24,12 @@ import { asStringArray } from "@/lib/worker-fields";
 import { AssignmentPanel } from "./assignment-panel";
 import { EventActions } from "./event-actions";
 import { EventCheckInCode } from "@/components/shared/event-checkin-code";
-import { EventAmountCard } from "./event-amount-card";
 import { EventStaffTotalsCard } from "./event-staff-totals-card";
 import { EditEventForm } from "./edit-event-form";
 import { ArchiveEventAction } from "./archive-event-action";
 import { EventDeleteAction } from "./event-delete-action";
 import { EventAccessLinkPanel } from "./event-access-link-panel";
-
-const INVOICEABLE_STATUSES = ["CONFIRMED", "IN_PROGRESS", "COMPLETED", "ARCHIVED"];
+import type { Specialty } from "@/generated/prisma/enums";
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Borrador",
@@ -65,7 +62,6 @@ export default async function EventDetailPage({
   const [event, company] = await Promise.all([getEventDetail(companyId, eventId), getCompany(companyId)]);
   if (!event) notFound();
 
-  const invoice = INVOICEABLE_STATUSES.includes(event.status) ? await findInvoiceForEvent(event.id) : null;
   const staffTotals = await computeEventChargeTotal(companyId, event.clientId, event.assignments);
 
   const ratedAssignments = event.assignments.filter((a) => a.ratingScore !== null);
@@ -80,9 +76,29 @@ export default async function EventDetailPage({
 
   const preferredWorkerIds = asStringArray(event.preferredWorkerIds);
   const preferredWorkers = await listPreferredWorkerSummaries(companyId, preferredWorkerIds);
-  const alreadyAssignedWorkerIds = new Set(
-    event.assignments.filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED").map((a) => a.worker.id),
-  );
+  const activeAssignments = event.assignments.filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED");
+  const alreadyAssignedWorkerIds = new Set(activeAssignments.map((a) => a.worker.id));
+
+  // "Personal requerido" en el modal de Editar debe reflejar a quién ya se
+  // asignó, no solo lo pedido al crear el evento — si se asignó más
+  // personal del originalmente solicitado, el formulario debe mostrar esa
+  // cantidad real (§ corrección explícita del usuario), nunca menos de lo
+  // asignado.
+  const assignedCountBySpecialty = new Map<Specialty, number>();
+  for (const a of activeAssignments) {
+    if (!a.specialty) continue;
+    assignedCountBySpecialty.set(a.specialty, (assignedCountBySpecialty.get(a.specialty) ?? 0) + 1);
+  }
+  const requirementSpecialties = new Set(event.staffRequirements.map((r) => r.specialty));
+  const syncedStaffRequirements = [
+    ...event.staffRequirements.map((r) => ({
+      specialty: r.specialty,
+      quantity: Math.max(r.quantity, assignedCountBySpecialty.get(r.specialty) ?? 0),
+    })),
+    ...[...assignedCountBySpecialty.entries()]
+      .filter(([specialty]) => !requirementSpecialties.has(specialty))
+      .map(([specialty, quantity]) => ({ specialty, quantity })),
+  ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -109,10 +125,7 @@ export default async function EventDetailPage({
                 startAt: toDatetimeLocal(event.startAt),
                 endAt: toDatetimeLocal(event.endAt),
                 notes: event.notes ?? "",
-                staffRequirements: event.staffRequirements.map((r) => ({
-                  specialty: r.specialty,
-                  quantity: r.quantity,
-                })),
+                staffRequirements: syncedStaffRequirements,
               }}
             />
           ) : null}
@@ -156,14 +169,6 @@ export default async function EventDetailPage({
           breakdown={staffTotals.breakdown}
           missingSpecialties={staffTotals.missingSpecialties}
           unassignedSpecialtyCount={staffTotals.unassignedSpecialtyCount}
-        />
-      ) : null}
-
-      {!isViewer && !event.deletedAt && INVOICEABLE_STATUSES.includes(event.status) ? (
-        <EventAmountCard
-          eventId={event.id}
-          invoice={invoice ? { id: invoice.id, amount: invoice.amount.toString(), status: invoice.status } : null}
-          suggestedAmount={staffTotals.chargeToClientTotal}
         />
       ) : null}
 
