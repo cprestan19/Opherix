@@ -23,6 +23,9 @@ export function FileUploadField({ folder, value, onChange }: FileUploadFieldProp
   const inputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Token de borrado del archivo actual (§ imagekit-delete.ts) — null si
+  // `value` vino de BD y no de una subida hecha por esta instancia.
+  const [currentDeleteToken, setCurrentDeleteToken] = useState<string | null>(null);
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -31,29 +34,33 @@ export function FileUploadField({ folder, value, onChange }: FileUploadFieldProp
     setIsUploading(true);
     setError(null);
     try {
-      const authRes = await fetch("/api/imagekit/auth");
+      const authRes = await fetch(
+        `/api/imagekit/auth?folder=${encodeURIComponent(folder)}&name=${encodeURIComponent(file.name)}`,
+      );
       if (!authRes.ok) throw new Error("No se pudo iniciar la carga");
       const auth = await authRes.json();
 
       const result = await upload({
         file,
-        fileName: file.name,
+        fileName: auth.fileName,
         folder,
         publicKey: auth.publicKey,
         token: auth.token,
         expire: auth.expire,
         signature: auth.signature,
-        useUniqueFileName: true,
+        useUniqueFileName: false,
       });
 
       if (result.url) {
         const previousUrl = value?.url;
+        const previousDeleteToken = currentDeleteToken;
         onChange({ url: result.url, name: file.name });
-        if (previousUrl && previousUrl !== result.url) {
+        setCurrentDeleteToken(auth.deleteToken);
+        if (previousUrl && previousUrl !== result.url && previousDeleteToken) {
           fetch("/api/imagekit/delete", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: previousUrl }),
+            body: JSON.stringify({ url: previousUrl, deleteToken: previousDeleteToken }),
           }).catch((err) => console.error("[FileUploadField] cleanup failed", err));
         }
       }

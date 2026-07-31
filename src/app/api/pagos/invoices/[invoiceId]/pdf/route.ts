@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { getInvoicePdfBuffer, InvoiceError } from "@/services/invoice.service";
+import { logAudit } from "@/lib/audit";
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ invoiceId: string }> }) {
   const user = await getCurrentUser();
@@ -21,6 +22,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   try {
     const { buffer, filename } = await getInvoicePdfBuffer(companyId, invoiceId);
+    await logAudit({
+      companyId,
+      actorId: user.id,
+      action: "INVOICE_EXPORTED",
+      entityType: "Invoice",
+      entityId: invoiceId,
+      metadata: { filename },
+    });
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/pdf",

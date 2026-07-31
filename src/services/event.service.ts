@@ -8,7 +8,9 @@
 
 import "server-only";
 import type { Specialty, AutoArchiveDelay } from "@/generated/prisma/enums";
+import type { Prisma } from "@/generated/prisma/client";
 import * as eventRepo from "@/repositories/event.repository";
+import * as clientRepo from "@/repositories/client.repository";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification } from "@/services/notification.service";
 import { sendEmail } from "@/lib/notifications/email";
@@ -79,6 +81,13 @@ export async function createEventByAdmin(
   createdById: string,
   input: CreateEventInput,
 ) {
+  // El cliente elegido debe pertenecer a esta empresa — sin este chequeo, un
+  // clientId de otro tenant (recibido tal cual del formulario de creación)
+  // se podía referenciar igual, filtrando su nombre/teléfono/correo a este
+  // tenant y enviándole notificaciones como si fuera su propio cliente.
+  const client = await clientRepo.findClientById(companyId, clientId);
+  if (!client) throw new EventError("Cliente no encontrado.");
+
   const startAt = new Date(input.startAt);
   const endAt = new Date(input.endAt);
   if (endAt <= startAt) {
@@ -309,6 +318,11 @@ export async function createEventRequest(
   createdById: string | null,
   input: CreateEventInput,
   ipAddress?: string,
+  // Opcional: usado por /solicitar/[companySlug]/cliente/[token] cuando el
+  // cliente crea varios eventos en un mismo envío — cada Event queda con el
+  // mismo batchId en su AuditLog para que el Administrador vea que llegaron
+  // juntos, sin necesidad de una tabla/relación nueva para agruparlos.
+  metadata?: Prisma.InputJsonValue,
 ) {
   const startAt = new Date(input.startAt);
   const endAt = new Date(input.endAt);
@@ -340,6 +354,7 @@ export async function createEventRequest(
     action: "EVENT_REQUESTED",
     entityType: "Event",
     entityId: event.id,
+    metadata,
   });
 
   return event;
@@ -355,6 +370,12 @@ export async function assignWorkerToEvent(
   const event = await eventRepo.getEventDetail(companyId, eventId);
   if (!event) throw new EventError("Evento no encontrado.");
   if (event.deletedAt) throw new EventError("No se puede asignar personal a un evento eliminado.");
+
+  // El trabajador debe pertenecer a la misma empresa que el evento — sin este
+  // chequeo, un workerId de otro tenant (recibido tal cual del formulario)
+  // se podía asignar igual, generando una asignación y un pago cross-tenant.
+  const worker = await prisma.worker.findFirst({ where: { id: workerId, companyId }, select: { userId: true } });
+  if (!worker) throw new EventError("Trabajador no encontrado.");
 
   const overlaps = await eventRepo.findOverlappingAssignments(workerId, event.startAt, event.endAt);
   if (overlaps.length > 0) {
@@ -381,18 +402,15 @@ export async function assignWorkerToEvent(
     metadata: { eventId, workerId },
   });
 
-  const worker = await prisma.worker.findUnique({ where: { id: workerId }, select: { userId: true } });
-  if (worker) {
-    await dispatchNotification({
-      companyId,
-      userId: worker.userId,
-      type: "ASSIGNMENT_PROPOSED",
-      title: "Nueva asignación de evento",
-      body: `Te propusieron para "${event.title}". Revisa y confirma en tu portal.`,
-      relatedEntityType: "WorkerAssignment",
-      relatedEntityId: assignment.id,
-    });
-  }
+  await dispatchNotification({
+    companyId,
+    userId: worker.userId,
+    type: "ASSIGNMENT_PROPOSED",
+    title: "Nueva asignación de evento",
+    body: `Te propusieron para "${event.title}". Revisa y confirma en tu portal.`,
+    relatedEntityType: "WorkerAssignment",
+    relatedEntityId: assignment.id,
+  });
 
   return assignment;
 }

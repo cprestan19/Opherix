@@ -9,7 +9,7 @@
 import { z } from "zod";
 import { specialtyValues } from "@/lib/validations/worker-application";
 
-export const eventRequestSchema = z.object({
+const eventBaseFields = z.object({
   title: z.string().min(2, "Ingresa un título para el evento"),
   eventType: z.string().optional(),
   address: z.string().min(3, "Ingresa la ubicación del evento"),
@@ -30,15 +30,39 @@ export const eventRequestSchema = z.object({
   preferredWorkerIds: z.array(z.string()).max(100).optional(),
 });
 
-export type EventRequestInput = z.infer<typeof eventRequestSchema>;
+/**
+ * Misma regla que valida event.service.ts al guardar (endAt debe ser
+ * posterior a startAt) — se repite aquí para que el formulario la muestre
+ * de inmediato en el campo "Fin" en vez de que el usuario se entere recién
+ * después de un viaje al servidor (§ bug reportado: datetime-local de
+ * algunos navegadores puede dejar un campo con la fecha equivocada sin que
+ * se note a simple vista).
+ */
+function checkEndAfterStart(data: { startAt: string; endAt: string }, ctx: z.RefinementCtx) {
+  if (!data.startAt || !data.endAt) return;
+  const start = new Date(data.startAt);
+  const end = new Date(data.endAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return;
+  if (end <= start) {
+    ctx.addIssue({
+      code: "custom",
+      message: "La hora de fin debe ser posterior a la de inicio.",
+      path: ["endAt"],
+    });
+  }
+}
+
+export const eventRequestSchema = eventBaseFields.superRefine(checkEndAfterStart);
+
+export type EventRequestInput = z.infer<typeof eventBaseFields>;
 
 /**
  * Creación/edición desde el portal Administrador — a diferencia de la
  * solicitud del Cliente (que ya tiene su propio clientId resuelto de la
  * sesión), el admin elige explícitamente a qué cliente pertenece el evento.
  */
-export const adminEventSchema = eventRequestSchema.extend({
-  clientId: z.string().min(1, "Selecciona un cliente"),
-});
+export const adminEventSchema = eventBaseFields
+  .extend({ clientId: z.string().min(1, "Selecciona un cliente") })
+  .superRefine(checkEndAfterStart);
 
-export type AdminEventInput = z.infer<typeof adminEventSchema>;
+export type AdminEventInput = z.infer<typeof eventBaseFields> & { clientId: string };

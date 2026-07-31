@@ -28,7 +28,9 @@ export async function issueInvoiceForEvent(
 ) {
   const existing = await invoiceRepo.findInvoiceForEvent(eventId);
   if (existing) throw new InvoiceError("Este evento ya tiene una factura emitida.");
-  if (amount <= 0) throw new InvoiceError("El monto debe ser mayor a cero.");
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 10_000_000) {
+    throw new InvoiceError("El monto debe ser mayor a cero y razonable (máximo 10,000,000).");
+  }
 
   const invoice = await invoiceRepo.createInvoice({
     companyId,
@@ -73,7 +75,9 @@ export async function setEventInvoiceAmount(
   eventEndAt: Date,
   amount: number,
 ) {
-  if (amount <= 0) throw new InvoiceError("El monto debe ser mayor a cero.");
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 10_000_000) {
+    throw new InvoiceError("El monto debe ser mayor a cero y razonable (máximo 10,000,000).");
+  }
 
   const existing = await invoiceRepo.findInvoiceForEvent(eventId);
   if (!existing) {

@@ -25,8 +25,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Demasiadas solicitudes, intenta de nuevo en un momento." }, { status: 429 });
   }
 
+  const folder = request.nextUrl.searchParams.get("folder");
+  if (!folder) {
+    return NextResponse.json({ error: "Falta el parámetro folder" }, { status: 400 });
+  }
+  const name = request.nextUrl.searchParams.get("name") ?? undefined;
+
   try {
-    const auth = getImageKitUploadAuth();
+    const auth = getImageKitUploadAuth(folder, name);
     return NextResponse.json(auth);
   } catch {
     return NextResponse.json({ error: "ImageKit no está configurado" }, { status: 503 });

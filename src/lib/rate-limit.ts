@@ -34,11 +34,14 @@ export function isRateLimited(key: string, maxHits: number, windowMs: number): b
   return false;
 }
 
-export function getClientIp(request: Request): string {
-  const headerList = request.headers;
+export function getClientIpFromHeaderList(headerList: Headers): string {
   return (
     headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     headerList.get("x-real-ip") ??
     "unknown"
   );
+}
+
+export function getClientIp(request: Request): string {
+  return getClientIpFromHeaderList(request.headers);
 }

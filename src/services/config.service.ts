@@ -14,6 +14,23 @@ import { sendEmail } from "@/lib/notifications/email";
 import type { AutoArchiveDelay } from "@/generated/prisma/enums";
 import type { EmailConfigInput } from "@/lib/validations/email-config";
 
+export async function updateBranding(
+  companyId: string,
+  actorId: string,
+  data: { name: string; taxId?: string; phone?: string; address?: string; logoUrl?: string },
+) {
+  const updated = await configRepo.updateCompanyBranding(companyId, data);
+  await logAudit({
+    companyId,
+    actorId,
+    action: "BRANDING_UPDATED",
+    entityType: "Company",
+    entityId: companyId,
+    metadata: data,
+  });
+  return updated;
+}
+
 export async function updatePayRules(
   companyId: string,
   actorId: string,

@@ -13,6 +13,7 @@ import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { getFinancialReport } from "@/services/financial-report.service";
 import { getCompany } from "@/repositories/config.repository";
 import { fetchLogoForPdf } from "@/lib/pdf-logo";
+import { logAudit } from "@/lib/audit";
 
 const STATUS_LABELS: Record<string, string> = {
   CONFIRMED: "Confirmado",
@@ -104,6 +105,15 @@ export async function GET(request: NextRequest) {
   );
 
   const buffer = doc.output("arraybuffer");
+
+  await logAudit({
+    companyId,
+    actorId: user.id,
+    action: "FINANCIAL_REPORT_EXPORTED",
+    entityType: "Company",
+    entityId: companyId,
+    metadata: { format: "pdf", periodStart, periodEnd, clientId, eventId, workerId, rowCount: rows.length },
+  });
 
   return new NextResponse(buffer, {
     headers: {

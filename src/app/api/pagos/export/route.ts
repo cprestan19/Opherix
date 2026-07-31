@@ -10,6 +10,7 @@ import ExcelJS from "exceljs";
 import { NextRequest, NextResponse } from "next/server";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { listPaymentRecords } from "@/repositories/payment.repository";
+import { logAudit } from "@/lib/audit";
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -65,6 +66,15 @@ export async function GET(request: NextRequest) {
   totalRow.font = { bold: true };
 
   const buffer = await workbook.xlsx.writeBuffer();
+
+  await logAudit({
+    companyId,
+    actorId: user.id,
+    action: "PAYMENTS_EXPORTED",
+    entityType: "Company",
+    entityId: companyId,
+    metadata: { format: "xlsx", periodStart, periodEnd, recordCount: records.length },
+  });
 
   return new NextResponse(buffer, {
     headers: {

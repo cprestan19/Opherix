@@ -50,6 +50,10 @@ export function PhotoCaptureField({ folder, value, onChange }: PhotoCaptureField
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Token de borrado del archivo actualmente cargado (§ imagekit-delete.ts) —
+  // null si `value` vino de un valor ya existente (BD) y no de una subida
+  // hecha por esta instancia; en ese caso no se intenta limpiar al reemplazar.
+  const [currentDeleteToken, setCurrentDeleteToken] = useState<string | null>(null);
 
   function stopCamera() {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -200,31 +204,33 @@ export function PhotoCaptureField({ folder, value, onChange }: PhotoCaptureField
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
       if (!blob) throw new Error("No se pudo generar la imagen.");
 
-      const authRes = await fetch("/api/imagekit/auth");
+      const authRes = await fetch(`/api/imagekit/auth?folder=${encodeURIComponent(folder)}&name=foto-perfil.jpg`);
       if (!authRes.ok) throw new Error("No se pudo iniciar la carga de la foto");
       const auth = await authRes.json();
 
       const file = new File([blob], "foto-perfil.jpg", { type: "image/jpeg" });
       const result = await upload({
         file,
-        fileName: file.name,
+        fileName: auth.fileName,
         folder,
         publicKey: auth.publicKey,
         token: auth.token,
         expire: auth.expire,
         signature: auth.signature,
-        useUniqueFileName: true,
+        useUniqueFileName: false,
       });
 
       if (result.url) {
         const previousUrl = value;
+        const previousDeleteToken = currentDeleteToken;
         onChange(result.url);
+        setCurrentDeleteToken(auth.deleteToken);
         setOpen(false);
-        if (previousUrl && previousUrl !== result.url) {
+        if (previousUrl && previousUrl !== result.url && previousDeleteToken) {
           fetch("/api/imagekit/delete", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: previousUrl }),
+            body: JSON.stringify({ url: previousUrl, deleteToken: previousDeleteToken }),
           }).catch((err) => console.error("[PhotoCaptureField] cleanup failed", err));
         }
       }

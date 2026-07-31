@@ -10,6 +10,7 @@ import ExcelJS from "exceljs";
 import { NextRequest, NextResponse } from "next/server";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { getFinancialReport } from "@/services/financial-report.service";
+import { logAudit } from "@/lib/audit";
 
 const STATUS_LABELS: Record<string, string> = {
   CONFIRMED: "Confirmado",
@@ -115,6 +116,15 @@ export async function GET(request: NextRequest) {
   sheet.autoFilter = { from: "A1", to: "H1" };
 
   const buffer = await workbook.xlsx.writeBuffer();
+
+  await logAudit({
+    companyId,
+    actorId: user.id,
+    action: "FINANCIAL_REPORT_EXPORTED",
+    entityType: "Company",
+    entityId: companyId,
+    metadata: { format: "xlsx", periodStart, periodEnd, clientId, eventId, workerId, rowCount: rows.length },
+  });
 
   return new NextResponse(buffer, {
     headers: {

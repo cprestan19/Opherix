@@ -11,6 +11,7 @@ import autoTable from "jspdf-autotable";
 import { NextRequest, NextResponse } from "next/server";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { listPaymentRecords } from "@/repositories/payment.repository";
+import { logAudit } from "@/lib/audit";
 
 export async function GET(request: NextRequest) {
   const user = await getCurrentUser();
@@ -62,6 +63,15 @@ export async function GET(request: NextRequest) {
   });
 
   const buffer = doc.output("arraybuffer");
+
+  await logAudit({
+    companyId,
+    actorId: user.id,
+    action: "PAYMENTS_EXPORTED",
+    entityType: "Company",
+    entityId: companyId,
+    metadata: { format: "pdf", periodStart, periodEnd, recordCount: records.length },
+  });
 
   return new NextResponse(buffer, {
     headers: {

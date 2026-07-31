@@ -38,6 +38,7 @@ export function CheckInDialog({ open, onOpenChange, title, mode, defaultCode, on
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [code, setCode] = useState(defaultCode ?? "");
   const [photoUrl, setPhotoUrl] = useState<string | undefined>();
+  const [photoDeleteToken, setPhotoDeleteToken] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,25 +74,27 @@ export function CheckInDialog({ open, onOpenChange, title, mode, defaultCode, on
     setIsUploadingPhoto(true);
     setError(null);
     try {
-      const authRes = await fetch("/api/imagekit/auth");
+      const authRes = await fetch(`/api/imagekit/auth?folder=%2Fcheckins&name=${encodeURIComponent(file.name)}`);
       const auth = await authRes.json();
       const result = await upload({
         file,
-        fileName: file.name,
+        fileName: auth.fileName,
         folder: "/checkins",
         publicKey: auth.publicKey,
         token: auth.token,
         expire: auth.expire,
         signature: auth.signature,
-        useUniqueFileName: true,
+        useUniqueFileName: false,
       });
       const previousUrl = photoUrl;
+      const previousDeleteToken = photoDeleteToken;
       setPhotoUrl(result.url ?? undefined);
-      if (previousUrl && result.url && previousUrl !== result.url) {
+      setPhotoDeleteToken(auth.deleteToken ?? null);
+      if (previousUrl && result.url && previousUrl !== result.url && previousDeleteToken) {
         fetch("/api/imagekit/delete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: previousUrl }),
+          body: JSON.stringify({ url: previousUrl, deleteToken: previousDeleteToken }),
         }).catch((err) => console.error("[CheckInDialog] cleanup failed", err));
       }
     } catch (err) {

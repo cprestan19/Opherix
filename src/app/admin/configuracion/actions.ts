@@ -12,6 +12,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/tenant";
 import { prisma } from "@/lib/prisma";
 import {
+  updateBranding,
   updatePayRules,
   addHoliday,
   removeHoliday,
@@ -19,7 +20,6 @@ import {
   updateEmailConfig,
   sendTestEmail,
 } from "@/services/config.service";
-import { updateCompanyBranding } from "@/repositories/config.repository";
 import {
   saveClientSpecialtyRates,
   ClientSpecialtyRateError,
@@ -43,8 +43,8 @@ export async function updateBrandingAction(data: {
   address?: string;
   logoUrl?: string;
 }) {
-  const { companyId } = await requireAdmin();
-  await updateCompanyBranding(companyId, data);
+  const { user, companyId } = await requireAdmin();
+  await updateBranding(companyId, user.id, data);
   revalidatePath("/admin/configuracion");
 }
 

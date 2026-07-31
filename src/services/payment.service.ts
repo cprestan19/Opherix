@@ -200,6 +200,13 @@ export async function adjustPayment(
   bonuses: number,
   deductions: number,
 ) {
+  if (!Number.isFinite(bonuses) || bonuses < 0 || bonuses > 1_000_000) {
+    throw new PaymentError("El bono debe ser un número entre 0 y 1,000,000.");
+  }
+  if (!Number.isFinite(deductions) || deductions < 0 || deductions > 1_000_000) {
+    throw new PaymentError("El descuento debe ser un número entre 0 y 1,000,000.");
+  }
+
   const records = await paymentRepo.listPaymentRecords(companyId);
   const record = records.find((r) => r.id === paymentRecordId);
   if (!record) throw new PaymentError("Registro de pago no encontrado.");
