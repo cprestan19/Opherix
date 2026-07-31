@@ -11,6 +11,7 @@ import { notFound } from "next/navigation";
 import { findCompanyBySlug } from "@/repositories/worker.repository";
 import { findClientByAccessToken } from "@/repositories/client.repository";
 import { listPublicAvailableWorkers } from "@/services/public-event-request.service";
+import { getClientSpecialtyRates } from "@/services/client-specialty-rate.service";
 import { Card, CardContent } from "@/components/ui/card";
 import { PublicFormHeader } from "@/components/shared/public-form-header";
 import { NewEventForm } from "./new-event-form";
@@ -44,7 +45,14 @@ export default async function ClientPortalPage({
     );
   }
 
-  const availableWorkers = await listPublicAvailableWorkers(company.id);
+  const [availableWorkers, rawRates] = await Promise.all([
+    listPublicAvailableWorkers(company.id),
+    getClientSpecialtyRates(company.id, client.id),
+  ]);
+  const clientRates = rawRates.map((rate) => ({
+    specialty: rate.specialty,
+    chargeToClient: Number(rate.chargeToClient),
+  }));
 
   return (
     <div className="min-h-svh w-full bg-secondary px-4 py-10">
@@ -52,10 +60,15 @@ export default async function ClientPortalPage({
         <Card className="border-border shadow-sm">
           <PublicFormHeader
             title={`Nuevo evento — ${company.name}`}
-            description={`Solicitando como ${client.businessName}. No necesitas volver a llenar tus datos de contacto.`}
+            description={`Solicitando como ${client.businessName}. Puedes crear varios eventos en este mismo envío — no necesitas volver a llenar tus datos de contacto.`}
           />
           <CardContent className="pt-4">
-            <NewEventForm companySlug={companySlug} token={token} availableWorkers={availableWorkers} />
+            <NewEventForm
+              companySlug={companySlug}
+              token={token}
+              availableWorkers={availableWorkers}
+              clientRates={clientRates}
+            />
           </CardContent>
         </Card>
       </div>

@@ -12,6 +12,7 @@ import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { QueryProvider } from "@/components/shared/query-provider";
+import { RegisterServiceWorker } from "@/components/shared/register-service-worker";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -52,6 +53,7 @@ export default function RootLayout({
           <TooltipProvider>{children}</TooltipProvider>
         </QueryProvider>
         <Toaster />
+        <RegisterServiceWorker />
       </body>
     </html>
   );

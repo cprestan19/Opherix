@@ -22,7 +22,12 @@ const isDev = process.env.NODE_ENV !== "production";
 
 const CSP = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://maps.googleapis.com https://challenges.cloudflare.com`,
+  // https://www.gstatic.com: el service worker de FCM (firebase-messaging-sw.js)
+  // carga el SDK de Firebase ahí vía importScripts() — sin este origen el
+  // script-src de esta misma CSP (que también aplica a la respuesta del SW)
+  // bloqueaba esa carga y el service worker fallaba al activarse, dejando el
+  // push completamente inoperante.
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://maps.googleapis.com https://challenges.cloudflare.com https://www.gstatic.com`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://ik.imagekit.io https://maps.gstatic.com https://maps.googleapis.com",
   "font-src 'self' data:",

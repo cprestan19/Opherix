@@ -22,9 +22,14 @@ function isFirebaseConfigured() {
 }
 
 /**
- * Registra el service worker de FCM y obtiene el token del dispositivo.
- * Devuelve null silenciosamente si Firebase no está configurado o el
- * navegador no soporta push (ej. iOS Safari fuera de una PWA instalada, §9.3).
+ * Pide permiso de notificación y obtiene el token de FCM del dispositivo.
+ * Reutiliza el service worker que ya registró `RegisterServiceWorker` (con
+ * las credenciales en el query string) en vez de volver a registrarlo aquí
+ * — dos registros del mismo scope compitiendo hacía que el navegador se
+ * quedara con el que llegara primero, ya que ve bytes idénticos entre
+ * ambas llamadas y no reinstala. Devuelve null silenciosamente si Firebase
+ * no está configurado o el navegador no soporta push (ej. iOS Safari fuera
+ * de una PWA instalada, §9.3).
  */
 export async function registerForPushNotifications(): Promise<string | null> {
   if (!isFirebaseConfigured()) return null;
@@ -40,14 +45,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return null;
 
-  const swParams = new URLSearchParams({
-    apiKey: firebaseConfig.apiKey ?? "",
-    messagingSenderId: firebaseConfig.messagingSenderId ?? "",
-    appId: firebaseConfig.appId ?? "",
-  });
-  const registration = await navigator.serviceWorker.register(
-    `/firebase-messaging-sw.js?${swParams.toString()}`,
-  );
+  const registration = await navigator.serviceWorker.ready;
 
   const messaging = getMessaging();
   const token = await getToken(messaging, {
