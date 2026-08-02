@@ -15,9 +15,10 @@ import { StatCard } from "@/components/shared/stat-card";
 import { StaggerContainer, StaggerItem } from "@/components/shared/motion/stagger";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDateTime12h } from "@/utils/date";
 
 function formatRange(start: Date) {
-  return new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" }).format(start);
+  return formatDateTime12h(start, { dateStyle: "medium" });
 }
 
 export default async function TrabajadorDashboardPage() {

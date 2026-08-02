@@ -15,6 +15,7 @@ import { getClientAccessSession } from "@/lib/client-access-session";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { specialtyLabels } from "@/lib/validations/worker-application";
+import { formatDateTime12h } from "@/utils/date";
 import { EditRequestForm } from "./edit-request-form";
 import { SignOutClientSessionButton } from "./sign-out-button";
 
@@ -43,8 +44,8 @@ const STATUS_VARIANTS: Record<string, "outline" | "secondary" | "default" | "des
 };
 
 function formatRange(start: Date, end: Date) {
-  const formatter = new Intl.DateTimeFormat("es", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-  return `${formatter.format(start)} – ${formatter.format(end)}`;
+  const dateOptions: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short" };
+  return `${formatDateTime12h(start, dateOptions)} – ${formatDateTime12h(end, dateOptions)}`;
 }
 
 function toDatetimeLocal(date: Date) {

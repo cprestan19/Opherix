@@ -19,12 +19,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatAuditAction, formatRelativeTime } from "@/lib/audit-labels";
+import { formatDateTime12h } from "@/utils/date";
 
 function formatTimestamp(date: Date): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatDateTime12h(date, { dateStyle: "medium" });
 }
 
 const ROLE_LABELS: Record<string, string> = {

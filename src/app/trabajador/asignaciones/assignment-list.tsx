@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { respondToAssignmentAction } from "./actions";
+import { formatDateTime12h } from "@/utils/date";
 
 const STATUS_LABELS: Record<string, string> = {
   PROPOSED: "Pendiente de confirmar",
@@ -43,8 +44,8 @@ interface AssignmentItem {
 }
 
 function formatRange(start: Date, end: Date) {
-  const formatter = new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" });
-  return `${formatter.format(start)} – ${formatter.format(end)}`;
+  const dateOptions: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
+  return `${formatDateTime12h(start, dateOptions)} – ${formatDateTime12h(end, dateOptions)}`;
 }
 
 export function AssignmentList({ assignments }: { assignments: AssignmentItem[] }) {

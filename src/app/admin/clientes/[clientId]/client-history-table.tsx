@@ -9,6 +9,7 @@
 import Link from "next/link";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { formatTime12h } from "@/utils/date";
 
 export interface ClientHistoryRow {
   id: string;
@@ -32,7 +33,6 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const dateFormatter = new Intl.DateTimeFormat("es", { day: "2-digit", month: "short", year: "numeric" });
-const timeFormatter = new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" });
 
 function currency(value: number) {
   return new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD" }).format(value);
@@ -65,8 +65,8 @@ export function ClientHistoryTable({ rows }: { rows: ClientHistoryRow[] }) {
               </Link>
             </TableCell>
             <TableCell>{dateFormatter.format(row.startAt)}</TableCell>
-            <TableCell>{timeFormatter.format(row.startAt)}</TableCell>
-            <TableCell>{timeFormatter.format(row.endAt)}</TableCell>
+            <TableCell>{formatTime12h(row.startAt)}</TableCell>
+            <TableCell>{formatTime12h(row.endAt)}</TableCell>
             <TableCell>{row.staffCount}</TableCell>
             <TableCell>{row.totalCharged !== null ? currency(row.totalCharged) : "—"}</TableCell>
             <TableCell>

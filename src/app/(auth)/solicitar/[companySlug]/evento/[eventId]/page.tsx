@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { specialtyLabels } from "@/lib/validations/worker-application";
 import { EditRequestForm } from "./edit-request-form";
 import { SatisfactionSurveyForm } from "./satisfaction-survey-form";
+import { formatDateTime12h } from "@/utils/date";
 
 export const metadata: Metadata = {
   title: "Tu solicitud | Opherix",
@@ -31,8 +32,8 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function formatRange(start: Date, end: Date) {
-  const formatter = new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" });
-  return `${formatter.format(start)} – ${formatter.format(end)}`;
+  const dateOptions: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
+  return `${formatDateTime12h(start, dateOptions)} – ${formatDateTime12h(end, dateOptions)}`;
 }
 
 function toDatetimeLocal(date: Date) {

@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckInDialog } from "./check-in-dialog";
 import { checkInAction, checkOutAction } from "./actions";
+import { formatDateTime12h } from "@/utils/date";
 
 interface AssignmentItem {
   id: string;
@@ -26,8 +27,8 @@ interface AssignmentItem {
 }
 
 function formatRange(start: Date, end: Date) {
-  const formatter = new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" });
-  return `${formatter.format(start)} – ${formatter.format(end)}`;
+  const dateOptions: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
+  return `${formatDateTime12h(start, dateOptions)} – ${formatDateTime12h(end, dateOptions)}`;
 }
 
 export function CheckInPanel({

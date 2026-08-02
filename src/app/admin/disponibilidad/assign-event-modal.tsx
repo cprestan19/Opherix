@@ -22,6 +22,7 @@ import {
   ResponsiveDialogTitle as DialogTitle,
 } from "@/components/shared/responsive-dialog";
 import { assignWorkerToEventFromAvailabilityAction } from "./actions";
+import { formatTime12h } from "@/utils/date";
 
 export interface AssignableEvent {
   id: string;
@@ -33,8 +34,7 @@ export interface AssignableEvent {
 
 function formatRange(start: Date, end: Date) {
   const dateFmt = new Intl.DateTimeFormat("es", { day: "2-digit", month: "short" });
-  const timeFmt = new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" });
-  return `${dateFmt.format(start)} · ${timeFmt.format(start)} – ${timeFmt.format(end)}`;
+  return `${dateFmt.format(start)} · ${formatTime12h(start)} – ${formatTime12h(end)}`;
 }
 
 export function AssignEventModal({

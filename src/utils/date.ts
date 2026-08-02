@@ -45,6 +45,30 @@ export function formatWeekLabel(start: Date, end: Date): string {
   return `Semana del ${startFormatter.format(start)} al ${endFormatter.format(end)}`;
 }
 
+/**
+ * Panamá usa reloj de 12 horas — el genérico `Intl.DateTimeFormat("es", ...)`
+ * (o incluso "es-PA") renderiza 24h ("15:00") o "3:00 p. m." con espacio y
+ * puntos, que no es como se lee aquí. Formato compacto, ej. "3:00pm".
+ */
+export function formatTime12h(date: Date): string {
+  const hours24 = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  const period = hours24 >= 12 ? "pm" : "am";
+  const hours12 = hours24 % 12 || 12;
+  return `${hours12}:${minutes}${period}`;
+}
+
+/**
+ * Reemplazo de cualquier `Intl.DateTimeFormat("es", { ...dateOptions, hour:
+ * "2-digit", minute: "2-digit" })` o `{ dateStyle, timeStyle: "short" }` —
+ * `dateOptions` NO debe incluir hour/minute/timeStyle, eso lo pone
+ * `formatTime12h`.
+ */
+export function formatDateTime12h(date: Date, dateOptions: Intl.DateTimeFormatOptions): string {
+  const datePart = new Intl.DateTimeFormat("es", dateOptions).format(date);
+  return `${datePart}, ${formatTime12h(date)}`;
+}
+
 export type ExpiryStatus = "none" | "valid" | "expiring_soon" | "expired";
 
 export function getExpiryStatus(expiresAt: Date | null, warningDays = 30): ExpiryStatus {

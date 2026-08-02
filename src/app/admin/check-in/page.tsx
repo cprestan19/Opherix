@@ -11,10 +11,11 @@ import { listCheckInsForCompanyToday } from "@/repositories/checkin.repository";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar";
+import { formatTime12h } from "@/utils/date";
 
 function formatTime(date: Date | null) {
   if (!date) return "—";
-  return new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" }).format(date);
+  return formatTime12h(date);
 }
 
 export default async function CheckInAdminPage() {

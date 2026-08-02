@@ -32,10 +32,11 @@ import { Badge } from "@/components/ui/badge";
 import { AssignmentsLineChart } from "@/components/shared/charts/assignments-line-chart";
 import { EventTypeDonutChart } from "@/components/shared/charts/event-type-donut-chart";
 import { formatAuditAction, formatRelativeTime } from "@/lib/audit-labels";
+import { formatDateTime12h } from "@/utils/date";
 
 function formatDateRange(start: Date, end: Date) {
-  const formatter = new Intl.DateTimeFormat("es", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
-  return `${formatter.format(start)} – ${formatter.format(end)}`;
+  const dateOptions: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short" };
+  return `${formatDateTime12h(start, dateOptions)} – ${formatDateTime12h(end, dateOptions)}`;
 }
 
 export default async function AdminDashboardPage() {
