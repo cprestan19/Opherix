@@ -186,6 +186,47 @@ export function listPreferredWorkerSummaries(companyId: string, workerIds: strin
   });
 }
 
+/**
+ * Eventos de un lote recién creado por el Cliente (§ cotización descargable
+ * en /solicitar/[companySlug]/cliente/[token]) — filtra por companyId +
+ * clientId además del listado de IDs para que un token de cliente nunca
+ * pueda pedir la cotización de eventos de otro cliente.
+ */
+export function listEventsForClientQuote(companyId: string, clientId: string, eventIds: string[]) {
+  return prisma.event.findMany({
+    where: { id: { in: eventIds }, companyId, clientId, deletedAt: null },
+    include: { staffRequirements: true },
+    orderBy: { startAt: "asc" },
+  });
+}
+
+/**
+ * Igual que arriba pero para el reenvío desde el Administrador (§
+ * /admin/eventos/[eventId], "Reenviar cotización") — ya autenticado y
+ * acotado por companyId, así que no necesita el filtro adicional por
+ * clientId, pero sí trae los datos completos del cliente (el flujo público
+ * ya los tiene por separado vía el accessToken).
+ */
+export function listEventsForQuote(companyId: string, eventIds: string[]) {
+  return prisma.event.findMany({
+    where: { id: { in: eventIds }, companyId, deletedAt: null },
+    include: {
+      client: {
+        select: {
+          businessName: true,
+          taxId: true,
+          contactName: true,
+          contactEmail: true,
+          contactPhone: true,
+          address: true,
+        },
+      },
+      staffRequirements: true,
+    },
+    orderBy: { startAt: "asc" },
+  });
+}
+
 export function getEventDetail(companyId: string, eventId: string) {
   return prisma.event.findFirst({
     where: { id: eventId, companyId },

@@ -24,19 +24,22 @@ interface BreakdownRow {
 
 // Deliberadamente solo muestra lo que se le cobra al cliente — cuánto se le
 // paga al personal es información exclusiva de Pagos > Personal, nunca de
-// la pantalla de evento (§ corrección explícita del usuario). Se calcula a
-// partir del personal REALMENTE asignado (no de lo solicitado al inicio) —
-// si asignas más o distinto personal del que se pidió, el total se ajusta.
+// la pantalla de evento (§ corrección explícita del usuario). Mientras no
+// haya nadie asignado (`isEstimate`), el total viene de lo SOLICITADO
+// (EventStaffRequirement) para que se vea un monto desde que se confirma el
+// evento; en cuanto hay asignaciones reales, se recalcula sobre esas.
 export function EventStaffTotalsCard({
   chargeToClientTotal,
   breakdown,
   missingSpecialties,
   unassignedSpecialtyCount,
+  isEstimate,
 }: {
   chargeToClientTotal: number;
   breakdown: BreakdownRow[];
   missingSpecialties: string[];
   unassignedSpecialtyCount: number;
+  isEstimate: boolean;
 }) {
   const hasNothingToShow = breakdown.length === 0 && missingSpecialties.length === 0 && unassignedSpecialtyCount === 0;
 
@@ -44,16 +47,24 @@ export function EventStaffTotalsCard({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base font-medium">
-          <Calculator className="size-4 text-primary" /> Total a cobrar al cliente
+          <Calculator className="size-4 text-primary" /> {isEstimate ? "Estimado a cobrar al cliente" : "Total a cobrar al cliente"}
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="text-2xl font-semibold">{currency(chargeToClientTotal)}</p>
 
+        {isEstimate && !hasNothingToShow ? (
+          <p className="text-sm text-muted-foreground">
+            Estimado con base en el personal solicitado — todavía no hay nadie asignado. Se actualiza solo en cuanto
+            asignes al primer trabajador.
+          </p>
+        ) : null}
+
         {hasNothingToShow ? (
           <p className="text-sm text-muted-foreground">
-            Aún no hay personal asignado a este evento — el total se calcula del personal asignado, no de lo
-            solicitado.
+            {isEstimate
+              ? "Este evento todavía no tiene personal solicitado con tarifa configurada."
+              : "Aún no hay personal asignado a este evento — el total se calcula del personal asignado, no de lo solicitado."}
           </p>
         ) : null}
 

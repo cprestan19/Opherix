@@ -30,6 +30,8 @@ import { getEventDetail } from "@/repositories/event.repository";
 import { computeEventChargeTotal } from "@/services/client-specialty-rate.service";
 import { setEventInvoiceAmount, InvoiceError } from "@/services/invoice.service";
 import { generatePaymentsForEvent, PaymentError } from "@/services/payment.service";
+import { getEventQuoteWhatsAppLink, QuoteError } from "@/services/quote.service";
+import { getWorkOrderWhatsAppLink, WorkOrderError } from "@/services/work-order.service";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
 import type { Specialty } from "@/generated/prisma/enums";
 
@@ -247,5 +249,39 @@ export async function reopenEventAccessLinkAction(eventId: string): Promise<Even
   }
   revalidatePath(`/admin/eventos/${eventId}`);
   return {};
+}
+
+export interface EventQuoteWhatsAppLinkResult {
+  error?: string;
+  url?: string;
+}
+
+export async function getEventQuoteWhatsAppLinkAction(eventId: string): Promise<EventQuoteWhatsAppLinkResult> {
+  const { companyId } = await requireCompanyStaff();
+
+  try {
+    const url = await getEventQuoteWhatsAppLink(companyId, eventId);
+    return { url };
+  } catch (error) {
+    if (error instanceof QuoteError) return { error: error.message };
+    throw error;
+  }
+}
+
+export interface WorkOrderWhatsAppLinkResult {
+  error?: string;
+  url?: string;
+}
+
+export async function getWorkOrderWhatsAppLinkAction(eventId: string): Promise<WorkOrderWhatsAppLinkResult> {
+  const { companyId } = await requireCompanyStaff();
+
+  try {
+    const url = await getWorkOrderWhatsAppLink(companyId, eventId);
+    return { url };
+  } catch (error) {
+    if (error instanceof WorkOrderError) return { error: error.message };
+    throw error;
+  }
 }
 

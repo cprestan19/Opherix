@@ -9,7 +9,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Copy, Link2, Loader2, Lock, Mail, RotateCw } from "lucide-react";
+import { Copy, Link2, Loader2, Lock, Mail, MessageCircle, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,10 +19,12 @@ import {
   resendEventAccessLinkAction,
   closeEventAccessLinkAction,
   reopenEventAccessLinkAction,
+  getEventQuoteWhatsAppLinkAction,
 } from "./actions";
+import { formatDateTime12h } from "@/utils/date";
 
 function formatDateTime(date: Date) {
-  return new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  return formatDateTime12h(date, { dateStyle: "medium" });
 }
 
 export function EventAccessLinkPanel({
@@ -107,6 +109,17 @@ export function EventAccessLinkPanel({
     });
   }
 
+  function handleResendQuote() {
+    startTransition(async () => {
+      const result = await getEventQuoteWhatsAppLinkAction(eventId);
+      if (result?.error || !result.url) {
+        toast.error(result?.error ?? "No se pudo generar el enlace.");
+        return;
+      }
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    });
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -152,6 +165,17 @@ export function EventAccessLinkPanel({
               >
                 {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Mail className="size-3.5" />}
                 Reenviar por correo
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={isPending}
+                onClick={handleResendQuote}
+              >
+                {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <MessageCircle className="size-3.5" />}
+                Reenviar cotización
               </Button>
               {!isClosed && !closedAt ? (
                 <Button

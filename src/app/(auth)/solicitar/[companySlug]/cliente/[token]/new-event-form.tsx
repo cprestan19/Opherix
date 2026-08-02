@@ -17,6 +17,7 @@ import {
   ArrowLeft,
   Calculator,
   CheckCircle2,
+  Download,
   Pencil,
   Plus,
   ShieldCheck,
@@ -46,6 +47,7 @@ import { specialtyLabels, specialtyValues } from "@/lib/validations/worker-appli
 import type { PublicWorkerOption } from "@/services/public-event-request.service";
 import { estimateClientCharge, type ClientSpecialtyRateLite } from "@/lib/pricing/estimate-client-charge";
 import { MAX_EVENTS_PER_BATCH } from "@/lib/event-batch";
+import { formatDateTime12h } from "@/utils/date";
 import { createEventsForClientAction, type CreateEventsForClientItemResult } from "./actions";
 
 interface DraftEvent extends EventRequestInput {
@@ -75,11 +77,11 @@ function currency(value: number) {
 
 function formatRange(startAt: string, endAt: string) {
   if (!startAt || !endAt) return "Fecha por definir";
-  const formatter = new Intl.DateTimeFormat("es", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   const start = new Date(startAt);
   const end = new Date(endAt);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return "Fecha por definir";
-  return `${formatter.format(start)} – ${formatter.format(end)}`;
+  const dateOptions: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short" };
+  return `${formatDateTime12h(start, dateOptions)} – ${formatDateTime12h(end, dateOptions)}`;
 }
 
 /** Aviso no bloqueante: dos eventos del mismo lote con horarios que se cruzan (posible duplicado por error). */
@@ -247,6 +249,7 @@ export function NewEventForm({
   }
 
   if (effectiveStep.name === "success") {
+    const quoteEventIds = createdItems.map((item) => item.eventId).filter((id): id is string => Boolean(id));
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col items-center gap-2 py-4 text-center">
@@ -258,6 +261,17 @@ export function NewEventForm({
             Quedaron registrados como pendientes de revisión. Te avisaremos cuando se confirmen.
           </p>
         </div>
+        {quoteEventIds.length > 0 ? (
+          <Button asChild variant="outline" className="w-fit gap-1.5 self-center">
+            <a
+              href={`/solicitar/${companySlug}/cliente/${token}/cotizacion?eventos=${quoteEventIds.join(",")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Download className="size-4" /> Descargar cotización
+            </a>
+          </Button>
+        ) : null}
         <div className="flex flex-col gap-2">
           {createdItems.map((item, index) => (
             <Card key={item.eventId ?? index}>

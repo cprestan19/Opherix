@@ -45,6 +45,7 @@ interface Requirement {
 interface Assignment {
   id: string;
   status: string;
+  specialty: string | null;
   worker: { id: string; photoUrl: string | null; user: { name: string; phone: string | null } };
 }
 
@@ -105,47 +106,62 @@ export function AssignmentPanel({
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {requirements.map((req) => {
-            const assignedCount = activeAssignments.length; // aproximado; se refina en Fase 11 con desglose por especialidad
+            const matchingAssignments = activeAssignments.filter((a) => a.specialty === req.specialty);
+            const assignedCount = matchingAssignments.length;
+            const isOverAssigned = assignedCount > req.quantity;
+            const isComplete = assignedCount >= req.quantity;
             const workers = availableWorkersBySpecialty[req.specialty] ?? [];
             return (
-              <div key={req.id} className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <Badge>{specialtyLabels[req.specialty as keyof typeof specialtyLabels]}</Badge>
-                  <span className="ml-2 text-sm text-muted-foreground">
-                    Requiere {req.quantity} · {assignedCount} asignado(s) en total al evento
-                  </span>
-                </div>
-                {readOnly ? null : (
-                  <div className="flex gap-2">
-                    <Select
-                      value={selected[req.id] ?? ""}
-                      onValueChange={(value) => setSelected((prev) => ({ ...prev, [req.id]: value }))}
-                    >
-                      <SelectTrigger className="w-56">
-                        <SelectValue placeholder="Seleccionar trabajador" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {workers.length === 0 ? (
-                          <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin trabajadores disponibles</div>
-                        ) : (
-                          workers.map((w) => (
-                            <SelectItem key={w.id} value={w.id}>
-                              {w.user.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      size="sm"
-                      disabled={!selected[req.id] || isPending}
-                      onClick={() => handleAssign(req.id, req.specialty)}
-                    >
-                      {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-                      Asignar
-                    </Button>
+              <div key={req.id} className="flex flex-col gap-2 rounded-lg border border-border p-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge>{specialtyLabels[req.specialty as keyof typeof specialtyLabels]}</Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {isOverAssigned
+                        ? `${assignedCount} asignado(s) — se pidieron ${req.quantity}`
+                        : `${assignedCount} de ${req.quantity} asignado(s)`}
+                    </span>
+                    <Badge variant={isOverAssigned ? "outline" : isComplete ? "secondary" : "outline"}>
+                      {isOverAssigned ? "Excede lo solicitado" : isComplete ? "Completo" : "Falta personal"}
+                    </Badge>
                   </div>
-                )}
+                  {readOnly ? null : (
+                    <div className="flex gap-2">
+                      <Select
+                        value={selected[req.id] ?? ""}
+                        onValueChange={(value) => setSelected((prev) => ({ ...prev, [req.id]: value }))}
+                      >
+                        <SelectTrigger className="w-56">
+                          <SelectValue placeholder="Seleccionar trabajador" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {workers.length === 0 ? (
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground">Sin trabajadores disponibles</div>
+                          ) : (
+                            workers.map((w) => (
+                              <SelectItem key={w.id} value={w.id}>
+                                {w.user.name}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        disabled={!selected[req.id] || isPending}
+                        onClick={() => handleAssign(req.id, req.specialty)}
+                      >
+                        {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+                        Asignar
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {matchingAssignments.length > 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Asignado(s): {matchingAssignments.map((a) => a.worker.user.name).join(", ")}
+                  </p>
+                ) : null}
               </div>
             );
           })}

@@ -15,7 +15,8 @@ import {
   listPreferredWorkerSummaries,
 } from "@/repositories/event.repository";
 import { getCompany } from "@/repositories/config.repository";
-import { computeEventChargeTotal } from "@/services/client-specialty-rate.service";
+import { computeEventChargeTotal, getClientSpecialtyRates } from "@/services/client-specialty-rate.service";
+import { estimateClientCharge } from "@/lib/pricing/estimate-client-charge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,6 +30,7 @@ import { EditEventForm } from "./edit-event-form";
 import { ArchiveEventAction } from "./archive-event-action";
 import { EventDeleteAction } from "./event-delete-action";
 import { EventAccessLinkPanel } from "./event-access-link-panel";
+import { formatDateTime12h } from "@/utils/date";
 import type { Specialty } from "@/generated/prisma/enums";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -46,8 +48,8 @@ function toDatetimeLocal(date: Date) {
 }
 
 function formatRange(start: Date, end: Date) {
-  const formatter = new Intl.DateTimeFormat("es", { dateStyle: "medium", timeStyle: "short" });
-  return `${formatter.format(start)} – ${formatter.format(end)}`;
+  const dateOptions: Intl.DateTimeFormatOptions = { dateStyle: "medium" };
+  return `${formatDateTime12h(start, dateOptions)} – ${formatDateTime12h(end, dateOptions)}`;
 }
 
 export default async function EventDetailPage({
@@ -62,7 +64,35 @@ export default async function EventDetailPage({
   const [event, company] = await Promise.all([getEventDetail(companyId, eventId), getCompany(companyId)]);
   if (!event) notFound();
 
-  const staffTotals = await computeEventChargeTotal(companyId, event.clientId, event.assignments);
+  const activeAssignments = event.assignments.filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED");
+
+  // Antes de asignar a nadie el total "real" (basado en asignaciones) es
+  // siempre $0 — eso hacía que el evento pareciera no tener total hasta
+  // después de asignar personal. Mientras no haya nadie asignado, se muestra
+  // un ESTIMADO calculado igual que la cotización del cliente (§
+  // estimateClientCharge, sobre EventStaffRequirement) para que el total sea
+  // visible desde que se confirma el evento — se reemplaza automáticamente
+  // por el total real en cuanto se asigna al primer trabajador.
+  let staffTotals: Awaited<ReturnType<typeof computeEventChargeTotal>>;
+  let isEstimate = false;
+  if (activeAssignments.length > 0) {
+    staffTotals = await computeEventChargeTotal(companyId, event.clientId, event.assignments);
+  } else {
+    const rawRates = await getClientSpecialtyRates(companyId, event.clientId);
+    const rates = rawRates.map((r) => ({ specialty: r.specialty, chargeToClient: Number(r.chargeToClient) }));
+    const estimate = estimateClientCharge(rates, event.staffRequirements);
+    staffTotals = {
+      chargeToClientTotal: estimate.total,
+      breakdown: estimate.breakdown.flatMap((row) =>
+        row.chargeToClient === null
+          ? []
+          : [{ specialty: row.specialty, quantity: row.quantity, chargeToClient: row.chargeToClient, subtotal: row.subtotal }],
+      ),
+      missingSpecialties: estimate.missingSpecialties,
+      unassignedSpecialtyCount: 0,
+    };
+    isEstimate = true;
+  }
 
   const ratedAssignments = event.assignments.filter((a) => a.ratingScore !== null);
 
@@ -76,7 +106,6 @@ export default async function EventDetailPage({
 
   const preferredWorkerIds = asStringArray(event.preferredWorkerIds);
   const preferredWorkers = await listPreferredWorkerSummaries(companyId, preferredWorkerIds);
-  const activeAssignments = event.assignments.filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED");
   const alreadyAssignedWorkerIds = new Set(activeAssignments.map((a) => a.worker.id));
 
   // "Personal requerido" en el modal de Editar debe reflejar a quién ya se
@@ -155,7 +184,7 @@ export default async function EventDetailPage({
         <div className="flex flex-wrap items-center gap-2">
           {event.deletedAt ? null : (
             <>
-              <EventActions eventId={event.id} status={event.status} />
+              <EventActions eventId={event.id} status={event.status} hasAssignments={activeAssignments.length > 0} />
               {event.status === "COMPLETED" ? <ArchiveEventAction eventId={event.id} /> : null}
             </>
           )}
@@ -169,6 +198,7 @@ export default async function EventDetailPage({
           breakdown={staffTotals.breakdown}
           missingSpecialties={staffTotals.missingSpecialties}
           unassignedSpecialtyCount={staffTotals.unassignedSpecialtyCount}
+          isEstimate={isEstimate}
         />
       ) : null}
 

@@ -10,7 +10,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, ClipboardList, Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -23,13 +23,21 @@ import {
   ResponsiveDialogTitle as DialogTitle,
   ResponsiveDialogTrigger as DialogTrigger,
 } from "@/components/shared/responsive-dialog";
-import { confirmEventAction, cancelEventAction, completeEventAction } from "./actions";
+import { confirmEventAction, cancelEventAction, completeEventAction, getWorkOrderWhatsAppLinkAction } from "./actions";
 
 function currency(value: number) {
   return new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD" }).format(value);
 }
 
-export function EventActions({ eventId, status }: { eventId: string; status: string }) {
+export function EventActions({
+  eventId,
+  status,
+  hasAssignments,
+}: {
+  eventId: string;
+  status: string;
+  hasAssignments: boolean;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [reason, setReason] = useState("");
@@ -37,6 +45,17 @@ export function EventActions({ eventId, status }: { eventId: string; status: str
   const [completeOpen, setCompleteOpen] = useState(false);
 
   if (status === "CANCELLED" || status === "COMPLETED" || status === "ARCHIVED") return null;
+
+  function handleSendWorkOrderWhatsApp() {
+    startTransition(async () => {
+      const result = await getWorkOrderWhatsAppLinkAction(eventId);
+      if (result?.error || !result.url) {
+        toast.error(result?.error ?? "No se pudo generar el enlace.");
+        return;
+      }
+      window.open(result.url, "_blank", "noopener,noreferrer");
+    });
+  }
 
   function handleComplete() {
     startTransition(async () => {
@@ -101,6 +120,25 @@ export function EventActions({ eventId, status }: { eventId: string; status: str
           {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
           Confirmar evento
         </Button>
+      ) : null}
+      {(status === "CONFIRMED" || status === "IN_PROGRESS") && hasAssignments ? (
+        <>
+          <Button variant="outline" className="gap-1.5" asChild>
+            <a href={`/api/eventos/${eventId}/orden-trabajo`} target="_blank" rel="noopener noreferrer">
+              <ClipboardList className="size-4" /> Orden de trabajo
+            </a>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="gap-1.5"
+            disabled={isPending}
+            onClick={handleSendWorkOrderWhatsApp}
+          >
+            {isPending ? <Loader2 className="size-4 animate-spin" /> : <MessageCircle className="size-4" />}
+            Enviar por WhatsApp
+          </Button>
+        </>
       ) : null}
       {status === "CONFIRMED" || status === "IN_PROGRESS" ? (
         <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>

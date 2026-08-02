@@ -35,7 +35,11 @@ export interface ClientChargeEstimate {
  * definitivo — la UI que lo muestre debe dejarlo claro. No toca la BD (las
  * tarifas se cargan una sola vez al entrar al formulario) para poder
  * recalcular en vivo mientras el cliente edita cantidades sin ida y vuelta
- * al servidor.
+ * al servidor. Suma cantidades de la MISMA especialidad antes de calcular —
+ * nada impide que un evento tenga dos líneas de EventStaffRequirement con la
+ * misma especialidad (ej. editada por separado), y sin este merge el
+ * `breakdown` sacaría una fila por línea en vez de una por especialidad
+ * (además de romper cualquier `key={row.specialty}` en la UI que lo liste).
  */
 export function estimateClientCharge(
   rates: ClientSpecialtyRateLite[],
@@ -43,11 +47,16 @@ export function estimateClientCharge(
 ): ClientChargeEstimate {
   const rateBySpecialty = new Map(rates.map((r) => [r.specialty, r.chargeToClient]));
 
+  const quantityBySpecialty = new Map<Specialty, number>();
+  for (const { specialty, quantity } of staffRequirements) {
+    quantityBySpecialty.set(specialty, (quantityBySpecialty.get(specialty) ?? 0) + quantity);
+  }
+
   let total = 0;
   const missingSpecialties: Specialty[] = [];
   const breakdown: ClientChargeBreakdownRow[] = [];
 
-  for (const { specialty, quantity } of staffRequirements) {
+  for (const [specialty, quantity] of quantityBySpecialty) {
     const chargeToClient = rateBySpecialty.get(specialty) ?? null;
     if (chargeToClient === null) {
       missingSpecialties.push(specialty);
