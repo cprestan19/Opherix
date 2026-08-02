@@ -9,7 +9,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, FileText } from "lucide-react";
-import { getEffectiveCompanyId } from "@/lib/tenant";
+import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { getClientById, getClientAccessToken, getClientEventsHistory, ClientError } from "@/services/client.service";
 import { getCompany } from "@/repositories/config.repository";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ClientAccessLinkPanel } from "./client-access-link-panel";
 import { ClientHistoryTable } from "./client-history-table";
+import { EditClientForm } from "./edit-client-form";
 
 export default async function ClientDetailPage({
   params,
@@ -24,6 +25,8 @@ export default async function ClientDetailPage({
   params: Promise<{ clientId: string }>;
 }) {
   const { clientId } = await params;
+  const currentUser = await getCurrentUser();
+  const isViewer = currentUser.role === "VIEWER";
   const companyId = await getEffectiveCompanyId();
 
   let client;
@@ -70,8 +73,21 @@ export default async function ClientDetailPage({
 
         <TabsContent value="datos" className="mt-4 flex flex-col gap-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
               <CardTitle className="text-base font-medium">Datos del cliente</CardTitle>
+              {isViewer ? null : (
+                <EditClientForm
+                  clientId={client.id}
+                  client={{
+                    businessName: client.businessName,
+                    taxId: client.taxId ?? "",
+                    contactName: client.contactName,
+                    contactEmail: client.contactEmail,
+                    contactPhone: client.contactPhone ?? "",
+                    address: client.address ?? "",
+                  }}
+                />
+              )}
             </CardHeader>
             <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
               <p>

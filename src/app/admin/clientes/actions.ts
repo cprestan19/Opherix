@@ -13,6 +13,7 @@ import { requireCompanyStaff } from "@/lib/tenant";
 import { createClientSchema, type CreateClientInput } from "@/lib/validations/client";
 import {
   createClient,
+  updateClient,
   setClientActiveStatus,
   deleteClient,
   restoreClient,
@@ -40,6 +41,28 @@ export async function createClientAction(input: CreateClientInput): Promise<Crea
 
   revalidatePath("/admin/clientes");
   revalidatePath("/admin/eventos");
+  return {};
+}
+
+export interface UpdateClientResult {
+  error?: string;
+}
+
+export async function updateClientAction(clientId: string, input: CreateClientInput): Promise<UpdateClientResult> {
+  const parsed = createClientSchema.safeParse(input);
+  if (!parsed.success) return { error: "Revisa los campos del formulario." };
+
+  const { user, companyId } = await requireCompanyStaff();
+
+  try {
+    await updateClient(companyId, user.id, clientId, parsed.data);
+  } catch (error) {
+    if (error instanceof ClientError) return { error: error.message };
+    throw error;
+  }
+
+  revalidatePath("/admin/clientes");
+  revalidatePath(`/admin/clientes/${clientId}`);
   return {};
 }
 

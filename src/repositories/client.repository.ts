@@ -46,6 +46,23 @@ export function createClient(data: {
   return prisma.client.create({ data: { ...data, accessToken: generateClientPortalToken() } });
 }
 
+export async function updateClient(
+  companyId: string,
+  clientId: string,
+  data: {
+    businessName: string;
+    taxId?: string;
+    contactName: string;
+    contactEmail: string;
+    contactPhone?: string;
+    address?: string;
+  },
+) {
+  const result = await prisma.client.updateMany({ where: { id: clientId, companyId, deletedAt: null }, data });
+  if (result.count === 0) return null;
+  return prisma.client.findUniqueOrThrow({ where: { id: clientId } });
+}
+
 export async function setClientActive(companyId: string, clientId: string, isActive: boolean) {
   const result = await prisma.client.updateMany({
     where: { id: clientId, companyId, deletedAt: null },

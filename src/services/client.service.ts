@@ -52,6 +52,38 @@ export async function listClients(companyId: string) {
   return clientRepo.listClients(companyId);
 }
 
+export async function updateClient(
+  companyId: string,
+  actorId: string,
+  clientId: string,
+  input: CreateClientInput,
+) {
+  const existingWithEmail = await clientRepo.findClientByEmail(companyId, input.contactEmail);
+  if (existingWithEmail && existingWithEmail.id !== clientId) {
+    throw new ClientError("Ya existe otro cliente con este correo de contacto.");
+  }
+
+  const client = await clientRepo.updateClient(companyId, clientId, {
+    businessName: input.businessName,
+    taxId: input.taxId,
+    contactName: input.contactName,
+    contactEmail: input.contactEmail,
+    contactPhone: input.contactPhone,
+    address: input.address,
+  });
+  if (!client) throw new ClientError("Cliente no encontrado.");
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "CLIENT_UPDATED",
+    entityType: "Client",
+    entityId: clientId,
+  });
+
+  return client;
+}
+
 /**
  * Archivar/reactivar cliente (soft-delete, § CLAUDE.md §4 — nunca borrado
  * físico): un cliente archivado deja de aparecer entre las opciones al crear
