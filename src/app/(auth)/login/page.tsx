@@ -7,7 +7,6 @@
  */
 
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { OpherixLogo } from "@/components/shared/opherix-logo";
 import { BackgroundBeams } from "@/components/ui/background-beams";
@@ -55,12 +54,6 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent>
               <LoginForm />
-              <p className="mt-6 text-center text-sm text-muted-foreground">
-                ¿Tu empresa todavía no usa Opherix?{" "}
-                <Link href="/signup" className="text-primary underline underline-offset-4">
-                  Regístrala aquí
-                </Link>
-              </p>
             </CardContent>
           </Card>
         </div>
