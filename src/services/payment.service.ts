@@ -193,6 +193,30 @@ export async function markPaymentAsPaid(
   return updated;
 }
 
+/**
+ * Elimina un registro de pago calculado por error o de prueba (§ /admin/pagos
+ * "Eliminar") — borrado físico deliberado, a diferencia de Cliente/Evento/
+ * Trabajador: un `PaymentRecord` PENDIENTE es solo un cálculo, no un pago
+ * real todavía, así que no necesita soft-delete ni conservar historial. Uno
+ * ya PAGADO no se puede borrar por aquí (`deletePaymentRecord` del
+ * repositorio ya lo filtra) porque sí representa dinero que de verdad se
+ * entregó.
+ */
+export async function deletePaymentRecord(companyId: string, actorId: string, paymentRecordId: string) {
+  const deleted = await paymentRepo.deletePaymentRecord(companyId, paymentRecordId);
+  if (!deleted) {
+    throw new PaymentError("No se pudo eliminar — el pago no existe o ya está marcado como pagado.");
+  }
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "PAYMENT_DELETED",
+    entityType: "PaymentRecord",
+    entityId: paymentRecordId,
+  });
+}
+
 export async function adjustPayment(
   companyId: string,
   actorId: string,

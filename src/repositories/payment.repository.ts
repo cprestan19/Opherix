@@ -123,6 +123,12 @@ export async function markAsPaid(companyId: string, id: string, paidById: string
   return prisma.paymentRecord.findUniqueOrThrow({ where: { id } });
 }
 
+/** Solo borra registros PENDIENTE — uno ya PAGADO es historial financiero real, no se toca aquí. */
+export async function deletePaymentRecord(companyId: string, id: string) {
+  const result = await prisma.paymentRecord.deleteMany({ where: { id, companyId, status: "PENDIENTE" } });
+  return result.count > 0;
+}
+
 export async function updateBonusesAndDeductions(
   companyId: string,
   id: string,

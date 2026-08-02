@@ -14,6 +14,7 @@ import {
   calculatePaymentsForPeriod,
   markPaymentAsPaid,
   adjustPayment,
+  deletePaymentRecord,
   PaymentError,
 } from "@/services/payment.service";
 import {
@@ -21,6 +22,7 @@ import {
   markInvoicePaid,
   sendInvoiceByEmail,
   getInvoiceWhatsAppLink,
+  deleteInvoice,
   InvoiceError,
 } from "@/services/invoice.service";
 import { getEventDetail } from "@/repositories/event.repository";
@@ -67,6 +69,18 @@ export async function adjustPaymentAction(
   return {};
 }
 
+export async function deletePaymentRecordAction(paymentRecordId: string): Promise<PaymentActionResult> {
+  const { user, companyId } = await requireCompanyStaff();
+  try {
+    await deletePaymentRecord(companyId, user.id, paymentRecordId);
+  } catch (error) {
+    if (error instanceof PaymentError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath("/admin/pagos");
+  return {};
+}
+
 export async function setEventAmountAction(eventId: string, amount: number): Promise<PaymentActionResult> {
   const { user, companyId } = await requireCompanyStaff();
 
@@ -89,6 +103,19 @@ export async function markInvoicePaidAction(invoiceId: string, eventId?: string)
 
   try {
     await markInvoicePaid(companyId, user.id, invoiceId);
+  } catch (error) {
+    if (error instanceof InvoiceError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath("/admin/pagos");
+  if (eventId) revalidatePath(`/admin/eventos/${eventId}`);
+  return {};
+}
+
+export async function deleteInvoiceAction(invoiceId: string, eventId?: string): Promise<PaymentActionResult> {
+  const { user, companyId } = await requireCompanyStaff();
+  try {
+    await deleteInvoice(companyId, user.id, invoiceId);
   } catch (error) {
     if (error instanceof InvoiceError) return { error: error.message };
     throw error;

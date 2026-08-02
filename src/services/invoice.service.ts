@@ -102,6 +102,28 @@ export async function setEventInvoiceAmount(
   return updated;
 }
 
+/**
+ * Elimina una factura emitida por error o de prueba (§ /admin/pagos
+ * "Eliminar") — borrado físico deliberado: una `ClientInvoice` ISSUED todavía
+ * no representa un cobro real (nadie pagó nada), así que no necesita
+ * soft-delete. Una ya PAID no se puede borrar por aquí (`invoiceRepo.deleteInvoice`
+ * ya lo filtra) porque sí representa dinero que de verdad se cobró.
+ */
+export async function deleteInvoice(companyId: string, actorId: string, invoiceId: string) {
+  const deleted = await invoiceRepo.deleteInvoice(companyId, invoiceId);
+  if (!deleted) {
+    throw new InvoiceError("No se pudo eliminar — la factura no existe o ya está marcada como pagada.");
+  }
+
+  await logAudit({
+    companyId,
+    actorId,
+    action: "INVOICE_DELETED",
+    entityType: "ClientInvoice",
+    entityId: invoiceId,
+  });
+}
+
 async function loadInvoicePdf(companyId: string, invoiceId: string) {
   const invoice = await invoiceRepo.findInvoiceWithDetails(companyId, invoiceId);
   if (!invoice) throw new InvoiceError("Factura no encontrada.");

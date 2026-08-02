@@ -9,17 +9,27 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, CheckCircle2, FileText, Mail, MessageCircle } from "lucide-react";
+import { Loader2, CheckCircle2, FileText, Mail, MessageCircle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
+  ResponsiveDialog as Dialog,
+  ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
+  ResponsiveDialogFooter as DialogFooter,
+  ResponsiveDialogHeader as DialogHeader,
+  ResponsiveDialogTitle as DialogTitle,
+  ResponsiveDialogTrigger as DialogTrigger,
+} from "@/components/shared/responsive-dialog";
+import {
   setEventAmountAction,
   markInvoicePaidAction,
   sendInvoiceByEmailAction,
   getInvoiceWhatsAppLinkAction,
+  deleteInvoiceAction,
 } from "./actions";
 
 export interface ClientPaymentRow {
@@ -73,6 +83,8 @@ function ClientPaymentRowItem({ row }: { row: ClientPaymentRow }) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const isPaid = row.invoice?.status === "PAID";
 
@@ -126,6 +138,19 @@ function ClientPaymentRowItem({ row }: { row: ClientPaymentRow }) {
       return;
     }
     window.open(result.url, "_blank", "noopener,noreferrer");
+  }
+
+  async function handleDelete() {
+    if (!row.invoice) return;
+    setIsDeleting(true);
+    const result = await deleteInvoiceAction(row.invoice.id, row.eventId);
+    setIsDeleting(false);
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Cobro eliminado");
+    setDeleteOpen(false);
   }
 
   return (
@@ -195,10 +220,37 @@ function ClientPaymentRowItem({ row }: { row: ClientPaymentRow }) {
       </TableCell>
       <TableCell>
         {row.invoice && !isPaid ? (
-          <Button size="sm" className="gap-1.5" disabled={isCancelling} onClick={handleMarkCancelled}>
-            {isCancelling ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
-            Cancelado
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button size="sm" className="gap-1.5" disabled={isCancelling} onClick={handleMarkCancelled}>
+              {isCancelling ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+              Cancelado
+            </Button>
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <DialogTrigger asChild>
+                <Button size="icon" variant="ghost" className="text-danger" aria-label="Eliminar cobro">
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Eliminar cobro</DialogTitle>
+                  <DialogDescription>
+                    Se elimina por completo este cobro pendiente al cliente — no se puede deshacer. No afecta cobros
+                    ya marcados como cancelados/pagados.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                    Volver
+                  </Button>
+                  <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+                    {isDeleting ? <Loader2 className="size-4 animate-spin" /> : null}
+                    Eliminar
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         ) : null}
       </TableCell>
     </TableRow>

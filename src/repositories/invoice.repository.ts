@@ -163,6 +163,12 @@ export async function markInvoicePaid(companyId: string, id: string) {
   return prisma.clientInvoice.findUniqueOrThrow({ where: { id } });
 }
 
+/** Solo borra facturas ISSUED (pendientes de cobro) — una ya PAID es historial financiero real, no se toca aquí. */
+export async function deleteInvoice(companyId: string, id: string) {
+  const result = await prisma.clientInvoice.deleteMany({ where: { id, companyId, status: "ISSUED" } });
+  return result.count > 0;
+}
+
 export async function updateInvoiceAmount(companyId: string, id: string, amount: number) {
   const result = await prisma.clientInvoice.updateMany({
     where: { id, companyId, status: { not: "PAID" } },

@@ -9,7 +9,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Pencil } from "lucide-react";
+import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,13 +18,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
+  ResponsiveDialogDescription as DialogDescription,
   ResponsiveDialogFooter as DialogFooter,
   ResponsiveDialogHeader as DialogHeader,
   ResponsiveDialogTitle as DialogTitle,
   ResponsiveDialogTrigger as DialogTrigger,
 } from "@/components/shared/responsive-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { markAsPaidAction, adjustPaymentAction } from "./actions";
+import { markAsPaidAction, adjustPaymentAction, deletePaymentRecordAction } from "./actions";
 
 interface PaymentRecordRow {
   id: string;
@@ -71,6 +72,7 @@ export function PaymentTable({ records }: { records: PaymentRecordRow[] }) {
 function PaymentRow({ record }: { record: PaymentRecordRow }) {
   const [payOpen, setPayOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [method, setMethod] = useState("Efectivo");
   const [bonuses, setBonuses] = useState(record.bonuses);
   const [deductions, setDeductions] = useState(record.deductions);
@@ -90,6 +92,18 @@ function PaymentRow({ record }: { record: PaymentRecordRow }) {
     setIsSubmitting(false);
     toast.success("Bonos/descuentos ajustados correctamente");
     setAdjustOpen(false);
+  }
+
+  async function handleDelete() {
+    setIsSubmitting(true);
+    const result = await deletePaymentRecordAction(record.id);
+    setIsSubmitting(false);
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Pago eliminado");
+    setDeleteOpen(false);
   }
 
   return (
@@ -157,6 +171,31 @@ function PaymentRow({ record }: { record: PaymentRecordRow }) {
                   <Button onClick={handleMarkPaid} disabled={isSubmitting}>
                     {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
                     Confirmar
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+              <DialogTrigger asChild>
+                <Button size="icon" variant="ghost" className="text-danger" aria-label="Eliminar pago">
+                  <Trash2 className="size-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Eliminar pago</DialogTitle>
+                  <DialogDescription>
+                    Se elimina por completo este cálculo de pago pendiente — no se puede deshacer. No afecta pagos ya
+                    marcados como pagados.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setDeleteOpen(false)}>
+                    Volver
+                  </Button>
+                  <Button variant="destructive" onClick={handleDelete} disabled={isSubmitting}>
+                    {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
+                    Eliminar
                   </Button>
                 </DialogFooter>
               </DialogContent>
