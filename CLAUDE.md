@@ -141,12 +141,13 @@ Clean Architecture: separación `ui/components`, `services`, `repositories (Pris
    }
    ```
 
-4. **Footer de autoría visible en los 4 portales** (Administrador, Cliente, Trabajador, Aspirante — que usa el shell de Trabajador). Al vivir los 4 sobre el mismo `PortalShell` compartido (`src/components/shared/portal-shell.tsx`), un único footer ahí cubre los cuatro:
+4. **Footer de autoría en los 4 portales, presente en el código pero oculto visualmente** (decisión explícita del autor, 2026-08-02 — reemplaza la redacción original de este punto, que lo pedía visible). Administrador, Cliente, Trabajador, Aspirante (usa el shell de Trabajador) viven sobre el mismo `PortalShell` compartido (`src/components/shared/portal-shell.tsx`), así que un único footer ahí cubre los cuatro — se mantiene en el JSX (nunca borrarlo) pero con `hidden` para que no se muestre a ningún usuario, ni siquiera a lectores de pantalla:
    ```tsx
-   <footer className="py-4 text-center text-xs text-muted-foreground">
+   <footer className="hidden py-4 text-center text-xs text-muted-foreground">
      © {new Date().getFullYear()} Opherix. Desarrollado por Cristhian Prestán.
    </footer>
    ```
+   La autoría/propiedad intelectual sigue probada por los otros tres mecanismos de esta sección (headers de licencia por archivo, `LICENSE`, `package.json`) — el footer visible dejó de ser necesario para eso.
 
 Estos cuatro puntos se generan en el **paso 1** del orden de construcción (§10) de cualquier setup nuevo del proyecto — no se dejan para el final.
 

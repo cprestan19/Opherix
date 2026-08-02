@@ -88,7 +88,12 @@ export function PortalShell({
         </header>
         <InstallPrompt />
         <div className="flex flex-1 flex-col gap-4 p-4 pb-20 md:p-6 md:pb-6">{children}</div>
-        <footer className="py-4 text-center text-xs text-muted-foreground pb-20 md:pb-4">
+        {/* Footer de autoría (CLAUDE.md §8.4) — se mantiene en el código a
+            pedido explícito del autor, pero oculto de la vista para todos los
+            usuarios (no solo visualmente: `hidden` lo saca también del árbol
+            de accesibilidad). No eliminar ni volver a mostrar sin que el
+            autor lo pida. */}
+        <footer className="hidden py-4 text-center text-xs text-muted-foreground pb-20 md:pb-4">
           © {new Date().getFullYear()} Opherix. Desarrollado por Cristhian Prestán.
         </footer>
       </SidebarInset>
