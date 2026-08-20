@@ -27,15 +27,19 @@ export interface WorkOrderPdfData {
   // del resto de datos del cliente (razón social, RUC, correo), el nombre y
   // teléfono de contacto sí son útiles operativamente para el personal.
   contact: { name: string; phone: string | null };
-  assignments: { specialty: Specialty | null; workerName: string; workerPhone: string | null }[];
+  // Cédula/pasaporte, no teléfono: el documento se entrega al Cliente (fuera
+  // del tenant), y el teléfono del trabajador es un dato de contacto interno
+  // que no corresponde compartir con él — la identificación en sitio se hace
+  // con el número de documento, no llamando al trabajador.
+  assignments: { specialty: Specialty | null; workerName: string; workerIdNumber: string | null }[];
 }
 
 /**
  * Orden de trabajo (§ /admin/eventos/[eventId] "Ver orden de trabajo") — se
  * entrega al Cliente por WhatsApp + correo al completar el evento (§
  * event.service.ts sendWorkOrderToClient): dónde, cuándo, contacto en sitio,
- * y quién del personal fue asignado con su teléfono, para que el Cliente
- * sepa exactamente a quién esperar.
+ * y quién del personal fue asignado con su cédula/pasaporte, para que el
+ * Cliente pueda identificarlo en sitio.
  */
 export async function buildWorkOrderPdf(data: WorkOrderPdfData): Promise<Buffer> {
   const { company, event, contact, assignments } = data;
@@ -112,11 +116,11 @@ export async function buildWorkOrderPdf(data: WorkOrderPdfData): Promise<Buffer>
 
   autoTable(doc, {
     startY: y + 4,
-    head: [["Especialidad", "Nombre", "Teléfono", "Hora inicio", "Hora fin"]],
+    head: [["Especialidad", "Nombre", "Cédula/Pasaporte", "Hora inicio", "Hora fin"]],
     body: sortedAssignments.map((a) => [
       a.specialty ? specialtyLabels[a.specialty] : "—",
       a.workerName,
-      a.workerPhone ?? "—",
+      a.workerIdNumber ?? "—",
       startTime,
       endTime,
     ]),

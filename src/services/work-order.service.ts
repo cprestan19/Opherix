@@ -45,7 +45,7 @@ async function buildWorkOrderBuffer(companyId: string, eventId: string) {
     assignments: activeAssignments.map((a) => ({
       specialty: a.specialty,
       workerName: a.worker.user.name,
-      workerPhone: a.worker.user.phone,
+      workerIdNumber: a.worker.idNumber,
     })),
   });
 
