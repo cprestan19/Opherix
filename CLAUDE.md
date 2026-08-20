@@ -30,6 +30,7 @@ Nivel de producto: Linear / Notion / Vercel / Storee.ai — no ERP clásico.
 - **Validación/Estado/Tablas/Gráficas:** React Hook Form + Zod, TanStack Query, TanStack Table, Recharts.
 - **Imágenes:** ImageKit (fotos de trabajadores, documentos, selfies de check-in, y **todo asset de marca/UI** — logo, íconos ilustrativos, etc.). Elegido sobre Cloudinary: free tier 20GB bandwidth + 3GB storage separados, primer escalón pago ~$9/mes. **Regla obligatoria e innegociable: ninguna imagen vive en el código como base64/data-URI, ni como archivo estático en `public/` (salvo los íconos de manifest PWA, que por convención de instalabilidad se sirven same-origin).** Toda imagen nueva se sube a ImageKit (vía el endpoint firmado en `src/app/api/imagekit/auth/route.ts` + `@imagekit/react`'s `upload()`, o subida directa a la API si es un asset de marca fijo) y se referencia por su URL de `https://ik.imagekit.io/eventstaff/...` — nunca embebida ni versionada en el repo. `next.config.ts` tiene `images.remotePatterns` apuntando a ese host.
 - **Push:** Firebase Cloud Messaging (limitaciones iOS PWA — ver §9.3).
+- **WhatsApp:** Meta WhatsApp Cloud API directo (no Twilio/BSP, no wa.me manual) — envío por plantillas aprobadas en Meta Business Manager, credenciales globales de la plataforma (`WHATSAPP_PHONE_NUMBER_ID`/`WHATSAPP_ACCESS_TOKEN` en `.env`, sin override por tenant). Ver §6.10 y §9.11 para el detalle y las trampas encontradas.
 - **Mapas:** Google Maps API.
 - **Calendario:** React Big Calendar.
 - **Exportaciones:** Excel, PDF.
@@ -67,7 +68,7 @@ La escala completa de Radix Colors "violet" (12 pasos + variantes alpha/P3) vive
 2. **Perfil Profesional** (Aspirante) — CV generado automáticamente del formulario.
 3. **Revisión** (Administrador) — aprueba/rechaza candidatos.
 4. **Disponibilidad** (Trabajador) — calendario semanal con toggle por franja.
-5. **Solicitud de Evento** (Cliente) — fecha, hora, lugar, tipo, personal requerido por rol/cantidad. **El Cliente ya no tiene cuenta ni portal con login** (cambio de 2026-07: reemplaza el antiguo portal `/cliente/*` autenticado) — solicita desde el link público `/solicitar/[companySlug]`, sin ningún paso de verificación por correo (decisión explícita: cero intervención de correos en este flujo) — solo Turnstile + rate limiting por correo/IP contra spam. Al enviar el formulario queda con una cookie de "recuérdame sin contraseña" (`ClientAccessToken`, 7 días) para volver a ver el estado en `/solicitar/[companySlug]/estado`, donde puede editar su solicitud mientras siga `REQUESTED`. El registro `Client` (empresa/contacto) se sigue creando igual que antes, solo que sin `User`/contraseña asociada — el Administrador aún puede darlo de alta manualmente desde `/admin/clientes` si lo prefiere. El correo sí se usa para avisarle cuando el Administrador confirma o rechaza la solicitud (única notificación por correo de todo este flujo).
+5. **Solicitud de Evento** (Cliente) — fecha, hora, lugar, tipo, personal requerido por rol/cantidad. **El Cliente ya no tiene cuenta ni portal con login** (cambio de 2026-07: reemplaza el antiguo portal `/cliente/*` autenticado) — solicita desde el link público `/solicitar/[companySlug]`, sin ningún paso de verificación por correo (decisión explícita: cero intervención de correos en este flujo) — solo Turnstile + rate limiting por correo/IP contra spam. Al enviar el formulario queda con una cookie de "recuérdame sin contraseña" (`ClientAccessToken`, 7 días) para volver a ver el estado en `/solicitar/[companySlug]/estado`, donde puede editar su solicitud mientras siga `REQUESTED`. El registro `Client` (empresa/contacto) se sigue creando igual que antes, solo que sin `User`/contraseña asociada — el Administrador aún puede darlo de alta manualmente desde `/admin/clientes` si lo prefiere. Al enviarse, cada Admin/Supervisor activo recibe aviso por WhatsApp + email (§6.10) — el propio Cliente **no** recibe confirmación en este momento, sino recién cuando el Administrador confirma la solicitud (WhatsApp + email también, ver paso 6 y §9.11).
 6. **Asignación** (Administrador) — asigna personal disponible y confirma.
 7. **Confirmación** (Trabajador) — acepta o rechaza la asignación.
 8. **Evento en Curso** (Trabajador) — check-in, ejecución, check-out.
@@ -95,7 +96,11 @@ Portales: Administrador (control total, asignaciones, reportes, facturación, co
 - **6.7 Check-In:** GPS, QR, código de supervisor o selfie. Hora entrada/salida.
 - **6.8 Pagos (registro contable, NO procesamiento):** NO mueve dinero real. Config pago por hora/extra/domingos/feriados/bonos/descuentos. Cálculo automático desde horas confirmadas (check-in/out) por periodo. Admin marca manualmente `PENDIENTE → PAGADO` (fecha + método libre: efectivo/transferencia/cheque). Export Excel/PDF por trabajador y consolidado. Ningún dato de tarjeta/cuenta bancaria ni procesamiento vive aquí — reduce alcance PCI.
 - **6.9 Documentos:** cédula, currículum, carnet salud, manipulación alimentos, licencias, certificados. Alertas automáticas de vencimiento próximo.
-- **6.10 Notificaciones:** push (Firebase), email, recordatorios, confirmaciones, cambios de horario, asignaciones.
+- **6.10 Notificaciones:** push (Firebase), email, WhatsApp (Meta Cloud API), recordatorios, confirmaciones, cambios de horario, asignaciones. `Notification` soporta destinatarios sin `User` (un `Client` del flujo público no tiene cuenta) vía `clientId` opcional — mismo patrón dual-FK que `PasswordResetToken`. 4 plantillas de WhatsApp aprobadas en Meta (categoría UTILITY, idioma `es_PA` exacto — no `es` genérico), todas con email en paralelo vía `notifyClient()`:
+  - `asignacion_personal_evento` → Trabajador, al asignarlo (`assignWorkerToEvent`). Botón fijo a `/login?callbackUrl=/trabajador/asignaciones` (login soporta `callbackUrl` con allowlist a `/trabajador*`, para aterrizar directo donde puede aprobar).
+  - `nueva_solicitud_cliente` → cada Admin/Supervisor activo, al recibirse la solicitud (`createEventRequest`). Botón estático a `/login` (no dinámico por evento, así quedó aprobado en Meta).
+  - `solicitud_recibida_cliente_` (el nombre sin guión bajo final ya estaba tomado en Meta) → Cliente, cuando el Administrador **confirma** (`confirmEvent`) — no al enviar la solicitud.
+  - `orden_trabajo_pdf` → Cliente, con el PDF real adjunto (header tipo Documento). Se dispara al **completar** el evento (`completeEvent`/`sendWorkOrderToClient`), no antes ni por "personal 100% cubierto" — el roster puede seguir variando hasta ese momento. Botón "Ver orden de trabajo" + reenvío manual con teléfono editable en `/admin/eventos/[eventId]`. (Existe un template hermano `orden_trabajo_lista_` de un primer intento fallido — quedó aprobado con header de Texto fijo por error, nunca pudo adjuntar PDF; no se usa en código, no borrar de Meta sin revisar antes.)
 - **6.11 Reportes:** horas trabajadas, eventos realizados, clientes, facturación, trabajadores más solicitados, puntualidad, ausencias, ranking.
 - **6.12 Configuración:** branding por empresa (multi-tenant), tarifas, feriados/reglas de pago por país, roles y permisos.
 
@@ -163,6 +168,13 @@ Estos cuatro puntos se generan en el **paso 1** del orden de construcción (§10
 8. **Aspirante→Trabajador:** máquina de estados, no tabla duplicada (ver §5).
 9. **Auditoría transversal:** toda acción de negocio relevante en tabla `AuditLog` genérica (`actorId`, `action`, `entityType`, `entityId`, `metadata`, `createdAt`) — no logs dispersos por módulo.
 10. **Aislamiento multi-tenant real:** cada query Prisma filtra por `companyId` a nivel de repositorio/servicio (así implementado en todo `src/repositories/*.ts`), nunca solo en el frontend. Row-Level Security en Postgres/Neon como capa adicional de defensa: las políticas están listas en `prisma/rls-policies.sql`, pero **no están activas** — aplicarlas requiere primero introducir un helper `withTenantContext()` que envuelva cada request en una transacción con `SET LOCAL app.current_company_id`, y migrar los repositorios para usar ese `tx` en vez del cliente Prisma global. Ver el encabezado de ese archivo para el detalle; no se dejó a medias a propósito.
+11. **WhatsApp Cloud API — trampas encontradas y decisiones (2026-08-19), no relitigar:**
+    - **El adjunto del PDF (`orden_trabajo_pdf`) depende de que `NEXTAUTH_URL` sea una URL pública real.** Meta descarga el documento desde `${NEXTAUTH_URL}/solicitar/.../orden-trabajo?token=...` al momento de enviar — si `NEXTAUTH_URL=http://localhost:3000` (como en dev), Meta no puede alcanzarlo y el mensaje llega sin adjunto real, en silencio (la API igual responde éxito). Funciona solo una vez desplegado con el dominio real. Si un adjunto "no se nota", **este es el primer sospechoso**, no un bug de plantilla.
+    - **El token de WhatsApp debe ser de un Usuario del Sistema, sin expiración** (Meta Business Suite → Usuarios del sistema → Generar token → sin fecha de expiración). El token del Graph API Explorer / de una app normal es temporal (horas) y rompe el envío en producción sin aviso. Verificar con `GET /debug_token?input_token=...` — `"type":"SYSTEM_USER"` y `"expires_at":0`.
+    - **El idioma de las 4 plantillas es `es_PA` exacto**, no `es` — Meta rechaza el envío (`#132001`) si no coincide carácter por carácter con lo aprobado.
+    - **Los botones URL de las plantillas aprobadas quedaron todos estáticos** (no dinámicos con el eventId como se planeó originalmente) — no mandar `buttonUrlParam` salvo que se verifique con `GET /{template-id}?fields=components` que el botón realmente tiene un `{{1}}` en la URL.
+    - **La orden de trabajo ya no depende de "personal 100% asignado"** (ese estado podía variar hasta último momento) — se genera/envía al completar el evento (§6.10), con reenvío manual + teléfono editable como respaldo si el automático falla.
+    - **El Administrador tiene visibilidad de cotización y orden de trabajo** desde `/admin/eventos/[eventId]` (`GET /api/eventos/[eventId]/cotizacion` y `/orden-trabajo`) — antes la cotización solo la veía el Cliente por WhatsApp/link público.
 
 ## 10. Orden de construcción
 
@@ -175,10 +187,15 @@ Estos cuatro puntos se generan en el **paso 1** del orden de construcción (§10
 7. Check-in/out (GPS + QR + selfie).
 8. Módulo Pagos + reglas por país + exportaciones.
 9. Documentos + alertas de vencimiento (Vercel Cron).
-10. Notificaciones (Firebase + email).
+10. Notificaciones (Firebase + email + WhatsApp Cloud API — ver §6.10/§9.11).
 11. Reportes + Dashboard final.
 12. Hardening: RLS, auditoría completa, accesibilidad, verificación de tema claro forzado, QA end-to-end.
 
+## 11. Pendientes activos (2026-08-19)
+
+- **Confirmar en producción que el PDF de `orden_trabajo_pdf` llega adjunto de verdad** (ver §9.11) — se hizo el primer deploy con las credenciales de WhatsApp recién cargadas en Vercel (solo entorno Production), pero todavía no se verificó en vivo contra el dominio real. Próxima vez que se toque este flujo, probar un evento real hasta completarlo y confirmar el adjunto.
+- Las plantillas de WhatsApp viven en la cuenta de Meta Business de Golden Logistic Eventual — cualquier plantilla nueva/editada pasa por aprobación de Meta (minutos a horas), no es instantáneo.
+
 ---
 
-*Este archivo se actualiza a medida que el proyecto avanza. Ver también `.env.example` para variables de entorno requeridas (Neon, ImageKit, Firebase, Google Maps).*
+*Este archivo se actualiza a medida que el proyecto avanza. Ver también `.env.example` para variables de entorno requeridas (Neon, ImageKit, Firebase, Google Maps, WhatsApp Cloud API).*

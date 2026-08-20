@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   generateEventAccessLinkAction,
   resendEventAccessLinkAction,
@@ -25,6 +26,19 @@ import { formatDateTime12h } from "@/utils/date";
 
 function formatDateTime(date: Date) {
   return formatDateTime12h(date, { dateStyle: "medium" });
+}
+
+/** Mismo patrón que event-actions.tsx: el <span> es el trigger real, no el
+ * botón, para que el tooltip funcione incluso si el botón queda disabled. */
+function HintButton({ hint, children }: { hint: string; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">{children}</span>
+      </TooltipTrigger>
+      <TooltipContent>{hint}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 export function EventAccessLinkPanel({
@@ -133,17 +147,21 @@ export function EventAccessLinkPanel({
         </p>
 
         {!isOpen ? (
-          <Button size="sm" className="w-fit gap-1.5" disabled={isPending} onClick={handleGenerate}>
-            {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Link2 className="size-3.5" />}
-            Generar link
-          </Button>
+          <HintButton hint="Genera el link único que el cliente usa para ver/editar su solicitud y calificar el servicio.">
+            <Button size="sm" className="w-fit gap-1.5" disabled={isPending} onClick={handleGenerate}>
+              {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Link2 className="size-3.5" />}
+              Generar link
+            </Button>
+          </HintButton>
         ) : (
           <>
             <div className="flex items-center gap-2">
               <Input readOnly value={link ?? ""} className="text-xs" />
-              <Button type="button" variant="outline" size="icon" onClick={handleCopy} aria-label="Copiar link">
-                <Copy className="size-4" />
-              </Button>
+              <HintButton hint="Copiar el link al portapapeles.">
+                <Button type="button" variant="outline" size="icon" onClick={handleCopy} aria-label="Copiar link">
+                  <Copy className="size-4" />
+                </Button>
+              </HintButton>
             </div>
 
             <p className="text-xs text-muted-foreground">
@@ -155,58 +173,68 @@ export function EventAccessLinkPanel({
             </p>
 
             <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                disabled={isPending}
-                onClick={handleResend}
-              >
-                {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Mail className="size-3.5" />}
-                Reenviar por correo
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1.5" asChild>
-                <a href={`/api/eventos/${eventId}/cotizacion`} target="_blank" rel="noopener noreferrer">
-                  <FileText className="size-3.5" /> Ver cotización
-                </a>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1.5"
-                disabled={isPending}
-                onClick={handleResendQuote}
-              >
-                {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <MessageCircle className="size-3.5" />}
-                Reenviar cotización
-              </Button>
-              {!isClosed && !closedAt ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 text-danger"
-                  disabled={isPending}
-                  onClick={handleClose}
-                >
-                  {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Lock className="size-3.5" />}
-                  Cerrar ahora
-                </Button>
-              ) : null}
-              {eventEnded ? (
+              <HintButton hint="Reenvía el link de acceso al cliente por correo.">
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="gap-1.5"
                   disabled={isPending}
-                  onClick={handleReopen}
+                  onClick={handleResend}
                 >
-                  {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCw className="size-3.5" />}
-                  Reabrir por 24h
+                  {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Mail className="size-3.5" />}
+                  Reenviar por correo
                 </Button>
+              </HintButton>
+              <HintButton hint="Abre el PDF de la cotización en una pestaña nueva.">
+                <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                  <a href={`/api/eventos/${eventId}/cotizacion`} target="_blank" rel="noopener noreferrer">
+                    <FileText className="size-3.5" /> Ver cotización
+                  </a>
+                </Button>
+              </HintButton>
+              <HintButton hint="Abre WhatsApp con la cotización lista para enviar al contacto que elijas.">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={isPending}
+                  onClick={handleResendQuote}
+                >
+                  {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <MessageCircle className="size-3.5" />}
+                  Reenviar cotización
+                </Button>
+              </HintButton>
+              {!isClosed && !closedAt ? (
+                <HintButton hint="Cierra el link de acceso del cliente antes de tiempo — deja de poder verlo/editarlo.">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-danger"
+                    disabled={isPending}
+                    onClick={handleClose}
+                  >
+                    {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Lock className="size-3.5" />}
+                    Cerrar ahora
+                  </Button>
+                </HintButton>
+              ) : null}
+              {eventEnded ? (
+                <HintButton hint="Reabre el link de acceso del cliente por 24 horas más (ej. para que pueda calificar el servicio).">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    disabled={isPending}
+                    onClick={handleReopen}
+                  >
+                    {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCw className="size-3.5" />}
+                    Reabrir por 24h
+                  </Button>
+                </HintButton>
               ) : null}
             </div>
           </>

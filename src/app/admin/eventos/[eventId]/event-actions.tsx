@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   ResponsiveDialog as Dialog,
   ResponsiveDialogContent as DialogContent,
@@ -28,6 +29,23 @@ import { confirmEventAction, cancelEventAction, completeEventAction, resendWorkO
 
 function currency(value: number) {
   return new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD" }).format(value);
+}
+
+/**
+ * Envuelve un botón con un tooltip explicando su función al pasar el mouse.
+ * El trigger real es el <span>, no el botón — un botón disabled tiene
+ * pointer-events-none (§ button.tsx) y nunca dispararía el hover, justo
+ * cuando más hace falta explicar por qué está deshabilitado.
+ */
+function HintButton({ hint, children }: { hint: string; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">{children}</span>
+      </TooltipTrigger>
+      <TooltipContent>{hint}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 /**
@@ -54,22 +72,27 @@ function WorkOrderPanel({ eventId, clientPhone }: { eventId: string; clientPhone
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Button variant="outline" className="gap-1.5" asChild>
-        <a href={`/api/eventos/${eventId}/orden-trabajo`} target="_blank" rel="noopener noreferrer">
-          <ClipboardList className="size-4" /> Ver orden de trabajo
-        </a>
-      </Button>
+      <HintButton hint="Abre el PDF de la orden de trabajo en una pestaña nueva.">
+        <Button variant="outline" className="gap-1.5" asChild>
+          <a href={`/api/eventos/${eventId}/orden-trabajo`} target="_blank" rel="noopener noreferrer">
+            <ClipboardList className="size-4" /> Ver orden de trabajo
+          </a>
+        </Button>
+      </HintButton>
       <Input
         type="tel"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
         placeholder={clientPhone ? `Reenviar a ${clientPhone}` : "Teléfono (opcional)"}
         className="w-48"
+        title="Dejalo vacío para reenviar al teléfono del cliente, o escribí otro número para mandarla a alguien más."
       />
-      <Button type="button" variant="outline" className="gap-1.5" disabled={isPending} onClick={handleResend}>
-        {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-        Reenviar
-      </Button>
+      <HintButton hint="Reenvía la orden de trabajo (PDF) por WhatsApp y correo, al cliente o al teléfono de arriba.">
+        <Button type="button" variant="outline" className="gap-1.5" disabled={isPending} onClick={handleResend}>
+          {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+          Reenviar OT
+        </Button>
+      </HintButton>
     </div>
   );
 }
@@ -115,11 +138,13 @@ export function EventActions({
   return (
     <div className="flex gap-2">
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline" className="text-danger">
-            Cancelar evento
-          </Button>
-        </DialogTrigger>
+        <HintButton hint="Cancela el evento y notifica a los trabajadores asignados por WhatsApp/push/email.">
+          <DialogTrigger asChild>
+            <Button variant="outline" className="text-danger">
+              Cancelar evento
+            </Button>
+          </DialogTrigger>
+        </HintButton>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Cancelar evento</DialogTitle>
@@ -148,28 +173,38 @@ export function EventActions({
         </DialogContent>
       </Dialog>
       {status === "REQUESTED" ? (
-        <Button
-          disabled={isPending}
-          onClick={() =>
-            startTransition(async () => {
-              await confirmEventAction(eventId);
-              toast.success("Evento confirmado");
-            })
-          }
-        >
-          {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
-          Confirmar evento
-        </Button>
+        <HintButton hint="Confirma la solicitud del cliente y le avisa por WhatsApp y correo.">
+          <Button
+            disabled={isPending}
+            onClick={() =>
+              startTransition(async () => {
+                await confirmEventAction(eventId);
+                toast.success("Evento confirmado");
+              })
+            }
+          >
+            {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+            Confirmar evento
+          </Button>
+        </HintButton>
       ) : null}
       {status === "CONFIRMED" || status === "IN_PROGRESS" ? (
         <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
-          <DialogTrigger asChild>
-            {/* Sin personal asignado no hay orden de trabajo que generar/enviar
-                (§ sendWorkOrderToClient exige al menos 1 asignación activa) */}
-            <Button className="gap-1.5" disabled={!hasAssignments}>
-              <CheckCircle2 className="size-4" /> Marcar completado
-            </Button>
-          </DialogTrigger>
+          <HintButton
+            hint={
+              hasAssignments
+                ? "Genera factura y pagos, notifica al personal, y envía la orden de trabajo final al cliente."
+                : "Asigná al menos un trabajador antes de poder completar el evento."
+            }
+          >
+            <DialogTrigger asChild>
+              {/* Sin personal asignado no hay orden de trabajo que generar/enviar
+                  (§ sendWorkOrderToClient exige al menos 1 asignación activa) */}
+              <Button className="gap-1.5" disabled={!hasAssignments}>
+                <CheckCircle2 className="size-4" /> Marcar completado
+              </Button>
+            </DialogTrigger>
+          </HintButton>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Marcar evento como completado</DialogTitle>
