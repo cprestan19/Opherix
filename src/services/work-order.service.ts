@@ -60,11 +60,12 @@ export async function getWorkOrderPdf(companyId: string, eventId: string) {
 }
 
 /**
- * Descarga pública de la orden de trabajo (§ /admin/eventos/[eventId]
- * "Enviar por WhatsApp") — reusa el mismo accessToken propio del evento que
- * ya protege /evento/[eventId], /evento/[eventId]/factura y
- * /evento/[eventId]/cotizacion, para que el Cliente pueda abrirla sin sesión
- * desde el link que le llega por WhatsApp.
+ * Descarga pública de la orden de trabajo — reusa el mismo accessToken propio
+ * del evento que ya protege /evento/[eventId], /evento/[eventId]/factura y
+ * /evento/[eventId]/cotizacion. También es la URL que consume el envío
+ * automático de la plantilla WhatsApp `orden_trabajo_pdf` (§
+ * event.service.ts sendWorkOrderToClient, disparado al completar el evento)
+ * — Meta descarga el PDF desde aquí al momento de mandar el mensaje, sin sesión.
  */
 export async function getWorkOrderPdfForPublicAccess(companySlug: string, eventId: string, token: string) {
   const company = await findCompanyBySlug(companySlug);
@@ -75,29 +76,4 @@ export async function getWorkOrderPdfForPublicAccess(companySlug: string, eventI
 
   const { buffer, filename } = await buildWorkOrderBuffer(company.id, eventId);
   return { buffer, filename };
-}
-
-/**
- * Link de WhatsApp con la orden de trabajo (§ /admin/eventos/[eventId]
- * "Enviar por WhatsApp") — a diferencia de la cotización (dirigida siempre
- * al mismo Cliente), este link NO fija un número: abre WhatsApp con el
- * mensaje y el link ya armados, y el Administrador elige el contacto
- * (cliente, supervisor, grupo del personal, etc.) desde su propio WhatsApp.
- */
-export async function getWorkOrderWhatsAppLink(companyId: string, eventId: string) {
-  const company = await getCompany(companyId);
-  const { event } = await buildWorkOrderBuffer(companyId, eventId);
-
-  if (!event.accessToken || event.accessClosedAt) {
-    throw new WorkOrderError("El enlace del evento no está activo — reactívalo desde la pantalla del evento.");
-  }
-  if (event.accessTokenExpiresAt && event.accessTokenExpiresAt < new Date()) {
-    throw new WorkOrderError("El enlace del evento venció — reactívalo desde la pantalla del evento.");
-  }
-
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const workOrderUrl = `${baseUrl}/solicitar/${company.slug}/evento/${event.id}/orden-trabajo?token=${event.accessToken}`;
-  const message = `Orden de trabajo — ${event.title}\n\n${workOrderUrl}`;
-
-  return `https://wa.me/?text=${encodeURIComponent(message)}`;
 }

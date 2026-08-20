@@ -54,3 +54,14 @@ export async function getPortalPathForUser(): Promise<string> {
   if (!session?.user) return "/login";
   return getPortalPath(session.user.role, session.user.workerStatus, session.user.mustChangePassword);
 }
+
+/**
+ * Allowlist estricta para `callbackUrl` en /login (§ plantilla WhatsApp
+ * asignacion_personal_evento, botón "Ver asignación" → deep-link a
+ * /trabajador/asignaciones) — evita open-redirect vía query param. Solo se
+ * permite ese único destino hoy; se amplía si otro flujo lo necesita.
+ */
+export function sanitizeCallbackUrl(callbackUrl: string | null | undefined): string | undefined {
+  if (callbackUrl && callbackUrl.startsWith("/trabajador")) return callbackUrl;
+  return undefined;
+}

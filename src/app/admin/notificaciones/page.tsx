@@ -49,7 +49,7 @@ export default async function NotificacionesAdminPage() {
                     <Icon className="size-4 shrink-0 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium">
-                        {n.title} — {n.user.name}
+                        {n.title} — {n.user?.name ?? n.client?.businessName ?? n.client?.contactName ?? "Cliente"}
                       </p>
                       <p className="text-xs text-muted-foreground">{n.body}</p>
                       {n.status === "FAILED" && n.errorMessage ? (

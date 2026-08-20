@@ -9,7 +9,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Copy, Link2, Loader2, Lock, Mail, MessageCircle, RotateCw } from "lucide-react";
+import { Copy, FileText, Link2, Loader2, Lock, Mail, MessageCircle, RotateCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -165,6 +165,11 @@ export function EventAccessLinkPanel({
               >
                 {isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Mail className="size-3.5" />}
                 Reenviar por correo
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1.5" asChild>
+                <a href={`/api/eventos/${eventId}/cotizacion`} target="_blank" rel="noopener noreferrer">
+                  <FileText className="size-3.5" /> Ver cotización
+                </a>
               </Button>
               <Button
                 type="button"

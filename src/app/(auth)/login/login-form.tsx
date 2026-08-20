@@ -19,11 +19,12 @@ import { signInAction, type LoginActionState } from "../actions";
 
 const initialState: LoginActionState = {};
 
-export function LoginForm() {
+export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
   const [state, formAction, isPending] = useActionState(signInAction, initialState);
 
   return (
     <form action={formAction} className="flex flex-col gap-5">
+      {callbackUrl ? <input type="hidden" name="callbackUrl" value={callbackUrl} /> : null}
       <div className="flex flex-col gap-2">
         <Label htmlFor="email">Correo o usuario</Label>
         <Input id="email" name="email" type="text" autoComplete="username" required placeholder="tu@empresa.com" />

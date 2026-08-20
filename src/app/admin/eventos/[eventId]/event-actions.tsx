@@ -10,9 +10,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ClipboardList, Loader2, MessageCircle } from "lucide-react";
+import { CheckCircle2, ClipboardList, Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   ResponsiveDialog as Dialog,
@@ -23,20 +24,66 @@ import {
   ResponsiveDialogTitle as DialogTitle,
   ResponsiveDialogTrigger as DialogTrigger,
 } from "@/components/shared/responsive-dialog";
-import { confirmEventAction, cancelEventAction, completeEventAction, getWorkOrderWhatsAppLinkAction } from "./actions";
+import { confirmEventAction, cancelEventAction, completeEventAction, resendWorkOrderAction } from "./actions";
 
 function currency(value: number) {
   return new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD" }).format(value);
+}
+
+/**
+ * Solo visible una vez el evento está COMPLETED/ARCHIVED (§ completeEvent —
+ * el roster de personal recién es definitivo ahí, antes puede seguir
+ * variando). El envío por WhatsApp + correo ya se disparó automático al
+ * completar; "Reenviar" es el respaldo manual, con casilla de teléfono para
+ * mandarla a otro contacto además del registrado en el Cliente.
+ */
+function WorkOrderPanel({ eventId, clientPhone }: { eventId: string; clientPhone: string | null }) {
+  const [isPending, startTransition] = useTransition();
+  const [phone, setPhone] = useState("");
+
+  function handleResend() {
+    startTransition(async () => {
+      const result = await resendWorkOrderAction(eventId, phone);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Orden de trabajo reenviada por WhatsApp y correo");
+    });
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Button variant="outline" className="gap-1.5" asChild>
+        <a href={`/api/eventos/${eventId}/orden-trabajo`} target="_blank" rel="noopener noreferrer">
+          <ClipboardList className="size-4" /> Ver orden de trabajo
+        </a>
+      </Button>
+      <Input
+        type="tel"
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder={clientPhone ? `Reenviar a ${clientPhone}` : "Teléfono (opcional)"}
+        className="w-48"
+      />
+      <Button type="button" variant="outline" className="gap-1.5" disabled={isPending} onClick={handleResend}>
+        {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+        Reenviar
+      </Button>
+    </div>
+  );
 }
 
 export function EventActions({
   eventId,
   status,
   hasAssignments,
+  clientPhone,
 }: {
   eventId: string;
   status: string;
   hasAssignments: boolean;
+  clientPhone: string | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -44,17 +91,10 @@ export function EventActions({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [completeOpen, setCompleteOpen] = useState(false);
 
-  if (status === "CANCELLED" || status === "COMPLETED" || status === "ARCHIVED") return null;
+  if (status === "CANCELLED") return null;
 
-  function handleSendWorkOrderWhatsApp() {
-    startTransition(async () => {
-      const result = await getWorkOrderWhatsAppLinkAction(eventId);
-      if (result?.error || !result.url) {
-        toast.error(result?.error ?? "No se pudo generar el enlace.");
-        return;
-      }
-      window.open(result.url, "_blank", "noopener,noreferrer");
-    });
+  if (status === "COMPLETED" || status === "ARCHIVED") {
+    return <WorkOrderPanel eventId={eventId} clientPhone={clientPhone} />;
   }
 
   function handleComplete() {
@@ -65,7 +105,7 @@ export function EventActions({
         return;
       }
       toast.success(
-        `Evento completado — factura al cliente por ${currency(result.chargeToClientTotal ?? 0)}, ${result.workersNotified ?? 0} pago(s) generado(s) al personal.`,
+        `Evento completado — factura al cliente por ${currency(result.chargeToClientTotal ?? 0)}, ${result.workersNotified ?? 0} pago(s) generado(s) al personal. Orden de trabajo enviada al cliente.`,
       );
       setCompleteOpen(false);
       router.refresh();
@@ -121,29 +161,12 @@ export function EventActions({
           Confirmar evento
         </Button>
       ) : null}
-      {(status === "CONFIRMED" || status === "IN_PROGRESS") && hasAssignments ? (
-        <>
-          <Button variant="outline" className="gap-1.5" asChild>
-            <a href={`/api/eventos/${eventId}/orden-trabajo`} target="_blank" rel="noopener noreferrer">
-              <ClipboardList className="size-4" /> Orden de trabajo
-            </a>
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="gap-1.5"
-            disabled={isPending}
-            onClick={handleSendWorkOrderWhatsApp}
-          >
-            {isPending ? <Loader2 className="size-4 animate-spin" /> : <MessageCircle className="size-4" />}
-            Enviar por WhatsApp
-          </Button>
-        </>
-      ) : null}
       {status === "CONFIRMED" || status === "IN_PROGRESS" ? (
         <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-1.5">
+            {/* Sin personal asignado no hay orden de trabajo que generar/enviar
+                (§ sendWorkOrderToClient exige al menos 1 asignación activa) */}
+            <Button className="gap-1.5" disabled={!hasAssignments}>
               <CheckCircle2 className="size-4" /> Marcar completado
             </Button>
           </DialogTrigger>
@@ -152,8 +175,8 @@ export function EventActions({
               <DialogTitle>Marcar evento como completado</DialogTitle>
               <DialogDescription>
                 Se emitirá/actualizará la factura al cliente con el total calculado del personal asignado, se
-                generará el pago pendiente de cada trabajador asignado, y se les notificará. Esta acción no se
-                puede deshacer.
+                generará el pago pendiente de cada trabajador asignado, se les notificará, y se enviará la orden de
+                trabajo final al cliente por WhatsApp y correo. Esta acción no se puede deshacer.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

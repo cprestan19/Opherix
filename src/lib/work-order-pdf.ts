@@ -31,11 +31,11 @@ export interface WorkOrderPdfData {
 }
 
 /**
- * Orden de trabajo (§ /admin/eventos/[eventId] "Orden de trabajo") — se
- * entrega al Cliente (igual que la cotización/factura, ver "Enviar por
- * WhatsApp" en getWorkOrderWhatsAppLink de work-order.service.ts): dónde,
- * cuándo, contacto en sitio, y quién del personal fue asignado con su
- * teléfono, para que el Cliente sepa exactamente a quién esperar.
+ * Orden de trabajo (§ /admin/eventos/[eventId] "Ver orden de trabajo") — se
+ * entrega al Cliente por WhatsApp + correo al completar el evento (§
+ * event.service.ts sendWorkOrderToClient): dónde, cuándo, contacto en sitio,
+ * y quién del personal fue asignado con su teléfono, para que el Cliente
+ * sepa exactamente a quién esperar.
  */
 export async function buildWorkOrderPdf(data: WorkOrderPdfData): Promise<Buffer> {
   const { company, event, contact, assignments } = data;

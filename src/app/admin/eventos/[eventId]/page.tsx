@@ -184,7 +184,12 @@ export default async function EventDetailPage({
         <div className="flex flex-wrap items-center gap-2">
           {event.deletedAt ? null : (
             <>
-              <EventActions eventId={event.id} status={event.status} hasAssignments={activeAssignments.length > 0} />
+              <EventActions
+                eventId={event.id}
+                status={event.status}
+                hasAssignments={activeAssignments.length > 0}
+                clientPhone={event.client.contactPhone}
+              />
               {event.status === "COMPLETED" ? <ArchiveEventAction eventId={event.id} /> : null}
             </>
           )}

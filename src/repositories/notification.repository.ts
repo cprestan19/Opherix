@@ -12,7 +12,10 @@ import { prisma } from "@/lib/prisma";
 export function listRecentNotifications(companyId: string, take = 50) {
   return prisma.notification.findMany({
     where: { companyId },
-    include: { user: { select: { name: true } } },
+    include: {
+      user: { select: { name: true } },
+      client: { select: { businessName: true, contactName: true } },
+    },
     orderBy: { createdAt: "desc" },
     take,
   });

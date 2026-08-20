@@ -11,10 +11,13 @@ import type { Specialty, AutoArchiveDelay } from "@/generated/prisma/enums";
 import type { Prisma } from "@/generated/prisma/client";
 import * as eventRepo from "@/repositories/event.repository";
 import * as clientRepo from "@/repositories/client.repository";
+import { getCompany } from "@/repositories/config.repository";
 import { logAudit } from "@/lib/audit";
-import { dispatchNotification } from "@/services/notification.service";
+import { dispatchNotification, notifyClient } from "@/services/notification.service";
 import { sendEmail } from "@/lib/notifications/email";
 import { generateEventAccessToken, EVENT_ACCESS_REOPEN_WINDOW_MS } from "@/lib/event-access-token";
+import { formatDateTime12h } from "@/utils/date";
+import { buildWorkOrderPdf } from "@/lib/work-order-pdf";
 import { prisma } from "@/lib/prisma";
 
 export class EventError extends Error {}
@@ -357,7 +360,54 @@ export async function createEventRequest(
     metadata,
   });
 
+  await notifyAdminsOfNewRequest(companyId, clientId, event);
+
   return event;
+}
+
+/**
+ * Plantilla WhatsApp `nueva_solicitud_cliente` a cada Admin/Supervisor del
+ * tenant — hoy no generaba ningún aviso, ni por email. Solo se dispara desde
+ * createEventRequest, que únicamente sirve al formulario público
+ * /solicitar/[companySlug] (la creación directa por el Administrador usa
+ * createEventDirect y no pasa por aquí). El aviso al Client de que su
+ * solicitud fue recibida NO va aquí — va en confirmEvent(), cuando el
+ * Administrador efectivamente la confirma (no en el momento en que la envía).
+ */
+async function notifyAdminsOfNewRequest(
+  companyId: string,
+  clientId: string,
+  event: { id: string; title: string; address: string; startAt: Date },
+) {
+  const [client, admins] = await Promise.all([
+    clientRepo.findClientById(companyId, clientId),
+    prisma.user.findMany({
+      where: { companyId, role: { in: ["ADMIN", "SUPERVISOR"] }, status: "ACTIVE" },
+      select: { id: true, name: true },
+    }),
+  ]);
+  if (!client) return;
+
+  const startAtFull = formatDateTime12h(event.startAt, { dateStyle: "medium" });
+
+  for (const admin of admins) {
+    await dispatchNotification({
+      companyId,
+      userId: admin.id,
+      type: "NEW_EVENT_REQUEST",
+      title: "Nueva solicitud de cliente",
+      body: `${client.contactName} de ${client.businessName} solicitó personal para "${event.title}".`,
+      relatedEntityType: "Event",
+      relatedEntityId: event.id,
+      // El botón "Ver solicitud" quedó aprobado en Meta como URL ESTÁTICA
+      // (fija a /login, no lleva el eventId) — mandar buttonUrlParam aquí
+      // hace que Meta rechace el envío (#132018).
+      whatsapp: {
+        templateName: "nueva_solicitud_cliente",
+        params: [admin.name, client.contactName, client.businessName, event.title, event.address, startAtFull],
+      },
+    });
+  }
 }
 
 export async function assignWorkerToEvent(
@@ -374,7 +424,10 @@ export async function assignWorkerToEvent(
   // El trabajador debe pertenecer a la misma empresa que el evento — sin este
   // chequeo, un workerId de otro tenant (recibido tal cual del formulario)
   // se podía asignar igual, generando una asignación y un pago cross-tenant.
-  const worker = await prisma.worker.findFirst({ where: { id: workerId, companyId }, select: { userId: true } });
+  const worker = await prisma.worker.findFirst({
+    where: { id: workerId, companyId },
+    select: { userId: true, user: { select: { name: true, phone: true } } },
+  });
   if (!worker) throw new EventError("Trabajador no encontrado.");
 
   const overlaps = await eventRepo.findOverlappingAssignments(workerId, event.startAt, event.endAt);
@@ -402,6 +455,14 @@ export async function assignWorkerToEvent(
     metadata: { eventId, workerId },
   });
 
+  const company = await getCompany(companyId);
+
+  // El botón de la plantilla `asignacion_personal_evento` es una URL estática
+  // (no varía por mensaje): siempre el login del portal Trabajador con
+  // callbackUrl a /trabajador/asignaciones, para que tras iniciar sesión
+  // aterrice directo donde puede aceptar/rechazar (§ src/app/(auth)/login).
+  // El valor completo ya está fijo en la plantilla aprobada — no se manda
+  // como parámetro dinámico.
   await dispatchNotification({
     companyId,
     userId: worker.userId,
@@ -410,9 +471,93 @@ export async function assignWorkerToEvent(
     body: `Te propusieron para "${event.title}". Revisa y confirma en tu portal.`,
     relatedEntityType: "WorkerAssignment",
     relatedEntityId: assignment.id,
+    whatsapp: {
+      templateName: "asignacion_personal_evento",
+      params: [
+        worker.user.name,
+        company.name,
+        event.title,
+        event.address,
+        formatDateTime12h(event.startAt, { dateStyle: "medium" }),
+      ],
+    },
   });
 
   return assignment;
+}
+
+/**
+ * Envía la orden de trabajo al Cliente por WhatsApp (plantilla
+ * `orden_trabajo_pdf`, con el PDF real como header de documento) + email con
+ * el mismo PDF adjunto. La cantidad de personal asignado puede seguir
+ * variando hasta último momento (se agrega más o el cliente pide menos), así
+ * que el roster solo es definitivo cuando el Administrador marca el evento
+ * como completado — por eso este envío se dispara ahí (§ completeEvent), no
+ * antes. También sirve como reenvío manual desde `/admin/eventos/[eventId]`
+ * ("Reenviar"), con `phoneOverride` opcional si el Administrador quiere
+ * mandarla a un contacto distinto al del Cliente registrado.
+ */
+export async function sendWorkOrderToClient(companyId: string, eventId: string, phoneOverride?: string) {
+  const event = await eventRepo.getEventDetail(companyId, eventId);
+  if (!event) throw new EventError("Evento no encontrado.");
+
+  if (!event.accessToken || event.accessClosedAt) {
+    throw new EventError("El enlace del evento no está activo — reactívalo desde la pantalla del evento.");
+  }
+  if (event.accessTokenExpiresAt && event.accessTokenExpiresAt < new Date()) {
+    throw new EventError("El enlace del evento venció — reactívalo desde la pantalla del evento.");
+  }
+
+  const company = await getCompany(companyId);
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const workOrderUrl = `${baseUrl}/solicitar/${company.slug}/evento/${event.id}/orden-trabajo?token=${event.accessToken}`;
+  const filename = `orden-trabajo-${event.id.slice(-8)}.pdf`;
+
+  // Construye el mismo PDF que work-order.service.ts (buildWorkOrderBuffer)
+  // en vez de importarlo — work-order.service.ts ya importa de este archivo
+  // (getEventForAccessToken), y la dirección inversa crearía un ciclo.
+  const activeAssignments = event.assignments.filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED");
+  const buffer = await buildWorkOrderPdf({
+    company: { name: company.name, logoUrl: company.logoUrl },
+    event: {
+      title: event.title,
+      eventType: event.eventType,
+      address: event.address,
+      startAt: event.startAt,
+      endAt: event.endAt,
+      notes: event.notes,
+    },
+    contact: { name: event.client.contactName, phone: event.client.contactPhone },
+    assignments: activeAssignments.map((a) => ({
+      specialty: a.specialty,
+      workerName: a.worker.user.name,
+      workerPhone: a.worker.user.phone,
+    })),
+  });
+
+  await notifyClient({
+    companyId,
+    clientId: event.clientId,
+    type: "WORK_ORDER_READY",
+    title: "Orden de trabajo lista",
+    body: `Aquí está la orden de trabajo de "${event.title}".`,
+    relatedEntityType: "Event",
+    relatedEntityId: event.id,
+    emailAttachments: [{ filename, content: buffer }],
+    whatsappPhoneOverride: phoneOverride,
+    whatsapp: {
+      templateName: "orden_trabajo_pdf",
+      params: [
+        event.client.contactName,
+        event.title,
+        new Intl.DateTimeFormat("es", { dateStyle: "medium" }).format(event.startAt),
+        event.address,
+      ],
+      document: { link: workOrderUrl, filename },
+    },
+  });
+
+  await prisma.event.update({ where: { id: eventId }, data: { workOrderSentAt: new Date() } });
 }
 
 export async function removeAssignment(companyId: string, assignmentId: string, actorId: string) {
@@ -425,6 +570,7 @@ export async function removeAssignment(companyId: string, assignmentId: string, 
     entityType: "WorkerAssignment",
     entityId: assignmentId,
   });
+
   return updated;
 }
 
@@ -435,18 +581,36 @@ export async function confirmEvent(companyId: string, eventId: string, actorId: 
   const updated = await eventRepo.updateEventStatus(companyId, eventId, "CONFIRMED");
   await logAudit({ companyId, actorId, action: "EVENT_CONFIRMED", entityType: "Event", entityId: eventId });
 
-  // El Cliente ya no tiene cuenta/portal (§ /solicitar/[companySlug]) — el
-  // correo es la única forma en que se entera de que su solicitud avanzó.
-  if (event) {
-    await sendEmail(
-      event.client.contactEmail,
-      `Tu solicitud "${event.title}" fue confirmada — Opherix`,
+  // El Cliente ya no tiene cuenta/portal (§ /solicitar/[companySlug]) — email
+  // + WhatsApp (plantilla solicitud_recibida_cliente) son la única forma en
+  // que se entera de que su solicitud avanzó. Este aviso va aquí, cuando el
+  // Administrador confirma — NO en createEventRequest (cuando el cliente
+  // apenas la envía), a pedido explícito del negocio.
+  const company = await getCompany(companyId);
+  await notifyClient({
+    companyId,
+    clientId: event.clientId,
+    type: "EVENT_CONFIRMED",
+    title: `Tu solicitud "${event.title}" fue confirmada — Opherix`,
+    body:
       `Hola ${event.client.contactName},\n\n` +
-        `Confirmamos tu solicitud de personal para "${event.title}". Ya estamos asignando al equipo.\n\n` +
-        `Puedes ver el estado en cualquier momento con el mismo enlace que usaste para solicitar.`,
-      companyId,
-    );
-  }
+      `Confirmamos tu solicitud de personal para "${event.title}". Ya estamos asignando al equipo.\n\n` +
+      `Puedes ver el estado en cualquier momento con el mismo enlace que usaste para solicitar.`,
+    relatedEntityType: "Event",
+    relatedEntityId: eventId,
+    whatsapp: {
+      // Nombre exacto tal como quedó registrado en Meta (con guión bajo al
+      // final — el nombre sin él ya estaba tomado por un intento anterior).
+      templateName: "solicitud_recibida_cliente_",
+      params: [
+        event.client.contactName,
+        event.title,
+        company.name,
+        new Intl.DateTimeFormat("es", { dateStyle: "medium" }).format(event.startAt),
+        event.address,
+      ],
+    },
+  });
 
   return updated;
 }
@@ -471,6 +635,18 @@ export async function completeEvent(companyId: string, actorId: string, eventId:
 
   const updated = await eventRepo.updateEventStatus(companyId, eventId, "COMPLETED");
   await logAudit({ companyId, actorId, action: "EVENT_COMPLETED", entityType: "Event", entityId: eventId });
+
+  // El roster de personal recién es definitivo al completar el evento (antes
+  // puede seguir variando) — best-effort: si el enlace del evento no está
+  // activo o falta configurar WhatsApp, no debe bloquear "Marcar completado"
+  // (que ya dispara factura + pagos). El Administrador siempre puede
+  // reenviarla a mano después desde la pantalla del evento.
+  try {
+    await sendWorkOrderToClient(companyId, eventId);
+  } catch (error) {
+    console.error("[event] No se pudo enviar la orden de trabajo automáticamente:", error);
+  }
+
   return updated;
 }
 

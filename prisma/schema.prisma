@@ -259,6 +259,7 @@ model Client {
   invoices     ClientInvoice[]
   accessTokens ClientAccessToken[]
   specialtyRates ClientSpecialtyRate[]
+  notifications  Notification[]
 
   @@index([companyId])
 }
@@ -504,6 +505,15 @@ model Event {
   accessTokenExpiresAt DateTime?
   accessClosedAt       DateTime?
 
+  // Idempotencia del envío automático de la orden de trabajo por WhatsApp
+  // (plantilla orden_trabajo_lista): se marca la primera vez que el evento
+  // queda completamente cubierto (todas las EventStaffRequirement con
+  // suficientes WorkerAssignment activas) y se resetea a null si luego se
+  // cancela una asignación y el evento deja de estar completo — así, si
+  // vuelve a completarse, se reenvía. El botón manual "Enviar por WhatsApp"
+  // (getWorkOrderWhatsAppLink) es independiente y no depende de este campo.
+  workOrderSentAt DateTime?
+
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -741,8 +751,15 @@ model Notification {
   id                String              @id @default(cuid())
   companyId         String
   company           Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  userId            String
-  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Exactamente uno de userId/clientId está presente (regla aplicada en
+  // servicio, no en constraint de DB — mismo patrón dual-FK opcional que
+  // PasswordResetToken). Un Client del flujo público /solicitar/[companySlug]
+  // no tiene User asociado (§ CLAUDE.md §4/§5), así que las notificaciones
+  // dirigidas a él (confirmación de solicitud, orden de trabajo) usan clientId.
+  userId            String?
+  user              User?               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientId          String?
+  client            Client?             @relation(fields: [clientId], references: [id], onDelete: Cascade)
   channel           NotificationChannel
   type              String
   title             String
@@ -759,6 +776,7 @@ model Notification {
   readAt            DateTime?
 
   @@index([companyId, userId, status])
+  @@index([companyId, clientId, status])
 }
 
 // ---------------------------------------------------------------------------

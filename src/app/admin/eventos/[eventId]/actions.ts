@@ -24,6 +24,7 @@ import {
   resendEventAccessLink,
   closeEventAccessLink,
   reopenEventAccessLink,
+  sendWorkOrderToClient,
   EventError,
 } from "@/services/event.service";
 import { getEventDetail } from "@/repositories/event.repository";
@@ -31,7 +32,6 @@ import { computeEventChargeTotal } from "@/services/client-specialty-rate.servic
 import { setEventInvoiceAmount, InvoiceError } from "@/services/invoice.service";
 import { generatePaymentsForEvent, PaymentError } from "@/services/payment.service";
 import { getEventQuoteWhatsAppLink, QuoteError } from "@/services/quote.service";
-import { getWorkOrderWhatsAppLink, WorkOrderError } from "@/services/work-order.service";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
 import type { Specialty } from "@/generated/prisma/enums";
 
@@ -268,20 +268,23 @@ export async function getEventQuoteWhatsAppLinkAction(eventId: string): Promise<
   }
 }
 
-export interface WorkOrderWhatsAppLinkResult {
-  error?: string;
-  url?: string;
-}
-
-export async function getWorkOrderWhatsAppLinkAction(eventId: string): Promise<WorkOrderWhatsAppLinkResult> {
+/**
+ * Reenvío manual de la orden de trabajo (§ /admin/eventos/[eventId] "Ver
+ * orden de trabajo y reenviar") — respaldo del envío automático que dispara
+ * completeEvent(). `phone` es opcional: si el Administrador lo deja vacío,
+ * manda al Client.contactPhone de siempre; si escribe uno distinto, lo manda
+ * ahí (ej. otro encargado del evento).
+ */
+export async function resendWorkOrderAction(eventId: string, phone?: string): Promise<EventActionResult> {
   const { companyId } = await requireCompanyStaff();
 
   try {
-    const url = await getWorkOrderWhatsAppLink(companyId, eventId);
-    return { url };
+    await sendWorkOrderToClient(companyId, eventId, phone || undefined);
   } catch (error) {
-    if (error instanceof WorkOrderError) return { error: error.message };
+    if (error instanceof EventError) return { error: error.message };
     throw error;
   }
+  return {};
 }
+
 

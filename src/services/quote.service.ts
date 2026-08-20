@@ -114,6 +114,26 @@ export async function getBatchQuotePdfForClient(companySlug: string, token: stri
 }
 
 /**
+ * Descarga autenticada desde el admin (§ /admin/eventos/[eventId] "Ver
+ * cotización") — antes la cotización solo era visible para el Cliente
+ * (por el link público/WhatsApp); el Administrador no tenía forma de verla
+ * sin pedírsela de vuelta al cliente.
+ */
+export async function getEventQuotePdf(companyId: string, eventId: string) {
+  const company = await getCompany(companyId);
+  const events = await eventRepo.listEventsForQuote(companyId, [eventId]);
+  if (events.length === 0) throw new QuoteError("Evento no encontrado.");
+
+  const buffer = await buildQuoteBuffer(
+    companyId,
+    { name: company.name, slug: company.slug, taxId: company.taxId, phone: company.phone, address: company.address, logoUrl: company.logoUrl },
+    events[0].client,
+    events,
+  );
+  return buffer;
+}
+
+/**
  * Descarga pública de la cotización de UN evento ya creado (§ /admin/eventos/
  * [eventId] "Reenviar cotización" por WhatsApp, y /solicitar/[companySlug]/
  * evento/[eventId]/cotizacion) — reusa el mismo accessToken propio del

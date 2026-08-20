@@ -7,16 +7,34 @@
  */
 
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { OpherixLogo } from "@/components/shared/opherix-logo";
 import { BackgroundBeams } from "@/components/ui/background-beams";
+import { auth } from "@/lib/auth";
+import { getPortalPath, sanitizeCallbackUrl } from "@/lib/portal-routing";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
   title: "Iniciar sesión | Opherix",
 };
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackUrl?: string }>;
+}) {
+  const { callbackUrl: rawCallbackUrl } = await searchParams;
+  const callbackUrl = sanitizeCallbackUrl(rawCallbackUrl);
+
+  // Si ya hay sesión (ej. el trabajador tocó el botón de WhatsApp con la app
+  // todavía logueada en el navegador), no tiene sentido mostrarle el form de
+  // nuevo — lo manda directo a donde iba.
+  const session = await auth();
+  if (session?.user) {
+    redirect(callbackUrl ?? getPortalPath(session.user.role, session.user.workerStatus, session.user.mustChangePassword));
+  }
+
   return (
     <div className="flex min-h-svh w-full">
       <div className="relative hidden w-1/2 flex-col justify-center overflow-hidden bg-[var(--violet-12)] px-16 lg:flex">
@@ -53,7 +71,7 @@ export default function LoginPage() {
               <CardDescription>Ingresa con tu correo y contraseña</CardDescription>
             </CardHeader>
             <CardContent>
-              <LoginForm />
+              <LoginForm callbackUrl={callbackUrl} />
             </CardContent>
           </Card>
         </div>
