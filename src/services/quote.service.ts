@@ -134,6 +134,28 @@ export async function getEventQuotePdf(companyId: string, eventId: string) {
 }
 
 /**
+ * Descarga autenticada desde el admin de la cotización CONSOLIDADA de un
+ * lote de eventos creados en un mismo envío (§ Event.batchId, /admin/eventos
+ * "Ver cotización" cuando el evento pertenece a un lote) — reusa
+ * buildQuoteBuffer, que ya soporta N eventos.
+ */
+export async function getBatchQuotePdfForAdmin(companyId: string, batchId: string) {
+  const company = await getCompany(companyId);
+  const eventIds = await eventRepo.findEventIdsByBatch(companyId, batchId);
+  if (eventIds.length === 0) throw new QuoteError("No se encontraron eventos de este lote.");
+
+  const events = await eventRepo.listEventsForQuote(companyId, eventIds);
+  if (events.length === 0) throw new QuoteError("No se encontraron eventos de este lote.");
+
+  return buildQuoteBuffer(
+    companyId,
+    { name: company.name, slug: company.slug, taxId: company.taxId, phone: company.phone, address: company.address, logoUrl: company.logoUrl },
+    events[0].client,
+    events,
+  );
+}
+
+/**
  * Descarga pública de la cotización de UN evento ya creado (§ /admin/eventos/
  * [eventId] "Reenviar cotización" por WhatsApp, y /solicitar/[companySlug]/
  * evento/[eventId]/cotizacion) — reusa el mismo accessToken propio del

@@ -134,3 +134,123 @@ export async function buildWorkOrderPdf(data: WorkOrderPdfData): Promise<Buffer>
 
   return Buffer.from(doc.output("arraybuffer"));
 }
+
+export interface BatchWorkOrderPdfEvent {
+  title: string;
+  eventType: string | null;
+  address: string;
+  startAt: Date;
+  endAt: Date;
+  notes: string | null;
+  assignments: { specialty: Specialty | null; workerName: string; workerIdNumber: string | null }[];
+}
+
+export interface BatchWorkOrderPdfData {
+  company: { name: string; logoUrl: string | null };
+  events: BatchWorkOrderPdfEvent[];
+}
+
+/**
+ * Orden de trabajo consolidada de un lote de eventos creados en un mismo
+ * envío (§ Event.batchId, event.service.ts sendBatchWorkOrderToClient) — un
+ * solo PDF con el encabezado de la empresa una vez y una sección completa
+ * (fecha, dirección, notas, personal asignado) por cada evento, igual que
+ * buildQuotePdf hace para la cotización consolidada.
+ */
+export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promise<Buffer> {
+  const { company, events } = data;
+  const doc = new jsPDF();
+
+  const logo = company.logoUrl ? await fetchLogoForPdf(company.logoUrl) : null;
+  const textStartX = logo ? 38 : 14;
+
+  if (logo) {
+    try {
+      doc.addImage(logo.dataUrl, logo.format, 14, 12, 20, 20);
+    } catch {
+      // Formato/imagen corrupta — la orden sigue sin el logo.
+    }
+  }
+
+  doc.setFontSize(16);
+  doc.text(company.name, textStartX, 18);
+  doc.setFontSize(14);
+  doc.setTextColor(0);
+  doc.text("ORDEN DE TRABAJO", 196, 18, { align: "right" });
+  doc.setFontSize(9);
+  doc.setTextColor(100);
+  doc.text(`${events.length} evento${events.length === 1 ? "" : "s"}`, 196, 24, { align: "right" });
+
+  let y = Math.max(logo ? 34 : 26, 26);
+  const dateFormatter = new Intl.DateTimeFormat("es", { dateStyle: "medium" });
+
+  for (const event of events) {
+    doc.setDrawColor(220);
+    doc.line(14, y, 196, y);
+    y += 8;
+
+    doc.setFontSize(13);
+    doc.setTextColor(0);
+    doc.text(event.title, 14, y);
+    y += 7;
+
+    doc.setFontSize(9);
+    doc.setTextColor(80);
+    if (event.eventType) {
+      doc.text(`Tipo: ${event.eventType}`, 14, y);
+      y += 5;
+    }
+    doc.text(`Ubicación: ${event.address}`, 14, y);
+    y += 5;
+    doc.text(
+      `Horario: ${dateFormatter.format(event.startAt)} ${formatTime12h(event.startAt)} – ${dateFormatter.format(event.endAt)} ${formatTime12h(event.endAt)}`,
+      14,
+      y,
+    );
+    y += 5;
+    if (event.notes) {
+      const noteLines = doc.splitTextToSize(`Notas: ${event.notes}`, 182);
+      doc.text(noteLines, 14, y);
+      y += noteLines.length * 5;
+    }
+
+    y += 4;
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text("Personal asignado", 14, y);
+    y += 4;
+
+    const sortedAssignments = [...event.assignments].sort((a, b) => {
+      const labelA = a.specialty ? specialtyLabels[a.specialty] : "";
+      const labelB = b.specialty ? specialtyLabels[b.specialty] : "";
+      return labelA.localeCompare(labelB) || a.workerName.localeCompare(b.workerName);
+    });
+    const startTime = formatTime12h(event.startAt);
+    const endTime = formatTime12h(event.endAt);
+
+    autoTable(doc, {
+      startY: y + 2,
+      head: [["Especialidad", "Nombre", "Cédula/Pasaporte", "Hora inicio", "Hora fin"]],
+      body:
+        sortedAssignments.length > 0
+          ? sortedAssignments.map((a) => [
+              a.specialty ? specialtyLabels[a.specialty] : "—",
+              a.workerName,
+              a.workerIdNumber ?? "—",
+              startTime,
+              endTime,
+            ])
+          : [["—", "Sin personal asignado", "—", "—", "—"]],
+      styles: { fontSize: 9 },
+    });
+
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
+
+    if (y > 250 && event !== events[events.length - 1]) {
+      doc.addPage();
+      y = 20;
+    }
+  }
+
+  return Buffer.from(doc.output("arraybuffer"));
+}

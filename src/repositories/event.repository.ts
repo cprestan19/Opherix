@@ -29,6 +29,10 @@ export function createEvent(data: {
   // Preferencia opcional del selector de personal en línea del formulario
   // público — no crea asignaciones, solo prioriza a quién debería asignar el Administrador.
   preferredWorkerIds?: string[];
+  // Compartido entre todos los eventos de un mismo envío del wizard de
+  // cliente recurrente (§ CreateEventInput/createEventRequest) — null en el
+  // resto de flujos de creación.
+  batchId?: string;
   staffRequirements: { specialty: Specialty; quantity: number }[];
 }) {
   const { staffRequirements, status, ...eventFields } = data;
@@ -222,6 +226,40 @@ export function listEventsForQuote(companyId: string, eventIds: string[]) {
         },
       },
       staffRequirements: true,
+    },
+    orderBy: { startAt: "asc" },
+  });
+}
+
+/** IDs de los eventos de un lote (§ cotización/orden de trabajo consolidada del Administrador). */
+export async function findEventIdsByBatch(companyId: string, batchId: string) {
+  const events = await prisma.event.findMany({
+    where: { companyId, batchId, deletedAt: null },
+    select: { id: true },
+    orderBy: { startAt: "asc" },
+  });
+  return events.map((e) => e.id);
+}
+
+/**
+ * Todos los eventos de un lote con el mismo detalle que getEventDetail (§
+ * orden de trabajo consolidada) — usado para armar un solo PDF con la
+ * sección de cada evento del lote.
+ */
+export function listEventsDetailForBatch(companyId: string, batchId: string) {
+  return prisma.event.findMany({
+    where: { companyId, batchId, deletedAt: null },
+    include: {
+      client: { select: { businessName: true, contactName: true, contactPhone: true, contactEmail: true } },
+      staffRequirements: true,
+      assignments: {
+        include: {
+          worker: {
+            select: { id: true, userId: true, photoUrl: true, idNumber: true, user: { select: { name: true, phone: true } } },
+          },
+        },
+        orderBy: { assignedAt: "asc" },
+      },
     },
     orderBy: { startAt: "asc" },
   });

@@ -7,11 +7,11 @@
  */
 
 import "server-only";
-import { getEventDetail } from "@/repositories/event.repository";
+import { getEventDetail, listEventsDetailForBatch } from "@/repositories/event.repository";
 import { getCompany } from "@/repositories/config.repository";
 import { findCompanyBySlug } from "@/repositories/worker.repository";
 import { getEventForAccessToken } from "@/services/event.service";
-import { buildWorkOrderPdf } from "@/lib/work-order-pdf";
+import { buildWorkOrderPdf, buildBatchWorkOrderPdf } from "@/lib/work-order-pdf";
 
 export class WorkOrderError extends Error {}
 
@@ -76,4 +76,59 @@ export async function getWorkOrderPdfForPublicAccess(companySlug: string, eventI
 
   const { buffer, filename } = await buildWorkOrderBuffer(company.id, eventId);
   return { buffer, filename };
+}
+
+async function buildBatchWorkOrderBuffer(companyId: string, batchId: string) {
+  const [events, company] = await Promise.all([listEventsDetailForBatch(companyId, batchId), getCompany(companyId)]);
+  if (events.length === 0) throw new WorkOrderError("No se encontraron eventos de este lote.");
+
+  const buffer = await buildBatchWorkOrderPdf({
+    company: { name: company.name, logoUrl: company.logoUrl },
+    events: events.map((event) => ({
+      title: event.title,
+      eventType: event.eventType,
+      address: event.address,
+      startAt: event.startAt,
+      endAt: event.endAt,
+      notes: event.notes,
+      assignments: event.assignments
+        .filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED")
+        .map((a) => ({
+          specialty: a.specialty,
+          workerName: a.worker.user.name,
+          workerIdNumber: a.worker.idNumber,
+        })),
+    })),
+  });
+
+  const filename = `orden-trabajo-lote-${batchId.slice(-8)}.pdf`;
+  return { buffer, filename };
+}
+
+/** Descarga autenticada desde el admin (§ /api/eventos/lote/[batchId]/orden-trabajo). */
+export async function getBatchWorkOrderPdf(companyId: string, batchId: string) {
+  return buildBatchWorkOrderBuffer(companyId, batchId);
+}
+
+/**
+ * Descarga pública de la orden de trabajo consolidada del lote — reusa el
+ * accessToken del evento "ancla" (el de fecha más temprana del lote) en vez
+ * de crear un token nuevo por lote, igual criterio que
+ * event.service.ts sendBatchWorkOrderToClient.
+ */
+export async function getBatchWorkOrderPdfForPublicAccess(
+  companySlug: string,
+  batchId: string,
+  anchorEventId: string,
+  token: string,
+) {
+  const company = await findCompanyBySlug(companySlug);
+  if (!company) throw new WorkOrderError("Enlace no válido.");
+
+  const { event, denied } = await getEventForAccessToken(company.id, anchorEventId, token);
+  if (!event || denied || event.batchId !== batchId) {
+    throw new WorkOrderError("Este enlace ya no está disponible.");
+  }
+
+  return buildBatchWorkOrderBuffer(company.id, batchId);
 }

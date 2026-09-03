@@ -49,6 +49,8 @@ export function EventAccessLinkPanel({
   accessClosedAt,
   eventEnded,
   baseUrl,
+  batchId,
+  batchEventCount,
 }: {
   eventId: string;
   companySlug: string;
@@ -57,6 +59,11 @@ export function EventAccessLinkPanel({
   accessClosedAt: Date | null;
   eventEnded: boolean;
   baseUrl: string;
+  // Cuando el evento nació de un lote (§ Event.batchId), "Ver cotización"
+  // abre la cotización consolidada de los batchEventCount eventos del lote
+  // en vez de la de este evento solo.
+  batchId?: string | null;
+  batchEventCount?: number;
 }) {
   const [link, setLink] = useState<string | null>(
     accessToken ? `${baseUrl}/solicitar/${companySlug}/evento/${eventId}?token=${accessToken}` : null,
@@ -186,10 +193,20 @@ export function EventAccessLinkPanel({
                   Reenviar por correo
                 </Button>
               </HintButton>
-              <HintButton hint="Abre el PDF de la cotización en una pestaña nueva.">
+              <HintButton
+                hint={
+                  batchId
+                    ? `Abre el PDF de la cotización consolidada de los ${batchEventCount} eventos de este lote.`
+                    : "Abre el PDF de la cotización en una pestaña nueva."
+                }
+              >
                 <Button variant="outline" size="sm" className="gap-1.5" asChild>
-                  <a href={`/api/eventos/${eventId}/cotizacion`} target="_blank" rel="noopener noreferrer">
-                    <FileText className="size-3.5" /> Ver cotización
+                  <a
+                    href={batchId ? `/api/eventos/lote/${batchId}/cotizacion` : `/api/eventos/${eventId}/cotizacion`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <FileText className="size-3.5" /> {batchId ? "Ver cotización del lote" : "Ver cotización"}
                   </a>
                 </Button>
               </HintButton>

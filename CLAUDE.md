@@ -98,7 +98,8 @@ Portales: Administrador (control total, asignaciones, reportes, facturación, co
 - **6.9 Documentos:** cédula, currículum, carnet salud, manipulación alimentos, licencias, certificados. Alertas automáticas de vencimiento próximo.
 - **6.10 Notificaciones:** push (Firebase), email, WhatsApp (Meta Cloud API), recordatorios, confirmaciones, cambios de horario, asignaciones. `Notification` soporta destinatarios sin `User` (un `Client` del flujo público no tiene cuenta) vía `clientId` opcional — mismo patrón dual-FK que `PasswordResetToken`. 4 plantillas de WhatsApp aprobadas en Meta (categoría UTILITY, idioma `es_PA` exacto — no `es` genérico), todas con email en paralelo vía `notifyClient()`:
   - `asignacion_personal_evento` → Trabajador, al asignarlo (`assignWorkerToEvent`). Botón fijo a `/login?callbackUrl=/trabajador/asignaciones` (login soporta `callbackUrl` con allowlist a `/trabajador*`, para aterrizar directo donde puede aprobar).
-  - `nueva_solicitud_cliente` → cada Admin/Supervisor activo, al recibirse la solicitud (`createEventRequest`). Botón estático a `/login` (no dinámico por evento, así quedó aprobado en Meta).
+  - `nueva_solicitud_cliente` → cada Admin/Supervisor activo, al recibirse la solicitud (`createEventRequest`). Botón estático a `/login` (no dinámico por evento, así quedó aprobado en Meta). Solo se usa cuando el evento es individual — ver `nueva_solicitud_cliente_lote` para el caso de lote.
+  - `nueva_solicitud_cliente_lote` (2026-09-03, pendiente de aprobación en Meta) → cada Admin/Supervisor activo, una sola vez cuando el Cliente crea varios eventos en un mismo envío desde su enlace propio (`/solicitar/[companySlug]/cliente/[token]`, `notifyAdminsOfNewRequestBatch`) — evita mandar un WhatsApp por cada evento del lote. Params: `[admin.name, client.contactName, client.businessName, cantidadDeEventos, rangoDeFechas]`. Botón estático a `/login`, mismo criterio que `nueva_solicitud_cliente`. El email de resumen sí funciona desde ya (no depende de Meta); mientras la plantilla no esté aprobada, el intento de WhatsApp queda registrado `FAILED` en `Notification` sin bloquear nada.
   - `solicitud_recibida_cliente_` (el nombre sin guión bajo final ya estaba tomado en Meta) → Cliente, cuando el Administrador **confirma** (`confirmEvent`) — no al enviar la solicitud.
   - `orden_trabajo_pdf` → Cliente, con el PDF real adjunto (header tipo Documento). Se dispara al **completar** el evento (`completeEvent`/`sendWorkOrderToClient`), no antes ni por "personal 100% cubierto" — el roster puede seguir variando hasta ese momento. Botón "Ver orden de trabajo" + reenvío manual con teléfono editable en `/admin/eventos/[eventId]`. (Existe un template hermano `orden_trabajo_lista_` de un primer intento fallido — quedó aprobado con header de Texto fijo por error, nunca pudo adjuntar PDF; no se usa en código, no borrar de Meta sin revisar antes.)
 - **6.11 Reportes:** horas trabajadas, eventos realizados, clientes, facturación, trabajadores más solicitados, puntualidad, ausencias, ranking.
@@ -175,6 +176,12 @@ Estos cuatro puntos se generan en el **paso 1** del orden de construcción (§10
     - **Los botones URL de las plantillas aprobadas quedaron todos estáticos** (no dinámicos con el eventId como se planeó originalmente) — no mandar `buttonUrlParam` salvo que se verifique con `GET /{template-id}?fields=components` que el botón realmente tiene un `{{1}}` en la URL.
     - **La orden de trabajo ya no depende de "personal 100% asignado"** (ese estado podía variar hasta último momento) — se genera/envía al completar el evento (§6.10), con reenvío manual + teléfono editable como respaldo si el automático falla.
     - **El Administrador tiene visibilidad de cotización y orden de trabajo** desde `/admin/eventos/[eventId]` (`GET /api/eventos/[eventId]/cotizacion` y `/orden-trabajo`) — antes la cotización solo la veía el Cliente por WhatsApp/link público.
+12. **Lote de eventos del cliente recurrente agrupado en el admin (2026-09-03):** cuando el Cliente crea varios eventos en un mismo envío desde su enlace propio (`/solicitar/[companySlug]/cliente/[token]`, wizard ya existente desde antes — ver `MAX_EVENTS_PER_BATCH` en `src/lib/event-batch.ts`), ahora comparten un `Event.batchId` real (antes solo vivía efímero en `AuditLog.metadata`). Con eso:
+    - `/admin/eventos` los agrupa bajo una sola tarjeta "Múltiples eventos (N)" en vez de mostrarlos sueltos.
+    - Cotización y orden de trabajo se piden consolidadas para todo el lote (`/api/eventos/lote/[batchId]/cotizacion` y `/orden-trabajo`) — un solo PDF con el detalle de cada evento, reutilizando el motor de `quote.service.ts` (ya soportaba N eventos) y una nueva sección por evento en `work-order-pdf.ts`.
+    - La orden de trabajo del lote se envía sola (WhatsApp + email al Cliente) recién cuando **todos** los eventos del lote quedan en un estado terminal (COMPLETED o CANCELLED, con al menos uno COMPLETED) — ver el bloque `if (event.batchId)` dentro de `completeEvent()` en `event.service.ts`. Reutiliza la plantilla `orden_trabajo_pdf` ya aprobada (sustituyendo el evento/fecha/dirección de un solo evento por un resumen de cantidad + rango de fechas del lote), no necesitó una plantilla nueva.
+    - El aviso de "nueva solicitud" al admin si es un lote sí necesitó una plantilla nueva — ver `nueva_solicitud_cliente_lote` en §6.10.
+    - Alcance deliberado: **no** aplica al formulario público de primer contacto (`/solicitar/[companySlug]` sin enlace propio), que sigue siendo de un evento por envío.
 
 ## 10. Orden de construcción
 
@@ -191,10 +198,11 @@ Estos cuatro puntos se generan en el **paso 1** del orden de construcción (§10
 11. Reportes + Dashboard final.
 12. Hardening: RLS, auditoría completa, accesibilidad, verificación de tema claro forzado, QA end-to-end.
 
-## 11. Pendientes activos (2026-08-19)
+## 11. Pendientes activos (2026-09-03)
 
 - **Confirmar en producción que el PDF de `orden_trabajo_pdf` llega adjunto de verdad** (ver §9.11) — se hizo el primer deploy con las credenciales de WhatsApp recién cargadas en Vercel (solo entorno Production), pero todavía no se verificó en vivo contra el dominio real. Próxima vez que se toque este flujo, probar un evento real hasta completarlo y confirmar el adjunto.
 - Las plantillas de WhatsApp viven en la cuenta de Meta Business de Golden Logistic Eventual — cualquier plantilla nueva/editada pasa por aprobación de Meta (minutos a horas), no es instantáneo.
+- **`nueva_solicitud_cliente_lote` enviada a revisión a Meta (2026-09-03), todavía sin aprobar** (ver §9.12 y §6.10) — hasta que se apruebe, el aviso de "nueva solicitud" de un lote de eventos solo llega por email a los admins/supervisores; el intento de WhatsApp queda `FAILED` en `Notification` sin romper nada. Revisar el estado de la plantilla en Meta Business Manager y, si la rechazan, ajustar la redacción y reenviar.
 
 ---
 

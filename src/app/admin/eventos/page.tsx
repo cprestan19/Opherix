@@ -47,6 +47,60 @@ function formatRange(start: Date, end: Date) {
   return `${formatDateTime12h(start, dateOptions)} – ${formatDateTime12h(end, dateOptions)}`;
 }
 
+type EventListItem = Awaited<ReturnType<typeof listEventsForCompany>>[number];
+
+/** Cuerpo de la tarjeta de un evento — se usa igual suelto o anidado dentro de un grupo de lote. */
+function EventCardBody({ event }: { event: EventListItem }) {
+  const acceptedCount = event.assignments.filter((a) => a.status === "ACCEPTED").length;
+  const totalRequired = event.staffRequirements.reduce((sum, r) => sum + r.quantity, 0);
+  return (
+    <CardContent className="flex flex-col gap-2 p-4">
+      <div className="flex items-center justify-between gap-4">
+        <p className="font-medium">{event.title}</p>
+        <Badge variant={STATUS_VARIANTS[event.status]}>{STATUS_LABELS[event.status]}</Badge>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {event.client.businessName} · {formatRange(event.startAt, event.endAt)} · {event.address}
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        {event.staffRequirements.map((req) => (
+          <Badge key={req.id} variant="outline">
+            {specialtyLabels[req.specialty]} x{req.quantity}
+          </Badge>
+        ))}
+        <span className="text-xs text-muted-foreground">
+          {acceptedCount}/{totalRequired} confirmados
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-2 pt-1">
+        <AssignedWorkersAvatarGroup assignments={event.assignments} />
+      </div>
+    </CardContent>
+  );
+}
+
+/** Agrupa eventos que nacieron del mismo envío de un cliente (§ Event.batchId) — el resto queda como grupo de 1. */
+function groupEventsByBatch(events: EventListItem[]) {
+  const groups: EventListItem[][] = [];
+  const indexByBatchId = new Map<string, number>();
+
+  for (const event of events) {
+    if (!event.batchId) {
+      groups.push([event]);
+      continue;
+    }
+    const existingIndex = indexByBatchId.get(event.batchId);
+    if (existingIndex === undefined) {
+      indexByBatchId.set(event.batchId, groups.length);
+      groups.push([event]);
+    } else {
+      groups[existingIndex].push(event);
+    }
+  }
+
+  return groups;
+}
+
 export default async function EventosPage({
   searchParams,
 }: {
@@ -168,36 +222,42 @@ export default async function EventosPage({
         </Card>
       ) : (
         <div className="flex flex-col gap-3">
-          {events.map((event) => {
-            const acceptedCount = event.assignments.filter((a) => a.status === "ACCEPTED").length;
-            const totalRequired = event.staffRequirements.reduce((sum, r) => sum + r.quantity, 0);
+          {groupEventsByBatch(events).map((group) => {
+            if (group.length === 1) {
+              const event = group[0];
+              return (
+                <Link key={event.id} href={`/admin/eventos/${event.id}`}>
+                  <Card className="transition-colors hover:border-primary/40">
+                    <EventCardBody event={event} />
+                  </Card>
+                </Link>
+              );
+            }
+
+            const batchId = group[0].batchId as string;
+            const earliestStart = group.reduce((min, e) => (e.startAt < min ? e.startAt : min), group[0].startAt);
+            const latestEnd = group.reduce((max, e) => (e.endAt > max ? e.endAt : max), group[0].endAt);
             return (
-              <Link key={event.id} href={`/admin/eventos/${event.id}`}>
-                <Card className="transition-colors hover:border-primary/40">
-                  <CardContent className="flex flex-col gap-2 p-4">
-                    <div className="flex items-center justify-between gap-4">
-                      <p className="font-medium">{event.title}</p>
-                      <Badge variant={STATUS_VARIANTS[event.status]}>{STATUS_LABELS[event.status]}</Badge>
+              <Card key={batchId} className="border-primary/30">
+                <CardContent className="flex flex-col gap-3 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Badge>Múltiples eventos ({group.length})</Badge>
+                      <p className="text-sm font-medium">{group[0].client.businessName}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {event.client.businessName} · {formatRange(event.startAt, event.endAt)} · {event.address}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {event.staffRequirements.map((req) => (
-                        <Badge key={req.id} variant="outline">
-                          {specialtyLabels[req.specialty]} x{req.quantity}
-                        </Badge>
-                      ))}
-                      <span className="text-xs text-muted-foreground">
-                        {acceptedCount}/{totalRequired} confirmados
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2 pt-1">
-                      <AssignedWorkersAvatarGroup assignments={event.assignments} />
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                    <p className="text-xs text-muted-foreground">{formatRange(earliestStart, latestEnd)}</p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {group.map((event) => (
+                      <Link key={event.id} href={`/admin/eventos/${event.id}`}>
+                        <Card className="transition-colors hover:border-primary/40">
+                          <EventCardBody event={event} />
+                        </Card>
+                      </Link>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>

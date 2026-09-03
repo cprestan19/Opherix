@@ -25,7 +25,13 @@ import {
   ResponsiveDialogTitle as DialogTitle,
   ResponsiveDialogTrigger as DialogTrigger,
 } from "@/components/shared/responsive-dialog";
-import { confirmEventAction, cancelEventAction, completeEventAction, resendWorkOrderAction } from "./actions";
+import {
+  confirmEventAction,
+  cancelEventAction,
+  completeEventAction,
+  resendWorkOrderAction,
+  resendBatchWorkOrderAction,
+} from "./actions";
 
 function currency(value: number) {
   return new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD" }).format(value);
@@ -55,13 +61,25 @@ function HintButton({ hint, children }: { hint: string; children: React.ReactNod
  * completar; "Reenviar" es el respaldo manual, con casilla de teléfono para
  * mandarla a otro contacto además del registrado en el Cliente.
  */
-function WorkOrderPanel({ eventId, clientPhone }: { eventId: string; clientPhone: string | null }) {
+function WorkOrderPanel({
+  eventId,
+  clientPhone,
+  batchId,
+  batchEventCount,
+}: {
+  eventId: string;
+  clientPhone: string | null;
+  batchId?: string | null;
+  batchEventCount?: number;
+}) {
   const [isPending, startTransition] = useTransition();
   const [phone, setPhone] = useState("");
 
   function handleResend() {
     startTransition(async () => {
-      const result = await resendWorkOrderAction(eventId, phone);
+      const result = batchId
+        ? await resendBatchWorkOrderAction(batchId, phone)
+        : await resendWorkOrderAction(eventId, phone);
       if (result?.error) {
         toast.error(result.error);
         return;
@@ -70,12 +88,20 @@ function WorkOrderPanel({ eventId, clientPhone }: { eventId: string; clientPhone
     });
   }
 
+  const workOrderHref = batchId ? `/api/eventos/lote/${batchId}/orden-trabajo` : `/api/eventos/${eventId}/orden-trabajo`;
+
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <HintButton hint="Abre el PDF de la orden de trabajo en una pestaña nueva.">
+      <HintButton
+        hint={
+          batchId
+            ? `Abre el PDF de la orden de trabajo consolidada de los ${batchEventCount} eventos de este lote.`
+            : "Abre el PDF de la orden de trabajo en una pestaña nueva."
+        }
+      >
         <Button variant="outline" className="gap-1.5" asChild>
-          <a href={`/api/eventos/${eventId}/orden-trabajo`} target="_blank" rel="noopener noreferrer">
-            <ClipboardList className="size-4" /> Ver orden de trabajo
+          <a href={workOrderHref} target="_blank" rel="noopener noreferrer">
+            <ClipboardList className="size-4" /> {batchId ? "Ver orden de trabajo del lote" : "Ver orden de trabajo"}
           </a>
         </Button>
       </HintButton>
@@ -102,11 +128,15 @@ export function EventActions({
   status,
   hasAssignments,
   clientPhone,
+  batchId,
+  batchEventCount,
 }: {
   eventId: string;
   status: string;
   hasAssignments: boolean;
   clientPhone: string | null;
+  batchId?: string | null;
+  batchEventCount?: number;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -117,7 +147,14 @@ export function EventActions({
   if (status === "CANCELLED") return null;
 
   if (status === "COMPLETED" || status === "ARCHIVED") {
-    return <WorkOrderPanel eventId={eventId} clientPhone={clientPhone} />;
+    return (
+      <WorkOrderPanel
+        eventId={eventId}
+        clientPhone={clientPhone}
+        batchId={batchId}
+        batchEventCount={batchEventCount}
+      />
+    );
   }
 
   function handleComplete() {

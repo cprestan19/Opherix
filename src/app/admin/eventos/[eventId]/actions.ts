@@ -25,6 +25,7 @@ import {
   closeEventAccessLink,
   reopenEventAccessLink,
   sendWorkOrderToClient,
+  sendBatchWorkOrderToClient,
   EventError,
 } from "@/services/event.service";
 import { getEventDetail } from "@/repositories/event.repository";
@@ -280,6 +281,23 @@ export async function resendWorkOrderAction(eventId: string, phone?: string): Pr
 
   try {
     await sendWorkOrderToClient(companyId, eventId, phone || undefined);
+  } catch (error) {
+    if (error instanceof EventError) return { error: error.message };
+    throw error;
+  }
+  return {};
+}
+
+/**
+ * Igual que resendWorkOrderAction pero para la orden de trabajo consolidada
+ * de todo el lote (§ Event.batchId) — usada cuando el evento pertenece a un
+ * lote (§ event-actions.tsx WorkOrderPanel).
+ */
+export async function resendBatchWorkOrderAction(batchId: string, phone?: string): Promise<EventActionResult> {
+  const { companyId } = await requireCompanyStaff();
+
+  try {
+    await sendBatchWorkOrderToClient(companyId, batchId, phone || undefined);
   } catch (error) {
     if (error instanceof EventError) return { error: error.message };
     throw error;

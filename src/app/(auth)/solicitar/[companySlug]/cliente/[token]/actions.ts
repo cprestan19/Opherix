@@ -11,7 +11,12 @@
 import { randomUUID } from "crypto";
 import { findCompanyBySlug, filterActiveWorkerIds } from "@/repositories/worker.repository";
 import { findClientByAccessToken } from "@/repositories/client.repository";
-import { createEventRequest, generateEventAccessLink, EventError } from "@/services/event.service";
+import {
+  createEventRequest,
+  generateEventAccessLink,
+  notifyAdminsOfNewRequestBatch,
+  EventError,
+} from "@/services/event.service";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
 import { MAX_EVENTS_PER_BATCH } from "@/lib/event-batch";
 
@@ -57,6 +62,7 @@ export async function createEventsForClientAction(
 
   const batchId = inputs.length > 1 ? randomUUID() : undefined;
   const items: CreateEventsForClientItemResult[] = [];
+  const createdEvents: { id: string; title: string; address: string; startAt: Date }[] = [];
 
   for (const rawInput of inputs) {
     const parsed = eventRequestSchema.safeParse(rawInput);
@@ -73,20 +79,29 @@ export async function createEventsForClientAction(
       : undefined;
 
     try {
+      // Cuando es un lote de 2+, cada evento se crea con notifyAdmins:false —
+      // el aviso a los admins se manda UNA vez para todo el lote, después de
+      // este for (§ notifyAdminsOfNewRequestBatch), en vez de uno por evento.
       const event = await createEventRequest(
         company.id,
         client.id,
         null,
         { ...parsed.data, preferredWorkerIds },
         undefined,
-        batchId ? { batchId, batchSize: inputs.length } : undefined,
+        batchId,
+        !batchId,
       );
       const { token: eventAccessToken } = await generateEventAccessLink(company.id, null, event.id);
       items.push({ success: true, title: event.title, eventId: event.id, eventAccessToken });
+      createdEvents.push({ id: event.id, title: event.title, address: event.address, startAt: event.startAt });
     } catch (error) {
       const message = error instanceof EventError ? error.message : "No se pudo crear este evento.";
       items.push({ success: false, title: parsed.data.title, error: message });
     }
+  }
+
+  if (batchId && createdEvents.length > 0) {
+    await notifyAdminsOfNewRequestBatch(company.id, client.id, createdEvents);
   }
 
   return { items };

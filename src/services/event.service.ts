@@ -8,7 +8,6 @@
 
 import "server-only";
 import type { Specialty, AutoArchiveDelay } from "@/generated/prisma/enums";
-import type { Prisma } from "@/generated/prisma/client";
 import * as eventRepo from "@/repositories/event.repository";
 import * as clientRepo from "@/repositories/client.repository";
 import { getCompany } from "@/repositories/config.repository";
@@ -17,7 +16,7 @@ import { dispatchNotification, notifyClient } from "@/services/notification.serv
 import { sendEmail } from "@/lib/notifications/email";
 import { generateEventAccessToken, EVENT_ACCESS_REOPEN_WINDOW_MS } from "@/lib/event-access-token";
 import { formatDateTime12h } from "@/utils/date";
-import { buildWorkOrderPdf } from "@/lib/work-order-pdf";
+import { buildWorkOrderPdf, buildBatchWorkOrderPdf } from "@/lib/work-order-pdf";
 import { prisma } from "@/lib/prisma";
 
 export class EventError extends Error {}
@@ -322,10 +321,14 @@ export async function createEventRequest(
   input: CreateEventInput,
   ipAddress?: string,
   // Opcional: usado por /solicitar/[companySlug]/cliente/[token] cuando el
-  // cliente crea varios eventos en un mismo envío — cada Event queda con el
-  // mismo batchId en su AuditLog para que el Administrador vea que llegaron
-  // juntos, sin necesidad de una tabla/relación nueva para agruparlos.
-  metadata?: Prisma.InputJsonValue,
+  // cliente crea varios eventos en un mismo envío — cada Event comparte el
+  // mismo batchId (columna real, § prisma/schema.prisma) para que el
+  // Administrador los vea agrupados en /admin/eventos.
+  batchId?: string,
+  // false cuando el llamador (createEventsForClientAction) prefiere avisar a
+  // los admins una sola vez por lote en vez de una vez por evento — ver
+  // notifyAdminsOfNewRequestBatch.
+  notifyAdmins: boolean = true,
 ) {
   const startAt = new Date(input.startAt);
   const endAt = new Date(input.endAt);
@@ -348,6 +351,7 @@ export async function createEventRequest(
     notes: input.notes,
     ipAddress,
     preferredWorkerIds: input.preferredWorkerIds,
+    batchId,
     staffRequirements: input.staffRequirements,
   });
 
@@ -357,10 +361,12 @@ export async function createEventRequest(
     action: "EVENT_REQUESTED",
     entityType: "Event",
     entityId: event.id,
-    metadata,
+    metadata: batchId ? { batchId } : undefined,
   });
 
-  await notifyAdminsOfNewRequest(companyId, clientId, event);
+  if (notifyAdmins) {
+    await notifyAdminsOfNewRequest(companyId, clientId, event);
+  }
 
   return event;
 }
@@ -405,6 +411,61 @@ async function notifyAdminsOfNewRequest(
       whatsapp: {
         templateName: "nueva_solicitud_cliente",
         params: [admin.name, client.contactName, client.businessName, event.title, event.address, startAtFull],
+      },
+    });
+  }
+}
+
+/**
+ * Igual que notifyAdminsOfNewRequest pero para un lote de varios eventos
+ * creados en un mismo envío (§ /solicitar/[companySlug]/cliente/[token],
+ * createEventsForClientAction) — un solo aviso por admin/supervisor en vez
+ * de uno por evento. La plantilla WhatsApp `nueva_solicitud_cliente_lote` es
+ * nueva y debe darse de alta y aprobarse en Meta Business Manager (categoría
+ * UTILITY, idioma es_PA) antes de que el envío por WhatsApp funcione de
+ * verdad — mientras tanto queda registrada como FAILED en Notification sin
+ * bloquear el email, que sí llega desde el día uno (mismo patrón best-effort
+ * que sendWorkOrderToClient).
+ */
+export async function notifyAdminsOfNewRequestBatch(
+  companyId: string,
+  clientId: string,
+  events: { id: string; title: string; address: string; startAt: Date }[],
+) {
+  if (events.length === 0) return;
+
+  const [client, admins] = await Promise.all([
+    clientRepo.findClientById(companyId, clientId),
+    prisma.user.findMany({
+      where: { companyId, role: { in: ["ADMIN", "SUPERVISOR"] }, status: "ACTIVE" },
+      select: { id: true, name: true },
+    }),
+  ]);
+  if (!client) return;
+
+  const sorted = [...events].sort((a, b) => a.startAt.getTime() - b.startAt.getTime());
+  const dateFormatter = new Intl.DateTimeFormat("es", { dateStyle: "medium" });
+  const firstDate = dateFormatter.format(sorted[0].startAt);
+  const lastDate = dateFormatter.format(sorted[sorted.length - 1].startAt);
+  const dateRange = firstDate === lastDate ? firstDate : `${firstDate} – ${lastDate}`;
+
+  const detailLines = sorted
+    .map((e) => `- ${e.title}: ${formatDateTime12h(e.startAt, { dateStyle: "medium" })} · ${e.address}`)
+    .join("\n");
+
+  for (const admin of admins) {
+    await dispatchNotification({
+      companyId,
+      userId: admin.id,
+      type: "NEW_EVENT_REQUEST_BATCH",
+      title: "Nuevas solicitudes de cliente",
+      body:
+        `${client.contactName} de ${client.businessName} solicitó personal para ${sorted.length} eventos:\n\n${detailLines}`,
+      relatedEntityType: "Event",
+      relatedEntityId: sorted[0].id,
+      whatsapp: {
+        templateName: "nueva_solicitud_cliente_lote",
+        params: [admin.name, client.contactName, client.businessName, String(sorted.length), dateRange],
       },
     });
   }
@@ -560,6 +621,82 @@ export async function sendWorkOrderToClient(companyId: string, eventId: string, 
   await prisma.event.update({ where: { id: eventId }, data: { workOrderSentAt: new Date() } });
 }
 
+/**
+ * Igual que sendWorkOrderToClient pero para todo un lote de eventos creados
+ * en el mismo envío (§ Event.batchId) — un solo PDF con la sección de cada
+ * evento en vez de uno por evento. Se dispara desde completeEvent() cuando el
+ * último evento del lote queda en estado terminal (§ esa función), y también
+ * sirve para el reenvío manual (§ /admin/eventos/[eventId] "Reenviar OT").
+ * Usa como "ancla" el enlace público del evento con la fecha más temprana del
+ * lote — Meta descarga el PDF combinado desde esa URL, igual que hace hoy con
+ * el enlace de un solo evento.
+ */
+export async function sendBatchWorkOrderToClient(companyId: string, batchId: string, phoneOverride?: string) {
+  const events = await eventRepo.listEventsDetailForBatch(companyId, batchId);
+  if (events.length === 0) throw new EventError("No se encontraron eventos de este lote.");
+
+  const anchor = events[0];
+  if (!anchor.accessToken || anchor.accessClosedAt) {
+    throw new EventError("El enlace del evento no está activo — reactívalo desde la pantalla del evento.");
+  }
+  if (anchor.accessTokenExpiresAt && anchor.accessTokenExpiresAt < new Date()) {
+    throw new EventError("El enlace del evento venció — reactívalo desde la pantalla del evento.");
+  }
+
+  const company = await getCompany(companyId);
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const workOrderUrl = `${baseUrl}/solicitar/${company.slug}/lote/${batchId}/orden-trabajo?token=${anchor.accessToken}&eventId=${anchor.id}`;
+  const filename = `orden-trabajo-lote-${batchId.slice(-8)}.pdf`;
+
+  const buffer = await buildBatchWorkOrderPdf({
+    company: { name: company.name, logoUrl: company.logoUrl },
+    events: events.map((event) => ({
+      title: event.title,
+      eventType: event.eventType,
+      address: event.address,
+      startAt: event.startAt,
+      endAt: event.endAt,
+      notes: event.notes,
+      assignments: event.assignments
+        .filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED")
+        .map((a) => ({
+          specialty: a.specialty,
+          workerName: a.worker.user.name,
+          workerIdNumber: a.worker.idNumber,
+        })),
+    })),
+  });
+
+  // La plantilla `orden_trabajo_pdf` está aprobada con 4 parámetros fijos
+  // (contacto, "evento", fecha, dirección) pensados para UN evento — se
+  // reutiliza aquí sin pedir una plantilla nueva a Meta, sustituyendo esos
+  // dos últimos campos por un resumen de lote (cantidad + rango de fechas)
+  // ya que el PDF adjunto sí trae el detalle completo de cada evento.
+  const dateFormatter = new Intl.DateTimeFormat("es", { dateStyle: "medium" });
+  const firstDate = dateFormatter.format(events[0].startAt);
+  const lastDate = dateFormatter.format(events[events.length - 1].startAt);
+  const dateRange = firstDate === lastDate ? firstDate : `${firstDate} – ${lastDate}`;
+
+  await notifyClient({
+    companyId,
+    clientId: anchor.clientId,
+    type: "WORK_ORDER_READY",
+    title: "Orden de trabajo lista",
+    body: `Aquí está la orden de trabajo de tus ${events.length} eventos.`,
+    relatedEntityType: "Event",
+    relatedEntityId: anchor.id,
+    emailAttachments: [{ filename, content: buffer }],
+    whatsappPhoneOverride: phoneOverride,
+    whatsapp: {
+      templateName: "orden_trabajo_pdf",
+      params: [anchor.client.contactName, `${events.length} eventos`, dateRange, "ver detalle en el PDF adjunto"],
+      document: { link: workOrderUrl, filename },
+    },
+  });
+
+  await prisma.event.updateMany({ where: { companyId, batchId }, data: { workOrderSentAt: new Date() } });
+}
+
 export async function removeAssignment(companyId: string, assignmentId: string, actorId: string) {
   const updated = await eventRepo.cancelAssignment(companyId, assignmentId);
   if (!updated) throw new EventError("Asignación no encontrada.");
@@ -642,7 +779,25 @@ export async function completeEvent(companyId: string, actorId: string, eventId:
   // (que ya dispara factura + pagos). El Administrador siempre puede
   // reenviarla a mano después desde la pantalla del evento.
   try {
-    await sendWorkOrderToClient(companyId, eventId);
+    if (event.batchId) {
+      // Eventos de un lote (§ Event.batchId): una sola orden de trabajo
+      // combinada, recién cuando TODOS los hermanos llegaron a un estado
+      // terminal (COMPLETED o CANCELLED) y al menos uno se completó — antes
+      // de eso el roster de los que faltan puede seguir cambiando. Si algún
+      // hermano ya la disparó (workOrderSentAt), no se reenvía sola.
+      const siblings = await prisma.event.findMany({
+        where: { companyId, batchId: event.batchId, deletedAt: null },
+        select: { status: true, workOrderSentAt: true },
+      });
+      const allTerminal = siblings.every((s) => s.status === "COMPLETED" || s.status === "CANCELLED");
+      const anyCompleted = siblings.some((s) => s.status === "COMPLETED");
+      const alreadySent = siblings.some((s) => s.workOrderSentAt !== null);
+      if (allTerminal && anyCompleted && !alreadySent) {
+        await sendBatchWorkOrderToClient(companyId, event.batchId);
+      }
+    } else {
+      await sendWorkOrderToClient(companyId, eventId);
+    }
   } catch (error) {
     console.error("[event] No se pudo enviar la orden de trabajo automáticamente:", error);
   }

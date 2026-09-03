@@ -13,6 +13,7 @@ import {
   getEventDetail,
   findAvailableWorkersForSpecialty,
   listPreferredWorkerSummaries,
+  findEventIdsByBatch,
 } from "@/repositories/event.repository";
 import { getCompany } from "@/repositories/config.repository";
 import { computeEventChargeTotal, getClientSpecialtyRates } from "@/services/client-specialty-rate.service";
@@ -63,6 +64,8 @@ export default async function EventDetailPage({
   const companyId = await getEffectiveCompanyId();
   const [event, company] = await Promise.all([getEventDetail(companyId, eventId), getCompany(companyId)]);
   if (!event) notFound();
+
+  const batchEventIds = event.batchId ? await findEventIdsByBatch(companyId, event.batchId) : [];
 
   const activeAssignments = event.assignments.filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED");
 
@@ -189,6 +192,8 @@ export default async function EventDetailPage({
                 status={event.status}
                 hasAssignments={activeAssignments.length > 0}
                 clientPhone={event.client.contactPhone}
+                batchId={event.batchId}
+                batchEventCount={batchEventIds.length}
               />
               {event.status === "COMPLETED" ? <ArchiveEventAction eventId={event.id} /> : null}
             </>
@@ -220,6 +225,8 @@ export default async function EventDetailPage({
           accessClosedAt={event.accessClosedAt}
           eventEnded={event.endAt < new Date()}
           baseUrl={process.env.NEXTAUTH_URL ?? "http://localhost:3000"}
+          batchId={event.batchId}
+          batchEventCount={batchEventIds.length}
         />
       ) : null}
 
