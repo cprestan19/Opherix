@@ -43,7 +43,7 @@ const YELLOW_HEADER: [number, number, number] = [255, 216, 0];
 const GROUP_BAND: [number, number, number] = [240, 240, 240];
 const BLACK: [number, number, number] = [0, 0, 0];
 
-const TABLE_HEAD = ["Nombre y Apellido", "ID", "Descripción", "Fecha", "Hora Entrada", "Firma", "Hora Salida", "Firma"];
+const TABLE_HEAD = ["Nombre y Apellido", "ID (Cédula)", "Descripción", "Fecha", "Hora Entrada", "Firma", "Hora Salida", "Firma"];
 
 // Nombre y Apellido / Descripción quedan "auto": absorben el espacio sobrante
 // hasta llenar el ancho de la página (§16 — más espacio para nombre,
