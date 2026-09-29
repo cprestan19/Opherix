@@ -92,29 +92,56 @@ function assignmentRow(
 }
 
 const RED: [number, number, number] = [200, 0, 0];
-const LOGO_SIZE = 28;
 
-/** Solo logo + nombre de empresa — el título "ORDEN DE TRABAJO" se dibuja aparte, justo encima de "Lugar del Evento". */
-function drawCompanyHeader(doc: jsPDF, company: { name: string; logoUrl: string | null }, logo: { dataUrl: string; format: string } | null) {
-  if (logo) {
-    try {
-      doc.addImage(logo.dataUrl, logo.format, 14, 8, LOGO_SIZE, LOGO_SIZE);
-    } catch {
-      // Formato/imagen corrupta — la orden sigue sin el logo.
-    }
+// Ordenamiento de marca exclusivo de este reporte (orden de trabajo): logo
+// grande (≥ 1.5") con el nombre de la empresa debajo, a modo de isotipo — el
+// resto de PDFs (cotización, factura) siguen con su propio logo pequeño de
+// esquina sin tocar fetchLogoForPdf().
+const LOGO_X = 14;
+const LOGO_Y = 8;
+const LOGO_WIDTH = 40; // mm — ~1.57", por encima del mínimo de 1.5" pedido
+const LOGO_HEIGHT = 40;
+const LOGO_NAME_GAP = 8;
+const CONTENT_X_WITH_LOGO = LOGO_X + LOGO_WIDTH + 14;
+
+/**
+ * Logo grande + nombre de la empresa debajo (isotipo), a la izquierda.
+ * Devuelve el borde inferior del bloque, para saber desde dónde puede
+ * empezar la tabla sin superponerse.
+ */
+function drawCompanyLogoBlock(doc: jsPDF, company: { name: string; logoUrl: string | null }, logo: { dataUrl: string; format: string } | null): number {
+  if (!logo) {
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...BLACK);
+    doc.text(company.name, 14, 14);
+    return 18;
   }
 
+  try {
+    doc.addImage(logo.dataUrl, logo.format, LOGO_X, LOGO_Y, LOGO_WIDTH, LOGO_HEIGHT);
+  } catch {
+    // Formato/imagen corrupta — la orden sigue sin el logo.
+  }
+
+  const nameY = LOGO_Y + LOGO_HEIGHT + LOGO_NAME_GAP;
   doc.setFontSize(11);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("helvetica", "bold");
   doc.setTextColor(...BLACK);
-  doc.text(company.name, logo ? 46 : 14, 14);
+  doc.text(company.name, LOGO_X + LOGO_WIDTH / 2, nameY, { align: "center" });
+  return nameY + 4;
 }
 
-function drawWorkOrderTitle(doc: jsPDF, y: number) {
+/** x del bloque título/datos del evento — a la derecha del logo cuando hay uno, junto al margen si no. */
+function headerContentX(logo: { dataUrl: string; format: string } | null): number {
+  return logo ? CONTENT_X_WITH_LOGO : 14;
+}
+
+function drawWorkOrderTitle(doc: jsPDF, x: number, y: number) {
   doc.setFontSize(18);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...RED);
-  doc.text("ORDEN DE TRABAJO", 14, y);
+  doc.text("ORDEN DE TRABAJO", x, y);
   doc.setTextColor(...BLACK);
   doc.setFont("helvetica", "normal");
 }
@@ -133,17 +160,18 @@ export async function buildWorkOrderPdf(data: WorkOrderPdfData): Promise<Buffer>
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
 
   const logo = company.logoUrl ? await fetchLogoForPdf(company.logoUrl) : null;
-  drawCompanyHeader(doc, company, logo);
+  const logoBlockBottom = drawCompanyLogoBlock(doc, company, logo);
+  const contentX = headerContentX(logo);
 
-  let y = logo ? 42 : 26;
-  drawWorkOrderTitle(doc, y);
+  let y = logo ? 22 : 26;
+  drawWorkOrderTitle(doc, contentX, y);
   y += 8;
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text(`Lugar del Evento: ${event.address}`, 14, y);
+  doc.text(`Lugar del Evento: ${event.address}`, contentX, y);
   y += 6;
-  doc.text(`Fecha del Evento: ${formatWorkOrderDate(event.startAt)}`, 14, y);
+  doc.text(`Fecha del Evento: ${formatWorkOrderDate(event.startAt)}`, contentX, y);
   doc.setFont("helvetica", "normal");
   y += 6;
 
@@ -153,7 +181,7 @@ export async function buildWorkOrderPdf(data: WorkOrderPdfData): Promise<Buffer>
   const sortedAssignments = sortAssignmentsByName(assignments);
 
   autoTable(doc, {
-    startY: y + 4,
+    startY: Math.max(y + 4, logoBlockBottom + 4),
     margin: { left: 14, right: 14 },
     theme: "grid",
     head: [TABLE_HEAD],
@@ -210,11 +238,12 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
 
   const logo = company.logoUrl ? await fetchLogoForPdf(company.logoUrl) : null;
-  drawCompanyHeader(doc, company, logo);
+  const logoBlockBottom = drawCompanyLogoBlock(doc, company, logo);
+  const contentX = headerContentX(logo);
 
-  const y = logo ? 42 : 26;
-  drawWorkOrderTitle(doc, y);
-  const tableStartY = y + 10;
+  const y = logo ? 22 : 26;
+  drawWorkOrderTitle(doc, contentX, y);
+  const tableStartY = Math.max(y + 10, logoBlockBottom + 4);
 
   const groupHeaderRow = (label: string, isFirst: boolean): RowInput => [
     {
