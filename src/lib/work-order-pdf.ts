@@ -8,9 +8,9 @@
 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import type { CellDef, RowInput } from "jspdf-autotable";
 import { fetchLogoForPdf } from "@/lib/pdf-logo";
 import { specialtyLabels } from "@/lib/validations/worker-application";
-import { formatTime12h } from "@/utils/date";
 import type { Specialty } from "@/generated/prisma/enums";
 
 export interface WorkOrderPdfData {
@@ -34,103 +34,142 @@ export interface WorkOrderPdfData {
   assignments: { specialty: Specialty | null; workerName: string; workerIdNumber: string | null }[];
 }
 
-/**
- * Orden de trabajo (§ /admin/eventos/[eventId] "Ver orden de trabajo") — se
- * entrega al Cliente por WhatsApp + correo al completar el evento (§
- * event.service.ts sendWorkOrderToClient): dónde, cuándo, contacto en sitio,
- * y quién del personal fue asignado con su cédula/pasaporte, para que el
- * Cliente pueda identificarlo en sitio.
- */
-export async function buildWorkOrderPdf(data: WorkOrderPdfData): Promise<Buffer> {
-  const { company, event, contact, assignments } = data;
-  const doc = new jsPDF();
+// --- Template "hoja de control" (formato Excel del cliente) -----------------
+// El contenido/orden de datos sigue viniendo tal cual de WorkOrderPdfData /
+// BatchWorkOrderPdfData (mismos campos que ya entrega work-order.service.ts):
+// esto es exclusivamente una capa de presentación sobre esos mismos datos.
 
-  const logo = company.logoUrl ? await fetchLogoForPdf(company.logoUrl) : null;
-  const textStartX = logo ? 38 : 14;
+const YELLOW_HEADER: [number, number, number] = [255, 216, 0];
+const GROUP_BAND: [number, number, number] = [240, 240, 240];
+const BLACK: [number, number, number] = [0, 0, 0];
 
+const TABLE_HEAD = ["Nombre y Apellido", "ID", "Descripción", "Fecha", "Hora Entrada", "Firma", "Hora Salida", "Firma"];
+
+// Nombre y Apellido / Descripción quedan "auto": absorben el espacio sobrante
+// hasta llenar el ancho de la página (§16 — más espacio para nombre,
+// descripción, fecha y firma) sin que jspdf-autotable se queje de un sobrante
+// que ninguna columna de ancho fijo puede repartirse.
+const TABLE_COLUMN_STYLES = {
+  1: { cellWidth: 22 },
+  3: { cellWidth: 28 },
+  4: { cellWidth: 22 },
+  5: { cellWidth: 34 },
+  6: { cellWidth: 22 },
+  7: { cellWidth: 34 },
+};
+
+const WEEKDAY_FORMATTER = new Intl.DateTimeFormat("es", { weekday: "long" });
+const MONTH_FORMATTER = new Intl.DateTimeFormat("es", { month: "long" });
+
+/** "MARTES 29 SEPTIEMBRE" — sin año, como en la hoja de control del cliente. */
+function formatWorkOrderDate(date: Date): string {
+  const weekday = WEEKDAY_FORMATTER.format(date);
+  const day = date.getDate().toString().padStart(2, "0");
+  const month = MONTH_FORMATTER.format(date);
+  return `${weekday} ${day} ${month}`.toUpperCase();
+}
+
+/** "8AM" / "2:30PM" — sin segundos, sin timezone, minutos solo si no son :00. */
+function formatWorkOrderTime(date: Date): string {
+  const hours24 = date.getHours();
+  const minutes = date.getMinutes();
+  const period = hours24 >= 12 ? "PM" : "AM";
+  const hours12 = hours24 % 12 || 12;
+  return minutes === 0 ? `${hours12}${period}` : `${hours12}:${minutes.toString().padStart(2, "0")}${period}`;
+}
+
+function sortAssignmentsByName<T extends { workerName: string }>(assignments: T[]): T[] {
+  return [...assignments].sort((a, b) => a.workerName.localeCompare(b.workerName));
+}
+
+function assignmentRow(
+  a: { specialty: Specialty | null; workerName: string; workerIdNumber: string | null },
+  dateLabel: string,
+  timeIn: string,
+  timeOut: string,
+) {
+  return [a.workerName, a.workerIdNumber ?? "", a.specialty ? specialtyLabels[a.specialty] : "", dateLabel, timeIn, "", timeOut, ""];
+}
+
+function drawLogoAndTitle(doc: jsPDF, company: { name: string; logoUrl: string | null }, logo: { dataUrl: string; format: string } | null, pageWidth: number) {
   if (logo) {
     try {
-      doc.addImage(logo.dataUrl, logo.format, 14, 12, 20, 20);
+      doc.addImage(logo.dataUrl, logo.format, 14, 10, 18, 18);
     } catch {
       // Formato/imagen corrupta — la orden sigue sin el logo.
     }
   }
 
-  doc.setFontSize(16);
-  doc.text(company.name, textStartX, 18);
-  doc.setFontSize(14);
-  doc.setTextColor(0);
-  doc.text("ORDEN DE TRABAJO", 196, 18, { align: "right" });
-
-  let y = Math.max(logo ? 34 : 26, 26);
-  doc.setDrawColor(220);
-  doc.line(14, y, 196, y);
-  y += 8;
-
-  doc.setFontSize(13);
-  doc.setTextColor(0);
-  doc.text(event.title, 14, y);
-  y += 7;
-
-  doc.setFontSize(9);
-  doc.setTextColor(80);
-  const dateFormatter = new Intl.DateTimeFormat("es", { dateStyle: "medium" });
-  if (event.eventType) {
-    doc.text(`Tipo: ${event.eventType}`, 14, y);
-    y += 5;
-  }
-  doc.text(`Ubicación: ${event.address}`, 14, y);
-  y += 5;
-  doc.text(
-    `Horario: ${dateFormatter.format(event.startAt)} ${formatTime12h(event.startAt)} – ${dateFormatter.format(event.endAt)} ${formatTime12h(event.endAt)}`,
-    14,
-    y,
-  );
-  y += 5;
-  doc.text(`Contacto en sitio: ${contact.name}${contact.phone ? ` · ${contact.phone}` : ""}`, 14, y);
-  y += 5;
-  if (event.notes) {
-    const noteLines = doc.splitTextToSize(`Notas: ${event.notes}`, 182);
-    doc.text(noteLines, 14, y);
-    y += noteLines.length * 5;
-  }
-
-  y += 6;
   doc.setFontSize(11);
-  doc.setTextColor(0);
-  doc.text("Personal asignado", 14, y);
-  y += 4;
+  doc.setTextColor(...BLACK);
+  doc.text(company.name, logo ? 36 : 14, 17);
 
-  const sortedAssignments = [...assignments].sort((a, b) => {
-    const labelA = a.specialty ? specialtyLabels[a.specialty] : "";
-    const labelB = b.specialty ? specialtyLabels[b.specialty] : "";
-    return labelA.localeCompare(labelB) || a.workerName.localeCompare(b.workerName);
-  });
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("ORDEN DE TRABAJO", pageWidth / 2, 20, { align: "center" });
+  doc.setFont("helvetica", "normal");
 
-  // Hoy no existe un horario por trabajador distinto del horario general del
-  // evento (WorkerAssignment no tiene startAt/endAt propio) — se repite el
-  // mismo horario del evento en cada línea, a pedido explícito para que el
-  // documento impreso no obligue a mirar el encabezado.
-  const startTime = formatTime12h(event.startAt);
-  const endTime = formatTime12h(event.endAt);
+  doc.setDrawColor(...BLACK);
+  doc.setLineWidth(0.6);
+  doc.line(14, 26, pageWidth - 14, 26);
+}
+
+/**
+ * Orden de trabajo (§ /admin/eventos/[eventId] "Ver orden de trabajo") — se
+ * entrega al Cliente por WhatsApp + correo al completar el evento (§
+ * event.service.ts sendWorkOrderToClient). Template tipo "hoja de control"
+ * (formato del Excel que ya usa el cliente): título, lugar/fecha del evento y
+ * una tabla de 8 columnas con espacio de firma de entrada/salida por
+ * trabajador — mismos datos que siempre recibió este builder (WorkOrderPdfData
+ * no cambió), solo cambió la presentación.
+ */
+export async function buildWorkOrderPdf(data: WorkOrderPdfData): Promise<Buffer> {
+  const { company, event, assignments } = data;
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  const logo = company.logoUrl ? await fetchLogoForPdf(company.logoUrl) : null;
+  drawLogoAndTitle(doc, company, logo, pageWidth);
+
+  let y = 34;
+  doc.setFontSize(11);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Lugar del Evento: ${event.address}`, 14, y);
+  y += 6;
+  doc.text(`Fecha del Evento: ${formatWorkOrderDate(event.startAt)}`, 14, y);
+  doc.setFont("helvetica", "normal");
+  y += 6;
+
+  const dateLabel = formatWorkOrderDate(event.startAt);
+  const timeIn = formatWorkOrderTime(event.startAt);
+  const timeOut = formatWorkOrderTime(event.endAt);
+  const sortedAssignments = sortAssignmentsByName(assignments);
 
   autoTable(doc, {
     startY: y + 4,
-    head: [["Especialidad", "Nombre", "Cédula/Pasaporte", "Hora inicio", "Hora fin"]],
-    body: sortedAssignments.map((a) => [
-      a.specialty ? specialtyLabels[a.specialty] : "—",
-      a.workerName,
-      a.workerIdNumber ?? "—",
-      startTime,
-      endTime,
-    ]),
-    styles: { fontSize: 9 },
+    margin: { left: 14, right: 14 },
+    theme: "grid",
+    head: [TABLE_HEAD],
+    body: sortedAssignments.map((a) => assignmentRow(a, dateLabel, timeIn, timeOut)),
+    styles: {
+      fontSize: 9,
+      textColor: BLACK,
+      lineColor: BLACK,
+      lineWidth: 0.2,
+      cellPadding: 2,
+      valign: "middle",
+      minCellHeight: 10,
+    },
+    headStyles: {
+      fillColor: YELLOW_HEADER,
+      textColor: BLACK,
+      fontStyle: "bold",
+      halign: "center",
+      lineColor: BLACK,
+      lineWidth: 0.3,
+    },
+    columnStyles: TABLE_COLUMN_STYLES,
   });
-
-  const finalY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
-  doc.setFontSize(8);
-  doc.setTextColor(140);
-  doc.text(`Total de personal asignado: ${assignments.length}`, 14, finalY + 10);
 
   return Buffer.from(doc.output("arraybuffer"));
 }
@@ -152,105 +191,86 @@ export interface BatchWorkOrderPdfData {
 
 /**
  * Orden de trabajo consolidada de un lote de eventos creados en un mismo
- * envío (§ Event.batchId, event.service.ts sendBatchWorkOrderToClient) — un
- * solo PDF con el encabezado de la empresa una vez y una sección completa
- * (fecha, dirección, notas, personal asignado) por cada evento, igual que
- * buildQuotePdf hace para la cotización consolidada.
+ * envío (§ Event.batchId, event.service.ts sendBatchWorkOrderToClient) — mismo
+ * template "hoja de control" que buildWorkOrderPdf, con los trabajadores
+ * agrupados por fecha de evento (encabezado de grupo + línea gruesa entre
+ * grupos, igual que el Excel del cliente) dentro de una única tabla continua.
+ * La selección/filtrado de eventos y asignaciones la sigue haciendo
+ * work-order.service.ts sin cambios — esto solo consume el resultado.
  */
 export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promise<Buffer> {
   const { company, events } = data;
-  const doc = new jsPDF();
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
+  const pageWidth = doc.internal.pageSize.getWidth();
 
   const logo = company.logoUrl ? await fetchLogoForPdf(company.logoUrl) : null;
-  const textStartX = logo ? 38 : 14;
+  drawLogoAndTitle(doc, company, logo, pageWidth);
 
-  if (logo) {
-    try {
-      doc.addImage(logo.dataUrl, logo.format, 14, 12, 20, 20);
-    } catch {
-      // Formato/imagen corrupta — la orden sigue sin el logo.
+  const y = 34;
+
+  const groupHeaderRow = (label: string, isFirst: boolean): RowInput => [
+    {
+      content: label,
+      colSpan: 8,
+      styles: {
+        fillColor: GROUP_BAND,
+        textColor: BLACK,
+        fontStyle: "bold",
+        halign: "left",
+        lineColor: BLACK,
+        lineWidth: { top: isFirst ? 0.3 : 1.2, right: 0.2, bottom: 0.3, left: 0.2 },
+      },
+    } satisfies CellDef,
+  ];
+
+  const emptyGroupRow: RowInput = [
+    { content: "Sin personal asignado", colSpan: 8, styles: { textColor: BLACK, halign: "left" } } satisfies CellDef,
+  ];
+
+  const body: RowInput[] = [];
+  events.forEach((event, index) => {
+    const groupLabel = `${formatWorkOrderDate(event.startAt)} — ${event.address}`;
+    body.push(groupHeaderRow(groupLabel, index === 0));
+
+    const dateLabel = formatWorkOrderDate(event.startAt);
+    const timeIn = formatWorkOrderTime(event.startAt);
+    const timeOut = formatWorkOrderTime(event.endAt);
+    const sortedAssignments = sortAssignmentsByName(event.assignments);
+
+    if (sortedAssignments.length === 0) {
+      body.push(emptyGroupRow);
+    } else {
+      for (const a of sortedAssignments) {
+        body.push(assignmentRow(a, dateLabel, timeIn, timeOut));
+      }
     }
-  }
+  });
 
-  doc.setFontSize(16);
-  doc.text(company.name, textStartX, 18);
-  doc.setFontSize(14);
-  doc.setTextColor(0);
-  doc.text("ORDEN DE TRABAJO", 196, 18, { align: "right" });
-  doc.setFontSize(9);
-  doc.setTextColor(100);
-  doc.text(`${events.length} evento${events.length === 1 ? "" : "s"}`, 196, 24, { align: "right" });
-
-  let y = Math.max(logo ? 34 : 26, 26);
-  const dateFormatter = new Intl.DateTimeFormat("es", { dateStyle: "medium" });
-
-  for (const event of events) {
-    doc.setDrawColor(220);
-    doc.line(14, y, 196, y);
-    y += 8;
-
-    doc.setFontSize(13);
-    doc.setTextColor(0);
-    doc.text(event.title, 14, y);
-    y += 7;
-
-    doc.setFontSize(9);
-    doc.setTextColor(80);
-    if (event.eventType) {
-      doc.text(`Tipo: ${event.eventType}`, 14, y);
-      y += 5;
-    }
-    doc.text(`Ubicación: ${event.address}`, 14, y);
-    y += 5;
-    doc.text(
-      `Horario: ${dateFormatter.format(event.startAt)} ${formatTime12h(event.startAt)} – ${dateFormatter.format(event.endAt)} ${formatTime12h(event.endAt)}`,
-      14,
-      y,
-    );
-    y += 5;
-    if (event.notes) {
-      const noteLines = doc.splitTextToSize(`Notas: ${event.notes}`, 182);
-      doc.text(noteLines, 14, y);
-      y += noteLines.length * 5;
-    }
-
-    y += 4;
-    doc.setFontSize(10);
-    doc.setTextColor(0);
-    doc.text("Personal asignado", 14, y);
-    y += 4;
-
-    const sortedAssignments = [...event.assignments].sort((a, b) => {
-      const labelA = a.specialty ? specialtyLabels[a.specialty] : "";
-      const labelB = b.specialty ? specialtyLabels[b.specialty] : "";
-      return labelA.localeCompare(labelB) || a.workerName.localeCompare(b.workerName);
-    });
-    const startTime = formatTime12h(event.startAt);
-    const endTime = formatTime12h(event.endAt);
-
-    autoTable(doc, {
-      startY: y + 2,
-      head: [["Especialidad", "Nombre", "Cédula/Pasaporte", "Hora inicio", "Hora fin"]],
-      body:
-        sortedAssignments.length > 0
-          ? sortedAssignments.map((a) => [
-              a.specialty ? specialtyLabels[a.specialty] : "—",
-              a.workerName,
-              a.workerIdNumber ?? "—",
-              startTime,
-              endTime,
-            ])
-          : [["—", "Sin personal asignado", "—", "—", "—"]],
-      styles: { fontSize: 9 },
-    });
-
-    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 12;
-
-    if (y > 250 && event !== events[events.length - 1]) {
-      doc.addPage();
-      y = 20;
-    }
-  }
+  autoTable(doc, {
+    startY: y + 4,
+    margin: { left: 14, right: 14 },
+    theme: "grid",
+    head: [TABLE_HEAD],
+    body,
+    styles: {
+      fontSize: 9,
+      textColor: BLACK,
+      lineColor: BLACK,
+      lineWidth: 0.2,
+      cellPadding: 2,
+      valign: "middle",
+      minCellHeight: 10,
+    },
+    headStyles: {
+      fillColor: YELLOW_HEADER,
+      textColor: BLACK,
+      fontStyle: "bold",
+      halign: "center",
+      lineColor: BLACK,
+      lineWidth: 0.3,
+    },
+    columnStyles: TABLE_COLUMN_STYLES,
+  });
 
   return Buffer.from(doc.output("arraybuffer"));
 }
