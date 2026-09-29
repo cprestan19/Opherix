@@ -92,22 +92,30 @@ function assignmentRow(
 }
 
 const RED: [number, number, number] = [200, 0, 0];
-const LOGO_SIZE = 28;
+const LOGO_X = 14;
+const LOGO_Y = 8;
+const LOGO_SIZE = 38.1; // 1.5" — a pedido explícito, sin nombre de empresa al lado
 
-/** Solo logo + nombre de empresa — el título "ORDEN DE TRABAJO" se dibuja aparte, justo encima de "Lugar del Evento". */
+/**
+ * Solo el logo, sin el nombre de la empresa al lado (a pedido explícito) — el
+ * título "ORDEN DE TRABAJO" se dibuja aparte, justo debajo del logo. Si la
+ * empresa no tiene logo cargado, el nombre sirve de único identificador para
+ * no dejar el encabezado completamente vacío.
+ */
 function drawCompanyHeader(doc: jsPDF, company: { name: string; logoUrl: string | null }, logo: { dataUrl: string; format: string } | null) {
   if (logo) {
     try {
-      doc.addImage(logo.dataUrl, logo.format, 14, 8, LOGO_SIZE, LOGO_SIZE);
+      doc.addImage(logo.dataUrl, logo.format, LOGO_X, LOGO_Y, LOGO_SIZE, LOGO_SIZE);
     } catch {
       // Formato/imagen corrupta — la orden sigue sin el logo.
     }
+    return;
   }
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...BLACK);
-  doc.text(company.name, logo ? 46 : 14, 14);
+  doc.text(company.name, 14, 14);
 }
 
 function drawWorkOrderTitle(doc: jsPDF, y: number) {
@@ -135,7 +143,7 @@ export async function buildWorkOrderPdf(data: WorkOrderPdfData): Promise<Buffer>
   const logo = company.logoUrl ? await fetchLogoForPdf(company.logoUrl) : null;
   drawCompanyHeader(doc, company, logo);
 
-  let y = logo ? 42 : 26;
+  let y = logo ? LOGO_Y + LOGO_SIZE + 6 : 26;
   drawWorkOrderTitle(doc, y);
   y += 8;
 
@@ -212,7 +220,7 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
   const logo = company.logoUrl ? await fetchLogoForPdf(company.logoUrl) : null;
   drawCompanyHeader(doc, company, logo);
 
-  const y = logo ? 42 : 26;
+  const y = logo ? LOGO_Y + LOGO_SIZE + 6 : 26;
   drawWorkOrderTitle(doc, y);
   const tableStartY = y + 10;
 
