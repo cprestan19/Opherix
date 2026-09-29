@@ -91,27 +91,32 @@ function assignmentRow(
   return [a.workerName, a.workerIdNumber ?? "", a.specialty ? specialtyLabels[a.specialty] : "", dateLabel, timeIn, "", timeOut, ""];
 }
 
-function drawLogoAndTitle(doc: jsPDF, company: { name: string; logoUrl: string | null }, logo: { dataUrl: string; format: string } | null, pageWidth: number) {
+const RED: [number, number, number] = [200, 0, 0];
+const LOGO_SIZE = 28;
+
+/** Solo logo + nombre de empresa — el título "ORDEN DE TRABAJO" se dibuja aparte, justo encima de "Lugar del Evento". */
+function drawCompanyHeader(doc: jsPDF, company: { name: string; logoUrl: string | null }, logo: { dataUrl: string; format: string } | null) {
   if (logo) {
     try {
-      doc.addImage(logo.dataUrl, logo.format, 14, 10, 18, 18);
+      doc.addImage(logo.dataUrl, logo.format, 14, 8, LOGO_SIZE, LOGO_SIZE);
     } catch {
       // Formato/imagen corrupta — la orden sigue sin el logo.
     }
   }
 
   doc.setFontSize(11);
-  doc.setTextColor(...BLACK);
-  doc.text(company.name, logo ? 36 : 14, 17);
-
-  doc.setFontSize(20);
-  doc.setFont("helvetica", "bold");
-  doc.text("ORDEN DE TRABAJO", pageWidth / 2, 20, { align: "center" });
   doc.setFont("helvetica", "normal");
+  doc.setTextColor(...BLACK);
+  doc.text(company.name, logo ? 46 : 14, 14);
+}
 
-  doc.setDrawColor(...BLACK);
-  doc.setLineWidth(0.6);
-  doc.line(14, 26, pageWidth - 14, 26);
+function drawWorkOrderTitle(doc: jsPDF, y: number) {
+  doc.setFontSize(18);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...RED);
+  doc.text("ORDEN DE TRABAJO", 14, y);
+  doc.setTextColor(...BLACK);
+  doc.setFont("helvetica", "normal");
 }
 
 /**
@@ -126,12 +131,14 @@ function drawLogoAndTitle(doc: jsPDF, company: { name: string; logoUrl: string |
 export async function buildWorkOrderPdf(data: WorkOrderPdfData): Promise<Buffer> {
   const { company, event, assignments } = data;
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
-  const pageWidth = doc.internal.pageSize.getWidth();
 
   const logo = company.logoUrl ? await fetchLogoForPdf(company.logoUrl) : null;
-  drawLogoAndTitle(doc, company, logo, pageWidth);
+  drawCompanyHeader(doc, company, logo);
 
-  let y = 34;
+  let y = logo ? 42 : 26;
+  drawWorkOrderTitle(doc, y);
+  y += 8;
+
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text(`Lugar del Evento: ${event.address}`, 14, y);
@@ -201,12 +208,13 @@ export interface BatchWorkOrderPdfData {
 export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promise<Buffer> {
   const { company, events } = data;
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "letter" });
-  const pageWidth = doc.internal.pageSize.getWidth();
 
   const logo = company.logoUrl ? await fetchLogoForPdf(company.logoUrl) : null;
-  drawLogoAndTitle(doc, company, logo, pageWidth);
+  drawCompanyHeader(doc, company, logo);
 
-  const y = 34;
+  const y = logo ? 42 : 26;
+  drawWorkOrderTitle(doc, y);
+  const tableStartY = y + 10;
 
   const groupHeaderRow = (label: string, isFirst: boolean): RowInput => [
     {
@@ -247,7 +255,7 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
   });
 
   autoTable(doc, {
-    startY: y + 4,
+    startY: tableStartY,
     margin: { left: 14, right: 14 },
     theme: "grid",
     head: [TABLE_HEAD],
