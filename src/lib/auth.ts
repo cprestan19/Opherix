@@ -28,10 +28,10 @@ const credentialsSchema = z.object({
 const isGoogleConfigured = Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
 // Bloqueo por fuerza bruta (§ ninguna otra capa lo cubre — el proxy.ts solo
-// exige sesión, no throttlea intentos de contraseña). 5 intentos fallidos
-// bloquean la cuenta 15 minutos; se resetea en cualquier login exitoso.
-const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_DURATION_MS = 15 * 60 * 1000;
+// exige sesión, no throttlea intentos de contraseña). 6 intentos fallidos
+// bloquean la cuenta 3 minutos; se resetea en cualquier login exitoso.
+const MAX_FAILED_ATTEMPTS = 6;
+const LOCKOUT_DURATION_MS = 3 * 60 * 1000;
 
 // El JWT (`session: { strategy: "jwt" }`) dura hasta 30 días por defecto sin
 // volver a tocar la BD — esto acota cuánto puede quedar "stale" un claim de
