@@ -204,12 +204,69 @@ export interface BatchWorkOrderPdfData {
   events: BatchWorkOrderPdfEvent[];
 }
 
+// El template del lote agrega una columna "Dirección" que la orden de un solo
+// evento no necesita (ahí el lugar ya va arriba de la tabla, sin ambigüedad):
+// al agrupar por fecha en vez de por evento, un mismo grupo puede mezclar
+// personal de direcciones distintas si el cliente tiene más de un evento el
+// mismo día, y esa columna es la única forma de saber a cuál pertenece cada quien.
+const BATCH_TABLE_HEAD = ["Nombre y Apellido", "ID (Cédula)", "Dirección", "Descripción", "Fecha", "Hora Entrada", "Firma", "Hora Salida", "Firma"];
+
+const BATCH_TABLE_COLUMN_STYLES = {
+  1: { cellWidth: 22 },
+  2: { cellWidth: 28 },
+  4: { cellWidth: 22 },
+  5: { cellWidth: 34 },
+  6: { cellWidth: 22 },
+  7: { cellWidth: 34 },
+  8: { cellWidth: 22 },
+};
+
+interface BatchAssignmentRowData {
+  specialty: Specialty | null;
+  workerName: string;
+  workerIdNumber: string | null;
+  address: string;
+  timeIn: string;
+  timeOut: string;
+}
+
+function batchAssignmentRow(a: BatchAssignmentRowData, dateLabel: string) {
+  return [a.workerName, a.workerIdNumber ?? "", a.address, a.specialty ? specialtyLabels[a.specialty] : "", dateLabel, a.timeIn, "", a.timeOut, ""];
+}
+
+interface DateGroup {
+  dateLabel: string;
+  events: BatchWorkOrderPdfEvent[];
+}
+
+/**
+ * Los eventos ya llegan ordenados por startAt (listEventsDetailForBatch), así
+ * que agrupar solo requiere juntar los que sean consecutivos y compartan el
+ * mismo dateLabel — sin volver a ordenar ni usar un Map.
+ */
+function groupEventsByDate(events: BatchWorkOrderPdfEvent[]): DateGroup[] {
+  const groups: DateGroup[] = [];
+  for (const event of events) {
+    const dateLabel = formatWorkOrderDate(event.startAt);
+    const last = groups[groups.length - 1];
+    if (last && last.dateLabel === dateLabel) {
+      last.events.push(event);
+    } else {
+      groups.push({ dateLabel, events: [event] });
+    }
+  }
+  return groups;
+}
+
 /**
  * Orden de trabajo consolidada de un lote de eventos creados en un mismo
  * envío (§ Event.batchId, event.service.ts sendBatchWorkOrderToClient) — mismo
  * template "hoja de control" que buildWorkOrderPdf, con los trabajadores
- * agrupados por fecha de evento (encabezado de grupo + línea gruesa entre
+ * agrupados por fecha (un solo encabezado de grupo por día, aunque el cliente
+ * tenga varios eventos ese mismo día — encabezado + línea gruesa entre
  * grupos, igual que el Excel del cliente) dentro de una única tabla continua.
+ * Todo el personal de un mismo día se ordena junto por nombre, sin importar
+ * de qué evento venga — la columna "Dirección" indica a cuál pertenece.
  * La selección/filtrado de eventos y asignaciones la sigue haciendo
  * work-order.service.ts sin cambios — esto solo consume el resultado.
  */
@@ -227,7 +284,7 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
   const groupHeaderRow = (label: string, isFirst: boolean): RowInput => [
     {
       content: label,
-      colSpan: 8,
+      colSpan: 9,
       styles: {
         fillColor: GROUP_BAND,
         textColor: BLACK,
@@ -240,24 +297,29 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
   ];
 
   const emptyGroupRow: RowInput = [
-    { content: "Sin personal asignado", colSpan: 8, styles: { textColor: BLACK, halign: "left" } } satisfies CellDef,
+    { content: "Sin personal asignado", colSpan: 9, styles: { textColor: BLACK, halign: "left" } } satisfies CellDef,
   ];
 
   const body: RowInput[] = [];
-  events.forEach((event, index) => {
-    const groupLabel = `${formatWorkOrderDate(event.startAt)} — ${event.address}`;
-    body.push(groupHeaderRow(groupLabel, index === 0));
+  const dateGroups = groupEventsByDate(events);
+  dateGroups.forEach((group, index) => {
+    body.push(groupHeaderRow(group.dateLabel, index === 0));
 
-    const dateLabel = formatWorkOrderDate(event.startAt);
-    const timeIn = formatWorkOrderTime(event.startAt);
-    const timeOut = formatWorkOrderTime(event.endAt);
-    const sortedAssignments = sortAssignmentsByName(event.assignments);
+    const rows = group.events.flatMap((event) =>
+      event.assignments.map((a) => ({
+        ...a,
+        address: event.address,
+        timeIn: formatWorkOrderTime(event.startAt),
+        timeOut: formatWorkOrderTime(event.endAt),
+      })),
+    );
+    const sortedRows = sortAssignmentsByName(rows);
 
-    if (sortedAssignments.length === 0) {
+    if (sortedRows.length === 0) {
       body.push(emptyGroupRow);
     } else {
-      for (const a of sortedAssignments) {
-        body.push(assignmentRow(a, dateLabel, timeIn, timeOut));
+      for (const r of sortedRows) {
+        body.push(batchAssignmentRow(r, group.dateLabel));
       }
     }
   });
@@ -266,7 +328,7 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
     startY: tableStartY,
     margin: { left: 14, right: 14 },
     theme: "grid",
-    head: [TABLE_HEAD],
+    head: [BATCH_TABLE_HEAD],
     body,
     styles: {
       fontSize: 9,
@@ -285,7 +347,7 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
       lineColor: BLACK,
       lineWidth: 0.3,
     },
-    columnStyles: TABLE_COLUMN_STYLES,
+    columnStyles: BATCH_TABLE_COLUMN_STYLES,
   });
 
   return Buffer.from(doc.output("arraybuffer"));
