@@ -312,7 +312,7 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
         fontStyle: "bold",
         halign: "left",
         lineColor: BLACK,
-        lineWidth: { top: isFirst ? 0.3 : 1.2, right: 0.2, bottom: 0.3, left: 0.2 },
+        lineWidth: { top: isFirst ? 0.2 : 0.5, right: 0.15, bottom: 0.2, left: 0.15 },
       },
     } satisfies CellDef,
   ];
@@ -355,7 +355,7 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
       fontSize: 9,
       textColor: BLACK,
       lineColor: BLACK,
-      lineWidth: 0.2,
+      lineWidth: 0.15,
       cellPadding: 2,
       valign: "middle",
       minCellHeight: 10,
@@ -366,7 +366,7 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
       fontStyle: "bold",
       halign: "center",
       lineColor: BLACK,
-      lineWidth: 0.3,
+      lineWidth: 0.2,
     },
     columnStyles: BATCH_TABLE_COLUMN_STYLES,
   });
