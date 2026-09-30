@@ -356,9 +356,9 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
       textColor: BLACK,
       lineColor: BLACK,
       lineWidth: 0.15,
-      cellPadding: 2,
+      cellPadding: 1.2,
       valign: "middle",
-      minCellHeight: 10,
+      minCellHeight: 6,
     },
     headStyles: {
       fillColor: YELLOW_HEADER,
