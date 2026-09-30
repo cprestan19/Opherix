@@ -34,6 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `inline; filename="${filename}"`,
+        "Cache-Control": "no-store",
       },
     });
   } catch (error) {

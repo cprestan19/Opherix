@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="pagos_${periodStart ?? "todos"}.pdf"`,
+      "Cache-Control": "no-store",
     },
   });
 }
