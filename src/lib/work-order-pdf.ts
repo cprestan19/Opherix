@@ -215,10 +215,10 @@ const BATCH_TABLE_COLUMN_STYLES = {
   1: { cellWidth: 22 },
   2: { cellWidth: 28 },
   4: { cellWidth: 22 },
-  5: { cellWidth: 34 },
-  6: { cellWidth: 22 },
-  7: { cellWidth: 34 },
-  8: { cellWidth: 22 },
+  5: { cellWidth: 20 }, // Hora Entrada — justo al ancho del texto del encabezado
+  6: { cellWidth: 38 }, // Firma — más espacio para firmar a mano
+  7: { cellWidth: 20 }, // Hora Salida — ídem Hora Entrada
+  8: { cellWidth: 38 }, // Firma — ídem la otra columna de firma
 };
 
 interface BatchAssignmentRowData {
