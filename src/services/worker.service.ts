@@ -32,6 +32,7 @@ export async function createWorker(companyId: string, actorId: string, input: Cr
     passwordHash,
     name: input.name,
     phone: input.phone,
+    idNumber: input.idNumber?.trim() || null,
     specialties: input.specialties,
   });
 

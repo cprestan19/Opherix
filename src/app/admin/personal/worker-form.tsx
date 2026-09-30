@@ -36,6 +36,7 @@ const defaultValues: CreateWorkerInput = {
   email: "",
   phone: "",
   password: "",
+  idNumber: "",
   specialties: [],
 };
 
@@ -101,6 +102,12 @@ export function WorkerForm() {
             <FieldLabel htmlFor="worker-password">Contraseña inicial</FieldLabel>
             <PasswordInput id="worker-password" {...register("password")} />
             <FieldError errors={[errors.password]} />
+          </Field>
+          <Field data-invalid={!!errors.idNumber}>
+            <FieldLabel htmlFor="worker-id-number">Cédula</FieldLabel>
+            <Input id="worker-id-number" {...register("idNumber")} />
+            <FieldDescription>Opcional — puedes completarla después desde su perfil.</FieldDescription>
+            <FieldError errors={[errors.idNumber]} />
           </Field>
           <Field data-invalid={!!errors.specialties}>
             <FieldLabel>Especialidades</FieldLabel>

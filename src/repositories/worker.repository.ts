@@ -63,6 +63,7 @@ export function createWorkerDirect(data: {
   passwordHash: string;
   name: string;
   phone: string;
+  idNumber: string | null;
   specialties: Prisma.WorkerUncheckedCreateInput["specialties"];
 }) {
   return prisma.user.create({
@@ -77,6 +78,7 @@ export function createWorkerDirect(data: {
       worker: {
         create: {
           companyId: data.companyId,
+          idNumber: data.idNumber,
           specialties: data.specialties,
           status: "ACTIVE",
         },

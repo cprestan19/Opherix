@@ -14,6 +14,7 @@ export const createWorkerSchema = z.object({
   email: z.email("Correo inválido"),
   phone: z.string().min(6, "Ingresa un teléfono válido"),
   password: z.string().min(8, "Mínimo 8 caracteres"),
+  idNumber: z.string().trim().optional(),
   specialties: z.array(z.enum(specialtyValues)).min(1, "Selecciona al menos una especialidad"),
 });
 
