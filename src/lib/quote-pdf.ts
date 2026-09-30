@@ -8,9 +8,9 @@
 
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import type { CellDef, RowInput } from "jspdf-autotable";
 import { fetchLogoForPdf } from "@/lib/pdf-logo";
 import { specialtyLabels } from "@/lib/validations/worker-application";
-import { formatDateTime12h } from "@/utils/date";
 import type { ClientChargeEstimate } from "@/lib/pricing/estimate-client-charge";
 
 export interface QuotePdfEvent {
@@ -38,6 +38,55 @@ export interface QuotePdfData {
 
 function currency(value: number) {
   return new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD" }).format(value);
+}
+
+const DATE_BAND: [number, number, number] = [240, 240, 240];
+
+const DATE_HEADING_FORMATTER = new Intl.DateTimeFormat("es", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
+/** "Miércoles, 30 de septiembre de 2026" — encabezado de la banda de fecha. */
+function formatQuoteDateHeading(date: Date): string {
+  const label = DATE_HEADING_FORMATTER.format(date);
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+interface QuoteDateGroup {
+  dateLabel: string;
+  events: QuotePdfEvent[];
+}
+
+/**
+ * Igual que `groupEventsByDate` en work-order-pdf.ts: los eventos ya llegan
+ * ordenados por startAt (listEventsForQuote/listEventsForClientQuote), así
+ * que agrupar solo requiere juntar los consecutivos que compartan fecha.
+ */
+function groupEventsByDate(events: QuotePdfEvent[]): QuoteDateGroup[] {
+  const groups: QuoteDateGroup[] = [];
+  for (const event of events) {
+    const dateLabel = formatQuoteDateHeading(event.startAt);
+    const last = groups[groups.length - 1];
+    if (last && last.dateLabel === dateLabel) {
+      last.events.push(event);
+    } else {
+      groups.push({ dateLabel, events: [event] });
+    }
+  }
+  return groups;
+}
+
+function dateBandRow(label: string): RowInput {
+  return [
+    {
+      content: label,
+      colSpan: 4,
+      styles: { fillColor: DATE_BAND, textColor: 0, fontStyle: "bold", halign: "left" },
+    } satisfies CellDef,
+  ];
 }
 
 /**
@@ -122,42 +171,36 @@ export async function buildQuotePdf(data: QuotePdfData): Promise<Buffer> {
 
   y += 4;
 
-  for (const event of events) {
-    doc.setFontSize(10);
-    doc.setTextColor(0);
-    doc.text(event.title, 14, y);
-    doc.setFontSize(8);
-    doc.setTextColor(100);
-    doc.text(
-      `Fecha prevista: ${formatDateTime12h(event.startAt, { day: "2-digit", month: "short", year: "numeric" })}`,
-      14,
-      y + 5,
-    );
-    doc.text(event.address, 14, y + 9.5);
-
-    const body = event.estimate.breakdown.map((row) => [
-      `${specialtyLabels[row.specialty]} × ${row.quantity}`,
-      row.chargeToClient !== null ? currency(row.chargeToClient) : "—",
-      row.chargeToClient !== null ? currency(row.subtotal) : "A confirmar",
-    ]);
-
-    autoTable(doc, {
-      startY: y + 13,
-      head: [["Personal solicitado", "Tarifa unitaria", "Subtotal"]],
-      body,
-      foot: [["", "Subtotal del evento", currency(event.estimate.total)]],
-      styles: { fontSize: 9 },
-      footStyles: { fontStyle: "bold" },
-      margin: { left: 14, right: 14 },
-    });
-
-    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
-
-    if (y > 260 && event !== events[events.length - 1]) {
-      doc.addPage();
-      y = 20;
+  // Una sola tabla continua para todo el lote, con una fila-banda por fecha
+  // en vez de un bloque título+tabla (con head/foot propio) por evento —
+  // mismo patrón que `buildBatchWorkOrderPdf` en work-order-pdf.ts para
+  // evitar que la cotización crezca linealmente con la cantidad de eventos.
+  const body: RowInput[] = [];
+  for (const group of groupEventsByDate(events)) {
+    body.push(dateBandRow(group.dateLabel));
+    for (const event of group.events) {
+      const eventLabel = `${event.title}\n${event.address}`;
+      for (const row of event.estimate.breakdown) {
+        body.push([
+          eventLabel,
+          `${specialtyLabels[row.specialty]} × ${row.quantity}`,
+          row.chargeToClient !== null ? currency(row.chargeToClient) : "—",
+          row.chargeToClient !== null ? currency(row.subtotal) : "A confirmar",
+        ]);
+      }
     }
   }
+
+  autoTable(doc, {
+    startY: y,
+    head: [["Evento", "Personal solicitado", "Tarifa unitaria", "Subtotal"]],
+    body,
+    styles: { fontSize: 9, cellPadding: 2 },
+    columnStyles: { 0: { cellWidth: 55 } },
+    margin: { left: 14, right: 14 },
+  });
+
+  y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
 
   if (y > 250) {
     doc.addPage();
