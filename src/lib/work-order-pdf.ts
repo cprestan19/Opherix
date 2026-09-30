@@ -10,8 +10,6 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { CellDef, RowInput } from "jspdf-autotable";
 import { fetchLogoForPdf } from "@/lib/pdf-logo";
-import { specialtyLabels } from "@/lib/validations/worker-application";
-import type { Specialty } from "@/generated/prisma/enums";
 
 export interface WorkOrderPdfData {
   company: { name: string; logoUrl: string | null };
@@ -31,7 +29,7 @@ export interface WorkOrderPdfData {
   // del tenant), y el teléfono del trabajador es un dato de contacto interno
   // que no corresponde compartir con él — la identificación en sitio se hace
   // con el número de documento, no llamando al trabajador.
-  assignments: { specialty: Specialty | null; workerName: string; workerIdNumber: string | null }[];
+  assignments: { specialty: string | null; workerName: string; workerIdNumber: string | null }[];
 }
 
 // --- Template "hoja de control" (formato Excel del cliente) -----------------
@@ -83,12 +81,12 @@ function sortAssignmentsByName<T extends { workerName: string }>(assignments: T[
 }
 
 function assignmentRow(
-  a: { specialty: Specialty | null; workerName: string; workerIdNumber: string | null },
+  a: { specialty: string | null; workerName: string; workerIdNumber: string | null },
   dateLabel: string,
   timeIn: string,
   timeOut: string,
 ) {
-  return [a.workerName, a.workerIdNumber ?? "", a.specialty ? specialtyLabels[a.specialty] : "", dateLabel, timeIn, "", timeOut, ""];
+  return [a.workerName, a.workerIdNumber ?? "", a.specialty ?? "", dateLabel, timeIn, "", timeOut, ""];
 }
 
 const RED: [number, number, number] = [200, 0, 0];
@@ -196,7 +194,7 @@ export interface BatchWorkOrderPdfEvent {
   startAt: Date;
   endAt: Date;
   notes: string | null;
-  assignments: { specialty: Specialty | null; workerName: string; workerIdNumber: string | null }[];
+  assignments: { specialty: string | null; workerName: string; workerIdNumber: string | null }[];
 }
 
 export interface BatchWorkOrderPdfData {
@@ -222,7 +220,7 @@ const BATCH_TABLE_COLUMN_STYLES = {
 };
 
 interface BatchAssignmentRowData {
-  specialty: Specialty | null;
+  specialty: string | null;
   workerName: string;
   workerIdNumber: string | null;
   address: string;
@@ -231,7 +229,7 @@ interface BatchAssignmentRowData {
 }
 
 function batchAssignmentRow(a: BatchAssignmentRowData, dateLabel: string) {
-  return [a.workerName, a.workerIdNumber ?? "", a.address, a.specialty ? specialtyLabels[a.specialty] : "", dateLabel, a.timeIn, "", a.timeOut, ""];
+  return [a.workerName, a.workerIdNumber ?? "", a.address, a.specialty ?? "", dateLabel, a.timeIn, "", a.timeOut, ""];
 }
 
 interface DateGroup {

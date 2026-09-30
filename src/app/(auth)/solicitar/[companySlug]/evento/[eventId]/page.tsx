@@ -12,7 +12,7 @@ import { findCompanyBySlug } from "@/repositories/worker.repository";
 import { getEventForAccessToken } from "@/services/event.service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { specialtyLabels } from "@/lib/validations/worker-application";
+import { listActiveSpecialties } from "@/services/specialty.service";
 import { EditRequestForm } from "./edit-request-form";
 import { SatisfactionSurveyForm } from "./satisfaction-survey-form";
 import { formatDateTime12h } from "@/utils/date";
@@ -80,6 +80,7 @@ export default async function EventAccessPage({
   }
 
   const alreadyRated = event.assignments.some((a) => a.ratingScore !== null);
+  const specialties = event.status === "REQUESTED" ? await listActiveSpecialties(company.id) : [];
 
   return (
     <div className="min-h-svh w-full bg-secondary px-4 py-10">
@@ -99,6 +100,7 @@ export default async function EventAccessPage({
             companySlug={companySlug}
             eventId={eventId}
             token={token}
+            specialties={specialties}
             event={{
               title: event.title,
               eventType: event.eventType ?? "",
@@ -107,7 +109,7 @@ export default async function EventAccessPage({
               endAt: toDatetimeLocal(event.endAt),
               notes: event.notes ?? "",
               staffRequirements: event.staffRequirements.map((r) => ({
-                specialty: r.specialty,
+                specialtyId: r.specialtyId,
                 quantity: r.quantity,
               })),
             }}
@@ -129,7 +131,7 @@ export default async function EventAccessPage({
                 <span className="text-muted-foreground">Personal solicitado: </span>
                 {event.staffRequirements.map((req) => (
                   <Badge key={req.id} variant="outline">
-                    {specialtyLabels[req.specialty]} x{req.quantity}
+                    {req.specialty.name} x{req.quantity}
                   </Badge>
                 ))}
               </div>

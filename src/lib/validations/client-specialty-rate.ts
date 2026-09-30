@@ -7,13 +7,12 @@
  */
 
 import { z } from "zod";
-import { specialtyValues } from "@/lib/validations/worker-application";
 
 export const clientSpecialtyRateSchema = z.object({
   clientId: z.string().min(1),
   rates: z.array(
     z.object({
-      specialty: z.enum(specialtyValues),
+      specialtyId: z.string().min(1),
       payToWorker: z.number().min(0),
       chargeToClient: z.number().min(0),
     }),

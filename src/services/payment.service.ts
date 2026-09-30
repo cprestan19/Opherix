@@ -11,7 +11,6 @@ import * as paymentRepo from "@/repositories/payment.repository";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification } from "@/services/notification.service";
 import { prisma } from "@/lib/prisma";
-import type { Specialty } from "@/generated/prisma/enums";
 
 export class PaymentError extends Error {}
 
@@ -32,13 +31,13 @@ export async function calculatePaymentsForPeriod(
   ]);
 
   const rateByClientSpecialty = new Map(
-    rates.map((rate) => [`${rate.clientId}:${rate.specialty}`, Number(rate.payToWorker)]),
+    rates.map((rate) => [`${rate.clientId}:${rate.specialtyId}`, Number(rate.payToWorker)]),
   );
 
   const totalsByWorker = new Map<string, { totalAmount: number; assignmentCount: number }>();
   for (const assignment of assignments) {
-    if (!assignment.specialty) continue;
-    const rate = rateByClientSpecialty.get(`${assignment.event.clientId}:${assignment.specialty}`);
+    if (!assignment.specialtyId) continue;
+    const rate = rateByClientSpecialty.get(`${assignment.event.clientId}:${assignment.specialtyId}`);
     if (rate === undefined) continue;
 
     const entry = totalsByWorker.get(assignment.workerId) ?? { totalAmount: 0, assignmentCount: 0 };
@@ -93,19 +92,19 @@ export async function generatePaymentsForEvent(
   clientId: string,
   periodStart: Date,
   periodEnd: Date,
-  assignments: { status: string; specialty: Specialty | null; worker: { id: string; userId: string } }[],
+  assignments: { status: string; specialtyId: string | null; worker: { id: string; userId: string } }[],
 ) {
   const rates = await paymentRepo.listClientSpecialtyRates(companyId);
   const rateBySpecialty = new Map(
-    rates.filter((r) => r.clientId === clientId).map((r) => [r.specialty, Number(r.payToWorker)]),
+    rates.filter((r) => r.clientId === clientId).map((r) => [r.specialtyId, Number(r.payToWorker)]),
   );
 
   const activeAssignments = assignments.filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED");
 
   const totalsByWorker = new Map<string, { userId: string; totalAmount: number; assignmentCount: number }>();
   for (const assignment of activeAssignments) {
-    if (!assignment.specialty) continue;
-    const rate = rateBySpecialty.get(assignment.specialty);
+    if (!assignment.specialtyId) continue;
+    const rate = rateBySpecialty.get(assignment.specialtyId);
     if (rate === undefined) continue;
 
     const entry = totalsByWorker.get(assignment.worker.id) ?? {

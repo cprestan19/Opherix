@@ -34,7 +34,6 @@ import { setEventInvoiceAmount, InvoiceError } from "@/services/invoice.service"
 import { generatePaymentsForEvent, PaymentError } from "@/services/payment.service";
 import { getEventQuoteWhatsAppLink, QuoteError } from "@/services/quote.service";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
-import type { Specialty } from "@/generated/prisma/enums";
 
 export interface EventActionResult {
   error?: string;
@@ -43,11 +42,11 @@ export interface EventActionResult {
 export async function assignWorkerAction(
   eventId: string,
   workerId: string,
-  specialty?: Specialty,
+  specialtyId?: string,
 ): Promise<EventActionResult> {
   const { user, companyId } = await requireCompanyStaff();
   try {
-    await assignWorkerToEvent(companyId, eventId, workerId, user.id, specialty);
+    await assignWorkerToEvent(companyId, eventId, workerId, user.id, specialtyId);
   } catch (error) {
     if (error instanceof EventError) return { error: error.message };
     throw error;

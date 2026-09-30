@@ -24,38 +24,39 @@ import { TurnstileWidget } from "@/components/shared/turnstile-widget";
 import { FileUploadField } from "@/components/shared/file-upload-field";
 import { cn } from "@/lib/utils";
 import { publicEventRequestSchema, type PublicEventRequestInput } from "@/lib/validations/public-event-request";
-import { specialtyLabels, specialtyValues } from "@/lib/validations/worker-application";
 import type { PublicWorkerOption } from "@/services/public-event-request.service";
 import { submitPublicEventRequestAction, getReturningContactAction } from "./actions";
-
-const defaultValues: PublicEventRequestInput = {
-  contactName: "",
-  contactEmail: "",
-  contactPhone: "",
-  businessName: "",
-  taxId: "",
-  operationRegistration: undefined,
-  eventTitle: "",
-  eventType: "",
-  address: "",
-  startAt: "",
-  endAt: "",
-  notes: "",
-  staffNeeded: [{ specialty: "WAITER", quantity: 1 }],
-  preferredWorkerIds: [],
-};
 
 export function RequestForm({
   companySlug,
   availableWorkers = [],
+  specialties,
 }: {
   companySlug: string;
   availableWorkers?: PublicWorkerOption[];
+  specialties: { id: string; name: string }[];
 }) {
   const router = useRouter();
   const [submitted, setSubmitted] = useState<{ eventId: string; eventAccessToken: string } | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | undefined>(undefined);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  const defaultValues: PublicEventRequestInput = {
+    contactName: "",
+    contactEmail: "",
+    contactPhone: "",
+    businessName: "",
+    taxId: "",
+    operationRegistration: undefined,
+    eventTitle: "",
+    eventType: "",
+    address: "",
+    startAt: "",
+    endAt: "",
+    notes: "",
+    staffNeeded: [{ specialtyId: specialties[0]?.id ?? "", quantity: 1 }],
+    preferredWorkerIds: [],
+  };
 
   const {
     register,
@@ -210,16 +211,16 @@ export function RequestForm({
             <div key={item.id} className="flex items-center gap-2">
               <Controller
                 control={control}
-                name={`staffNeeded.${index}.specialty`}
+                name={`staffNeeded.${index}.specialtyId`}
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger className="flex-1">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {specialtyValues.map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {specialtyLabels[value]}
+                      {specialties.map((specialty) => (
+                        <SelectItem key={specialty.id} value={specialty.id}>
+                          {specialty.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -249,7 +250,8 @@ export function RequestForm({
             variant="outline"
             size="sm"
             className="w-fit gap-1"
-            onClick={() => staffFields.append({ specialty: "WAITER", quantity: 1 })}
+            disabled={specialties.length === 0}
+            onClick={() => staffFields.append({ specialtyId: specialties[0]?.id ?? "", quantity: 1 })}
           >
             <Plus className="size-4" /> Agregar tipo de personal
           </Button>

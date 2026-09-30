@@ -7,7 +7,6 @@
  */
 
 import { z } from "zod";
-import { specialtyValues } from "@/lib/validations/worker-application";
 
 const employerSchema = z.object({
   company: z.string().min(1, "Requerido"),
@@ -39,7 +38,7 @@ export const workerEditSchema = z.object({
   education: z.string().min(1, "Requerido"),
   courses: z.array(z.string()),
   languages: z.array(z.string()).min(1, "Indica al menos un idioma"),
-  specialties: z.array(z.enum(specialtyValues)).min(1, "Selecciona al menos una especialidad"),
+  specialtyIds: z.array(z.string()).min(1, "Selecciona al menos una especialidad"),
   experienceYears: z.number().int().min(0).max(60),
   previousEmployers: z.array(employerSchema),
   licenses: z.array(z.string()),

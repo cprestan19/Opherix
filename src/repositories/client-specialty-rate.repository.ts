@@ -8,29 +8,28 @@
 
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import type { Specialty } from "@/generated/prisma/enums";
 
 export function listRatesForClient(companyId: string, clientId: string) {
-  return prisma.clientSpecialtyRate.findMany({ where: { companyId, clientId } });
+  return prisma.clientSpecialtyRate.findMany({ where: { companyId, clientId }, include: { specialty: true } });
 }
 
 export function listRatesForCompany(companyId: string) {
-  return prisma.clientSpecialtyRate.findMany({ where: { companyId } });
+  return prisma.clientSpecialtyRate.findMany({ where: { companyId }, include: { specialty: true } });
 }
 
 export async function upsertRatesForClient(
   companyId: string,
   clientId: string,
-  rates: { specialty: Specialty; payToWorker: number; chargeToClient: number }[],
+  rates: { specialtyId: string; payToWorker: number; chargeToClient: number }[],
 ) {
   return prisma.$transaction(
     rates.map((rate) =>
       prisma.clientSpecialtyRate.upsert({
-        where: { clientId_specialty: { clientId, specialty: rate.specialty } },
+        where: { clientId_specialtyId: { clientId, specialtyId: rate.specialtyId } },
         create: {
           companyId,
           clientId,
-          specialty: rate.specialty,
+          specialtyId: rate.specialtyId,
           payToWorker: rate.payToWorker,
           chargeToClient: rate.chargeToClient,
         },

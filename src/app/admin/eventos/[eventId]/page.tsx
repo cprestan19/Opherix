@@ -17,6 +17,7 @@ import {
 } from "@/repositories/event.repository";
 import { getCompany } from "@/repositories/config.repository";
 import { computeEventChargeTotal, getClientSpecialtyRates } from "@/services/client-specialty-rate.service";
+import { listActiveSpecialties } from "@/services/specialty.service";
 import { estimateClientCharge } from "@/lib/pricing/estimate-client-charge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,6 @@ import { ArchiveEventAction } from "./archive-event-action";
 import { EventDeleteAction } from "./event-delete-action";
 import { EventAccessLinkPanel } from "./event-access-link-panel";
 import { formatDateTime12h } from "@/utils/date";
-import type { Specialty } from "@/generated/prisma/enums";
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Borrador",
@@ -62,7 +62,11 @@ export default async function EventDetailPage({
   const currentUser = await getCurrentUser();
   const isViewer = currentUser.role === "VIEWER";
   const companyId = await getEffectiveCompanyId();
-  const [event, company] = await Promise.all([getEventDetail(companyId, eventId), getCompany(companyId)]);
+  const [event, company, specialties] = await Promise.all([
+    getEventDetail(companyId, eventId),
+    getCompany(companyId),
+    listActiveSpecialties(companyId),
+  ]);
   if (!event) notFound();
 
   const batchEventIds = event.batchId ? await findEventIdsByBatch(companyId, event.batchId) : [];
@@ -82,14 +86,17 @@ export default async function EventDetailPage({
     staffTotals = await computeEventChargeTotal(companyId, event.clientId, event.assignments);
   } else {
     const rawRates = await getClientSpecialtyRates(companyId, event.clientId);
-    const rates = rawRates.map((r) => ({ specialty: r.specialty, chargeToClient: Number(r.chargeToClient) }));
-    const estimate = estimateClientCharge(rates, event.staffRequirements);
+    const rates = rawRates.map((r) => ({ specialtyId: r.specialtyId, chargeToClient: Number(r.chargeToClient) }));
+    const estimate = estimateClientCharge(
+      rates,
+      event.staffRequirements.map((r) => ({ specialtyId: r.specialtyId, name: r.specialty.name, quantity: r.quantity })),
+    );
     staffTotals = {
       chargeToClientTotal: estimate.total,
       breakdown: estimate.breakdown.flatMap((row) =>
         row.chargeToClient === null
           ? []
-          : [{ specialty: row.specialty, quantity: row.quantity, chargeToClient: row.chargeToClient, subtotal: row.subtotal }],
+          : [{ specialtyId: row.specialtyId, name: row.name, quantity: row.quantity, chargeToClient: row.chargeToClient, subtotal: row.subtotal }],
       ),
       missingSpecialties: estimate.missingSpecialties,
       unassignedSpecialtyCount: 0,
@@ -99,12 +106,12 @@ export default async function EventDetailPage({
 
   const ratedAssignments = event.assignments.filter((a) => a.ratingScore !== null);
 
-  const uniqueSpecialties = [...new Set(event.staffRequirements.map((r) => r.specialty))];
+  const uniqueSpecialtyIds = [...new Set(event.staffRequirements.map((r) => r.specialtyId))];
   const workersLists = await Promise.all(
-    uniqueSpecialties.map((specialty) => findAvailableWorkersForSpecialty(companyId, specialty)),
+    uniqueSpecialtyIds.map((specialtyId) => findAvailableWorkersForSpecialty(companyId, specialtyId)),
   );
   const availableWorkersBySpecialty = Object.fromEntries(
-    uniqueSpecialties.map((specialty, i) => [specialty, workersLists[i]]),
+    uniqueSpecialtyIds.map((specialtyId, i) => [specialtyId, workersLists[i]]),
   );
 
   const preferredWorkerIds = asStringArray(event.preferredWorkerIds);
@@ -116,20 +123,20 @@ export default async function EventDetailPage({
   // personal del originalmente solicitado, el formulario debe mostrar esa
   // cantidad real (§ corrección explícita del usuario), nunca menos de lo
   // asignado.
-  const assignedCountBySpecialty = new Map<Specialty, number>();
+  const assignedCountBySpecialty = new Map<string, number>();
   for (const a of activeAssignments) {
-    if (!a.specialty) continue;
-    assignedCountBySpecialty.set(a.specialty, (assignedCountBySpecialty.get(a.specialty) ?? 0) + 1);
+    if (!a.specialtyId) continue;
+    assignedCountBySpecialty.set(a.specialtyId, (assignedCountBySpecialty.get(a.specialtyId) ?? 0) + 1);
   }
-  const requirementSpecialties = new Set(event.staffRequirements.map((r) => r.specialty));
+  const requirementSpecialtyIds = new Set(event.staffRequirements.map((r) => r.specialtyId));
   const syncedStaffRequirements = [
     ...event.staffRequirements.map((r) => ({
-      specialty: r.specialty,
-      quantity: Math.max(r.quantity, assignedCountBySpecialty.get(r.specialty) ?? 0),
+      specialtyId: r.specialtyId,
+      quantity: Math.max(r.quantity, assignedCountBySpecialty.get(r.specialtyId) ?? 0),
     })),
     ...[...assignedCountBySpecialty.entries()]
-      .filter(([specialty]) => !requirementSpecialties.has(specialty))
-      .map(([specialty, quantity]) => ({ specialty, quantity })),
+      .filter(([specialtyId]) => !requirementSpecialtyIds.has(specialtyId))
+      .map(([specialtyId, quantity]) => ({ specialtyId, quantity })),
   ];
 
   return (
@@ -150,6 +157,7 @@ export default async function EventDetailPage({
           {!isViewer && !event.deletedAt && event.status !== "CANCELLED" && event.status !== "ARCHIVED" ? (
             <EditEventForm
               eventId={event.id}
+              specialties={specialties}
               event={{
                 title: event.title,
                 eventType: event.eventType ?? "",
@@ -285,7 +293,12 @@ export default async function EventDetailPage({
 
       <AssignmentPanel
         eventId={event.id}
-        requirements={event.staffRequirements}
+        requirements={event.staffRequirements.map((r) => ({
+          id: r.id,
+          specialtyId: r.specialtyId,
+          specialtyName: r.specialty.name,
+          quantity: r.quantity,
+        }))}
         assignments={event.assignments}
         availableWorkersBySpecialty={availableWorkersBySpecialty}
         readOnly={isViewer || Boolean(event.deletedAt)}

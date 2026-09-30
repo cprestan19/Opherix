@@ -6,15 +6,14 @@
  * expreso por escrito del autor.
  */
 
-import type { Specialty } from "@/generated/prisma/enums";
-
 export interface ClientSpecialtyRateLite {
-  specialty: Specialty;
+  specialtyId: string;
   chargeToClient: number;
 }
 
 export interface ClientChargeBreakdownRow {
-  specialty: Specialty;
+  specialtyId: string;
+  name: string;
   quantity: number;
   chargeToClient: number | null;
   subtotal: number;
@@ -23,7 +22,7 @@ export interface ClientChargeBreakdownRow {
 export interface ClientChargeEstimate {
   total: number;
   breakdown: ClientChargeBreakdownRow[];
-  missingSpecialties: Specialty[];
+  missingSpecialties: { specialtyId: string; name: string }[];
 }
 
 /**
@@ -39,33 +38,36 @@ export interface ClientChargeEstimate {
  * nada impide que un evento tenga dos líneas de EventStaffRequirement con la
  * misma especialidad (ej. editada por separado), y sin este merge el
  * `breakdown` sacaría una fila por línea en vez de una por especialidad
- * (además de romper cualquier `key={row.specialty}` en la UI que lo liste).
+ * (además de romper cualquier `key={row.specialtyId}` en la UI que lo liste).
+ * Misma forma de `name` que `computeEventChargeTotal` (client-specialty-
+ * rate.service.ts) a propósito — ambos alimentan el mismo EventStaffTotalsCard.
  */
 export function estimateClientCharge(
   rates: ClientSpecialtyRateLite[],
-  staffRequirements: { specialty: Specialty; quantity: number }[],
+  staffRequirements: { specialtyId: string; name: string; quantity: number }[],
 ): ClientChargeEstimate {
-  const rateBySpecialty = new Map(rates.map((r) => [r.specialty, r.chargeToClient]));
+  const rateBySpecialtyId = new Map(rates.map((r) => [r.specialtyId, r.chargeToClient]));
 
-  const quantityBySpecialty = new Map<Specialty, number>();
-  for (const { specialty, quantity } of staffRequirements) {
-    quantityBySpecialty.set(specialty, (quantityBySpecialty.get(specialty) ?? 0) + quantity);
+  const quantityBySpecialty = new Map<string, { quantity: number; name: string }>();
+  for (const { specialtyId, name, quantity } of staffRequirements) {
+    const current = quantityBySpecialty.get(specialtyId);
+    quantityBySpecialty.set(specialtyId, { quantity: (current?.quantity ?? 0) + quantity, name });
   }
 
   let total = 0;
-  const missingSpecialties: Specialty[] = [];
+  const missingSpecialties: { specialtyId: string; name: string }[] = [];
   const breakdown: ClientChargeBreakdownRow[] = [];
 
-  for (const [specialty, quantity] of quantityBySpecialty) {
-    const chargeToClient = rateBySpecialty.get(specialty) ?? null;
+  for (const [specialtyId, { quantity, name }] of quantityBySpecialty) {
+    const chargeToClient = rateBySpecialtyId.get(specialtyId) ?? null;
     if (chargeToClient === null) {
-      missingSpecialties.push(specialty);
-      breakdown.push({ specialty, quantity, chargeToClient: null, subtotal: 0 });
+      missingSpecialties.push({ specialtyId, name });
+      breakdown.push({ specialtyId, name, quantity, chargeToClient: null, subtotal: 0 });
       continue;
     }
     const subtotal = chargeToClient * quantity;
     total += subtotal;
-    breakdown.push({ specialty, quantity, chargeToClient, subtotal });
+    breakdown.push({ specialtyId, name, quantity, chargeToClient, subtotal });
   }
 
   return { total, breakdown, missingSpecialties };

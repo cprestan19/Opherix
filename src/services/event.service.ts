@@ -7,10 +7,11 @@
  */
 
 import "server-only";
-import type { Specialty, AutoArchiveDelay } from "@/generated/prisma/enums";
+import type { AutoArchiveDelay } from "@/generated/prisma/enums";
 import * as eventRepo from "@/repositories/event.repository";
 import * as clientRepo from "@/repositories/client.repository";
 import { getCompany } from "@/repositories/config.repository";
+import { assertActiveSpecialtiesBelongToCompany, SpecialtyError } from "@/services/specialty.service";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification, notifyClient } from "@/services/notification.service";
 import { sendEmail } from "@/lib/notifications/email";
@@ -65,10 +66,24 @@ export interface CreateEventInput {
   startAt: string;
   endAt: string;
   notes?: string;
-  staffRequirements: { specialty: Specialty; quantity: number }[];
+  staffRequirements: { specialtyId: string; quantity: number }[];
   // Solo aplica al crear desde el formulario público (§ selector de personal
   // en línea) — ignorado por el resto de flujos (admin, edición).
   preferredWorkerIds?: string[];
+}
+
+/**
+ * Varios de los flujos que llegan aquí son formularios públicos sin sesión
+ * (§ /solicitar/[companySlug]) — nunca confiar en los specialtyId tal cual
+ * llegan, deben pertenecer a esta empresa y seguir activos.
+ */
+async function assertStaffRequirementsValid(companyId: string, staffRequirements: { specialtyId: string }[]) {
+  try {
+    await assertActiveSpecialtiesBelongToCompany(companyId, staffRequirements.map((r) => r.specialtyId));
+  } catch (error) {
+    if (error instanceof SpecialtyError) throw new EventError(error.message);
+    throw error;
+  }
 }
 
 /**
@@ -98,6 +113,7 @@ export async function createEventByAdmin(
   if (input.staffRequirements.length === 0) {
     throw new EventError("Indica al menos un tipo de personal requerido.");
   }
+  await assertStaffRequirementsValid(companyId, input.staffRequirements);
 
   const event = await eventRepo.createEvent({
     companyId,
@@ -145,6 +161,7 @@ export async function updateEventFull(
   if (input.staffRequirements.length === 0) {
     throw new EventError("Indica al menos un tipo de personal requerido.");
   }
+  await assertStaffRequirementsValid(companyId, input.staffRequirements);
 
   const updated = await eventRepo.updateEventDetails(eventId, {
     title: input.title,
@@ -350,6 +367,7 @@ export async function createEventRequest(
   if (input.staffRequirements.length === 0) {
     throw new EventError("Indica al menos un tipo de personal requerido.");
   }
+  await assertStaffRequirementsValid(companyId, input.staffRequirements);
 
   const event = await eventRepo.createEvent({
     companyId,
@@ -488,7 +506,7 @@ export async function assignWorkerToEvent(
   eventId: string,
   workerId: string,
   assignedById: string,
-  specialty?: Specialty,
+  specialtyId?: string,
 ) {
   const event = await eventRepo.getEventDetail(companyId, eventId);
   if (!event) throw new EventError("Evento no encontrado.");
@@ -517,7 +535,7 @@ export async function assignWorkerToEvent(
     throw new EventError("Este trabajador ya está asignado a este evento.");
   }
 
-  const assignment = await eventRepo.createAssignment(eventId, workerId, assignedById, specialty);
+  const assignment = await eventRepo.createAssignment(eventId, workerId, assignedById, specialtyId);
 
   await logAudit({
     companyId,
@@ -602,7 +620,7 @@ export async function sendWorkOrderToClient(companyId: string, eventId: string, 
     },
     contact: { name: event.client.contactName, phone: event.client.contactPhone },
     assignments: activeAssignments.map((a) => ({
-      specialty: a.specialty,
+      specialty: a.specialty?.name ?? null,
       workerName: a.worker.user.name,
       workerIdNumber: a.worker.idNumber,
     })),
@@ -672,7 +690,7 @@ export async function sendBatchWorkOrderToClient(companyId: string, batchId: str
       assignments: event.assignments
         .filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED")
         .map((a) => ({
-          specialty: a.specialty,
+          specialty: a.specialty?.name ?? null,
           workerName: a.worker.user.name,
           workerIdNumber: a.worker.idNumber,
         })),

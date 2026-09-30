@@ -140,6 +140,7 @@ model Company {
   auditLogs          AuditLog[]
   clientAccessTokens ClientAccessToken[]
   clientSpecialtyRates ClientSpecialtyRate[]
+  specialties        Specialty[]
 
   @@index([slug])
 }
@@ -277,13 +278,14 @@ model ClientSpecialtyRate {
   company        Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   clientId       String
   client         Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  specialty      Specialty
+  specialtyId    String
+  specialty      Specialty @relation(fields: [specialtyId], references: [id], onDelete: Restrict)
   payToWorker    Decimal   @db.Decimal(10, 2)
   chargeToClient Decimal   @db.Decimal(10, 2)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  @@unique([clientId, specialty])
+  @@unique([clientId, specialtyId])
   @@index([companyId])
 }
 
@@ -321,15 +323,45 @@ enum WorkerStatus {
   INACTIVE
 }
 
-enum Specialty {
-  WAITER
-  BARTENDER
-  HOST
-  COOK
-  SECURITY
-  CLEANING
-  LOGISTICS
-  OTHER
+// ---------------------------------------------------------------------------
+// Catálogo de especialidades — por tenant (§ Configuración > Mantenimiento de
+// especialidades), no un enum fijo: cada empresa agrega/renombra/archiva las
+// suyas. Nunca se borra físicamente, solo se archiva (archivedAt) — igual
+// convención que clientes/eventos — así el historial (trabajadores, eventos,
+// tarifas) sigue resolviendo el nombre aunque ya no se pueda elegir en un
+// selector nuevo. Sin unicidad de nombre a nivel de BD (mismo criterio que
+// Client.businessName) — se valida en specialty.service.ts.
+// ---------------------------------------------------------------------------
+model Specialty {
+  id         String    @id @default(cuid())
+  companyId  String
+  company    Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name       String
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  workerSpecialties WorkerSpecialty[]
+  clientRates       ClientSpecialtyRate[]
+  staffRequirements EventStaffRequirement[]
+  assignments       WorkerAssignment[]
+
+  @@index([companyId, archivedAt])
+}
+
+// Tabla puente Worker↔Specialty (multi-especialidad) — reemplaza el antiguo
+// Worker.specialties Specialty[] nativo, que dependía de que Specialty fuera
+// un enum cerrado.
+model WorkerSpecialty {
+  id          String    @id @default(cuid())
+  workerId    String
+  worker      Worker    @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  specialtyId String
+  specialty   Specialty @relation(fields: [specialtyId], references: [id], onDelete: Restrict)
+  createdAt   DateTime  @default(now())
+
+  @@unique([workerId, specialtyId])
+  @@index([specialtyId])
 }
 
 model Worker {
@@ -351,7 +383,6 @@ model Worker {
   education             String?
   courses               Json? // string[]
   languages             Json? // string[]
-  specialties           Specialty[] @default([OTHER]) // multi-especialidad (aspirante puede marcar varias en la postulación)
   experienceYears       Int?
   previousEmployers     Json? // { company, role, from, to }[]
   references            Json? // { name, phone, relation }[]
@@ -384,9 +415,9 @@ model Worker {
   timeOffs          TimeOff[]
   assignments       WorkerAssignment[]
   paymentRecords    PaymentRecord[]
+  workerSpecialties WorkerSpecialty[] // multi-especialidad (aspirante puede marcar varias en la postulación) — catálogo por tenant, ver Specialty
 
   @@index([companyId, status])
-  @@index([specialties], type: Gin)
 }
 
 // Datos sensibles de salud — tabla separada, acceso restringido a ADMIN/SUPERVISOR (§9.2)
@@ -535,13 +566,15 @@ model Event {
 }
 
 model EventStaffRequirement {
-  id        String    @id @default(cuid())
-  eventId   String
-  event     Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  specialty Specialty
-  quantity  Int
+  id          String    @id @default(cuid())
+  eventId     String
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  specialtyId String
+  specialty   Specialty @relation(fields: [specialtyId], references: [id], onDelete: Restrict)
+  quantity    Int
 
   @@index([eventId])
+  @@index([specialtyId])
 }
 
 // ---------------------------------------------------------------------------
@@ -580,7 +613,8 @@ model WorkerAssignment {
   // Qué EventStaffRequirement (specialty) cubre esta asignación — necesario
   // para saber qué tarifa de ClientSpecialtyRate aplica al calcular el pago
   // del trabajador (§ un trabajador puede tener varias especialidades).
-  specialty Specialty?
+  specialtyId String?
+  specialty   Specialty? @relation(fields: [specialtyId], references: [id], onDelete: Restrict)
 
   assignedById String
   assignedBy   User      @relation("AssignedBy", fields: [assignedById], references: [id])
@@ -609,6 +643,7 @@ model WorkerAssignment {
 
   @@index([workerId])
   @@index([eventId])
+  @@index([specialtyId])
 }
 
 // ---------------------------------------------------------------------------

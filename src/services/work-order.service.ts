@@ -43,7 +43,7 @@ async function buildWorkOrderBuffer(companyId: string, eventId: string) {
     },
     contact: { name: event.client.contactName, phone: event.client.contactPhone },
     assignments: activeAssignments.map((a) => ({
-      specialty: a.specialty,
+      specialty: a.specialty?.name ?? null,
       workerName: a.worker.user.name,
       workerIdNumber: a.worker.idNumber,
     })),
@@ -94,7 +94,7 @@ async function buildBatchWorkOrderBuffer(companyId: string, batchId: string) {
       assignments: event.assignments
         .filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED")
         .map((a) => ({
-          specialty: a.specialty,
+          specialty: a.specialty?.name ?? null,
           workerName: a.worker.user.name,
           workerIdNumber: a.worker.idNumber,
         })),

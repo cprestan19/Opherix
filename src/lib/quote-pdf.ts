@@ -10,7 +10,6 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import type { CellDef, RowInput } from "jspdf-autotable";
 import { fetchLogoForPdf } from "@/lib/pdf-logo";
-import { specialtyLabels } from "@/lib/validations/worker-application";
 import type { ClientChargeEstimate } from "@/lib/pricing/estimate-client-charge";
 
 export interface QuotePdfEvent {
@@ -183,7 +182,7 @@ export async function buildQuotePdf(data: QuotePdfData): Promise<Buffer> {
       for (const row of event.estimate.breakdown) {
         body.push([
           eventLabel,
-          `${specialtyLabels[row.specialty]} × ${row.quantity}`,
+          `${row.name} × ${row.quantity}`,
           row.chargeToClient !== null ? currency(row.chargeToClient) : "—",
           row.chargeToClient !== null ? currency(row.subtotal) : "A confirmar",
         ]);

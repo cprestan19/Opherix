@@ -9,6 +9,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { getWorkerDetail } from "@/repositories/worker.repository";
+import { listActiveSpecialties } from "@/services/specialty.service";
 import { asStringArray, asEmployers, asUniformSizes } from "@/lib/worker-fields";
 import { EditWorkerForm } from "../edit-worker-form";
 
@@ -22,7 +23,10 @@ export default async function EditWorkerPage({
   if (user.role === "VIEWER") redirect(`/admin/personal/${workerId}`);
 
   const companyId = await getEffectiveCompanyId();
-  const worker = await getWorkerDetail(companyId, workerId);
+  const [worker, specialties] = await Promise.all([
+    getWorkerDetail(companyId, workerId),
+    listActiveSpecialties(companyId),
+  ]);
 
   if (!worker) notFound();
 
@@ -31,6 +35,7 @@ export default async function EditWorkerPage({
   return (
     <EditWorkerForm
       workerId={worker.id}
+      specialties={specialties}
       worker={{
         name: worker.user.name,
         email: worker.user.email,
@@ -46,7 +51,7 @@ export default async function EditWorkerPage({
         education: worker.education ?? "",
         courses: asStringArray(worker.courses),
         languages: asStringArray(worker.languages),
-        specialties: worker.specialties,
+        specialtyIds: worker.workerSpecialties.map((ws) => ws.specialtyId),
         experienceYears: worker.experienceYears ?? 0,
         previousEmployers: asEmployers(worker.previousEmployers),
         licenses: asStringArray(worker.licenses),

@@ -8,7 +8,6 @@
 
 import { AlertTriangle, Calculator } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { specialtyLabels } from "@/lib/validations/worker-application";
 import Link from "next/link";
 
 function currency(value: number) {
@@ -16,7 +15,8 @@ function currency(value: number) {
 }
 
 interface BreakdownRow {
-  specialty: string;
+  specialtyId: string;
+  name: string;
   quantity: number;
   chargeToClient: number;
   subtotal: number;
@@ -37,7 +37,7 @@ export function EventStaffTotalsCard({
 }: {
   chargeToClientTotal: number;
   breakdown: BreakdownRow[];
-  missingSpecialties: string[];
+  missingSpecialties: { specialtyId: string; name: string }[];
   unassignedSpecialtyCount: number;
   isEstimate: boolean;
 }) {
@@ -71,9 +71,9 @@ export function EventStaffTotalsCard({
         {breakdown.length > 0 ? (
           <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
             {breakdown.map((row) => (
-              <li key={row.specialty} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+              <li key={row.specialtyId} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                 <span className="text-muted-foreground">
-                  {specialtyLabels[row.specialty as keyof typeof specialtyLabels]} × {row.quantity} (
+                  {row.name} × {row.quantity} (
                   {currency(row.chargeToClient)} c/u)
                 </span>
                 <span className="font-medium">{currency(row.subtotal)}</span>
@@ -85,7 +85,7 @@ export function EventStaffTotalsCard({
         {missingSpecialties.length > 0 ? (
           <p className="flex items-start gap-1.5 text-xs text-warning">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-            Falta configurar tarifa para: {missingSpecialties.map((s) => specialtyLabels[s as keyof typeof specialtyLabels]).join(", ")}.
+            Falta configurar tarifa para: {missingSpecialties.map((s) => s.name).join(", ")}.
             Este total está incompleto —{" "}
             <Link href="/admin/configuracion" className="underline">
               configúralas aquí

@@ -64,7 +64,7 @@ export function createWorkerDirect(data: {
   name: string;
   phone: string;
   idNumber: string | null;
-  specialties: Prisma.WorkerUncheckedCreateInput["specialties"];
+  specialtyIds: string[];
 }) {
   return prisma.user.create({
     data: {
@@ -79,7 +79,7 @@ export function createWorkerDirect(data: {
         create: {
           companyId: data.companyId,
           idNumber: data.idNumber,
-          specialties: data.specialties,
+          workerSpecialties: { create: data.specialtyIds.map((specialtyId) => ({ specialtyId })) },
           status: "ACTIVE",
         },
       },
@@ -98,13 +98,14 @@ export function createApplicant(data: {
     Prisma.WorkerUncheckedCreateWithoutUserInput,
     "healthInfo" | "availabilitySlots" | "companyId" | "documents"
   > & {
+    specialtyIds: string[];
     healthInfo?: { allergies?: string; conditions?: string };
     availableDays: number[];
     documents?: { type: Prisma.WorkerDocumentCreateWithoutWorkerInput["type"]; fileUrl: string; fileName: string }[];
   };
 }) {
   const { companyId, email, passwordHash, name, phone, worker } = data;
-  const { healthInfo, availableDays, documents, ...workerFields } = worker;
+  const { healthInfo, availableDays, documents, specialtyIds, ...workerFields } = worker;
 
   return prisma.user.create({
     data: {
@@ -119,6 +120,7 @@ export function createApplicant(data: {
         create: {
           companyId,
           ...workerFields,
+          workerSpecialties: { create: specialtyIds.map((specialtyId) => ({ specialtyId })) },
           healthInfo:
             healthInfo && (healthInfo.allergies || healthInfo.conditions)
               ? { create: healthInfo }
@@ -141,7 +143,10 @@ export function createApplicant(data: {
 export function listPendingApplications(companyId: string) {
   return prisma.worker.findMany({
     where: { companyId, status: "PENDING_REVIEW" },
-    include: { user: { select: { name: true, email: true, phone: true, createdAt: true } } },
+    include: {
+      user: { select: { name: true, email: true, phone: true, createdAt: true } },
+      workerSpecialties: { include: { specialty: true } },
+    },
     orderBy: { createdAt: "asc" },
   });
 }
@@ -157,26 +162,27 @@ export function findWorkerById(companyId: string, workerId: string) {
 }
 
 export interface WorkerListFilters {
-  specialty?: Prisma.EnumSpecialtyFilter["equals"];
+  specialtyId?: string;
   status?: Prisma.EnumWorkerStatusFilter["equals"];
   search?: string;
 }
 
 export function listWorkers(companyId: string, filters: WorkerListFilters = {}) {
-  const { specialty, status, search } = filters;
+  const { specialtyId, status, search } = filters;
 
   return prisma.worker.findMany({
     where: {
       companyId,
       deletedAt: null,
       status: status ?? { in: ["APPROVED", "ACTIVE"] },
-      specialties: specialty ? { has: specialty } : undefined,
+      workerSpecialties: specialtyId ? { some: { specialtyId } } : undefined,
       user: search
         ? { name: { contains: search, mode: "insensitive" } }
         : undefined,
     },
     include: {
       user: { select: { name: true, email: true, phone: true } },
+      workerSpecialties: { include: { specialty: true } },
     },
     orderBy: { ratingAverage: "desc" },
   });
@@ -201,6 +207,7 @@ export function getWorkerDetail(companyId: string, workerId: string) {
       availabilitySlots: { orderBy: { dayOfWeek: "asc" } },
       timeOffs: { orderBy: { startDate: "desc" }, take: 10 },
       healthInfo: true,
+      workerSpecialties: { include: { specialty: true } },
       assignments: {
         where: { ratingScore: { not: null } },
         orderBy: { updatedAt: "desc" },
@@ -244,7 +251,7 @@ export interface UpdateWorkerProfileData {
   education: string;
   courses: string[];
   languages: string[];
-  specialties: Prisma.WorkerUncheckedUpdateInput["specialties"];
+  specialtyIds: string[];
   experienceYears: number;
   previousEmployers: Prisma.InputJsonValue;
   licenses: string[];
@@ -280,7 +287,6 @@ export function updateWorkerProfile(workerId: string, userId: string, data: Upda
         education: workerFields.education,
         courses: workerFields.courses,
         languages: workerFields.languages,
-        specialties: workerFields.specialties,
         experienceYears: workerFields.experienceYears,
         previousEmployers: workerFields.previousEmployers,
         licenses: workerFields.licenses,
@@ -296,6 +302,13 @@ export function updateWorkerProfile(workerId: string, userId: string, data: Upda
       where: { workerId },
       create: { workerId, allergies, conditions },
       update: { allergies, conditions },
+    });
+
+    // Reemplaza el set completo de especialidades — mismo patrón que
+    // updateEventDetails en event.repository.ts para EventStaffRequirement.
+    await tx.workerSpecialty.deleteMany({ where: { workerId } });
+    await tx.workerSpecialty.createMany({
+      data: workerFields.specialtyIds.map((specialtyId) => ({ workerId, specialtyId })),
     });
 
     return worker;

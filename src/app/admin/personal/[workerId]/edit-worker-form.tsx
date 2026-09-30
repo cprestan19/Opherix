@@ -29,7 +29,6 @@ import {
   UserRound,
 } from "lucide-react";
 import { workerEditSchema, type WorkerEditInput } from "@/lib/validations/worker-edit";
-import { specialtyValues, specialtyLabels } from "@/lib/validations/worker-application";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,6 +47,7 @@ import { WorkerAvailabilityEditor } from "./worker-availability-editor";
 interface EditWorkerFormProps {
   workerId: string;
   worker: WorkerEditInput;
+  specialties: { id: string; name: string }[];
   ratingAverage: string;
   ratingCount: number;
   documents: WorkerDocumentItem[];
@@ -79,7 +79,7 @@ const TAB_FIELDS: Record<(typeof TABS)[number]["value"], (keyof WorkerEditInput)
     "education",
     "courses",
     "languages",
-    "specialties",
+    "specialtyIds",
     "experienceYears",
     "previousEmployers",
     "licenses",
@@ -97,6 +97,7 @@ const TAB_FIELDS: Record<(typeof TABS)[number]["value"], (keyof WorkerEditInput)
 export function EditWorkerForm({
   workerId,
   worker,
+  specialties,
   ratingAverage,
   ratingCount,
   documents,
@@ -117,7 +118,8 @@ export function EditWorkerForm({
   const hasChildren = watch("hasChildren");
   const hasVehicle = watch("hasVehicle");
   const name = watch("name");
-  const specialties = watch("specialties");
+  const specialtyIds = watch("specialtyIds");
+  const specialtyById = new Map(specialties.map((s) => [s.id, s.name]));
 
   async function onSubmit(values: WorkerEditInput) {
     setServerError(null);
@@ -165,9 +167,9 @@ export function EditWorkerForm({
             <div className="flex flex-col gap-1.5">
               <h1 className="text-xl font-semibold tracking-tight text-foreground">{name || "Editar trabajador"}</h1>
               <div className="flex flex-wrap items-center gap-1.5">
-                {specialties.map((specialty) => (
-                  <Badge key={specialty} className="w-fit">
-                    {specialtyLabels[specialty]}
+                {specialtyIds.map((id) => (
+                  <Badge key={id} className="w-fit">
+                    {specialtyById.get(id) ?? id}
                   </Badge>
                 ))}
               </div>
@@ -310,22 +312,24 @@ export function EditWorkerForm({
                       </Field>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
-                      <Field data-invalid={!!errors.specialties}>
+                      <Field data-invalid={!!errors.specialtyIds}>
                         <FieldLabel>Especialidades</FieldLabel>
                         <Controller
                           control={control}
-                          name="specialties"
+                          name="specialtyIds"
                           render={({ field }) => (
                             <div className="flex flex-wrap gap-2">
-                              {specialtyValues.map((value) => {
-                                const checked = field.value.includes(value);
+                              {specialties.map((specialty) => {
+                                const checked = field.value.includes(specialty.id);
                                 return (
                                   <button
-                                    key={value}
+                                    key={specialty.id}
                                     type="button"
                                     onClick={() =>
                                       field.onChange(
-                                        checked ? field.value.filter((v) => v !== value) : [...field.value, value],
+                                        checked
+                                          ? field.value.filter((v) => v !== specialty.id)
+                                          : [...field.value, specialty.id],
                                       )
                                     }
                                     className={cn(
@@ -335,14 +339,14 @@ export function EditWorkerForm({
                                         : "border-border bg-background text-muted-foreground",
                                     )}
                                   >
-                                    {specialtyLabels[value]}
+                                    {specialty.name}
                                   </button>
                                 );
                               })}
                             </div>
                           )}
                         />
-                        <FieldError errors={[errors.specialties]} />
+                        <FieldError errors={[errors.specialtyIds]} />
                       </Field>
                       <Field data-invalid={!!errors.experienceYears}>
                         <FieldLabel htmlFor="experienceYears">Años de experiencia</FieldLabel>

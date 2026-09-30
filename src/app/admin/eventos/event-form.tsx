@@ -28,7 +28,6 @@ import {
 } from "@/components/shared/responsive-dialog";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { adminEventSchema, type AdminEventInput } from "@/lib/validations/event";
-import { specialtyLabels, specialtyValues } from "@/lib/validations/worker-application";
 import { createEventAdminAction } from "./actions";
 
 interface ClientOption {
@@ -36,20 +35,24 @@ interface ClientOption {
   businessName: string;
 }
 
-const defaultValues: AdminEventInput = {
-  clientId: "",
-  title: "",
-  eventType: "",
-  address: "",
-  startAt: "",
-  endAt: "",
-  notes: "",
-  staffRequirements: [{ specialty: "WAITER", quantity: 1 }],
-};
+interface SpecialtyOption {
+  id: string;
+  name: string;
+}
 
-export function EventForm({ clients }: { clients: ClientOption[] }) {
+export function EventForm({ clients, specialties }: { clients: ClientOption[]; specialties: SpecialtyOption[] }) {
   const [open, setOpen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const defaultValues: AdminEventInput = {
+    clientId: "",
+    title: "",
+    eventType: "",
+    address: "",
+    startAt: "",
+    endAt: "",
+    notes: "",
+    staffRequirements: [{ specialtyId: specialties[0]?.id ?? "", quantity: 1 }],
+  };
   const {
     register,
     handleSubmit,
@@ -148,16 +151,16 @@ export function EventForm({ clients }: { clients: ClientOption[] }) {
                 <div key={item.id} className="flex items-center gap-2">
                   <Controller
                     control={control}
-                    name={`staffRequirements.${index}.specialty`}
+                    name={`staffRequirements.${index}.specialtyId`}
                     render={({ field }) => (
                       <Select value={field.value} onValueChange={field.onChange}>
                         <SelectTrigger className="flex-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {specialtyValues.map((value) => (
-                            <SelectItem key={value} value={value}>
-                              {specialtyLabels[value]}
+                          {specialties.map((specialty) => (
+                            <SelectItem key={specialty.id} value={specialty.id}>
+                              {specialty.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -187,7 +190,8 @@ export function EventForm({ clients }: { clients: ClientOption[] }) {
                 variant="outline"
                 size="sm"
                 className="w-fit gap-1"
-                onClick={() => requirements.append({ specialty: "WAITER", quantity: 1 })}
+                disabled={specialties.length === 0}
+                onClick={() => requirements.append({ specialtyId: specialties[0]?.id ?? "", quantity: 1 })}
               >
                 <Plus className="size-4" /> Agregar tipo de personal
               </Button>

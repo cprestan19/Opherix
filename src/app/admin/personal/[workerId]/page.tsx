@@ -96,7 +96,7 @@ export default async function WorkerDetailPage({
           email: worker.user.email,
           phone: worker.user.phone,
           photoUrl: worker.photoUrl,
-          specialties: worker.specialties,
+          specialties: worker.workerSpecialties.map((ws) => ws.specialty),
           experienceYears: worker.experienceYears,
           education: worker.education,
           address: worker.address,

@@ -9,6 +9,7 @@
 import "server-only";
 import bcrypt from "bcryptjs";
 import * as workerRepo from "@/repositories/worker.repository";
+import { assertActiveSpecialtiesBelongToCompany, SpecialtyError } from "@/services/specialty.service";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification } from "@/services/notification.service";
 import { buildUsernameCandidate } from "@/lib/username";
@@ -18,11 +19,22 @@ import type { CreateWorkerInput } from "@/lib/validations/worker-create";
 
 export class WorkerError extends Error {}
 
+async function assertSpecialtiesValid(companyId: string, specialtyIds: string[]) {
+  try {
+    await assertActiveSpecialtiesBelongToCompany(companyId, specialtyIds);
+  } catch (error) {
+    if (error instanceof SpecialtyError) throw new WorkerError(error.message);
+    throw error;
+  }
+}
+
 export async function createWorker(companyId: string, actorId: string, input: CreateWorkerInput) {
   const existing = await workerRepo.findUserByEmail(input.email);
   if (existing) {
     throw new WorkerError("Ya existe una cuenta con este correo.");
   }
+
+  await assertSpecialtiesValid(companyId, input.specialtyIds);
 
   const passwordHash = await bcrypt.hash(input.password, 12);
 
@@ -33,7 +45,7 @@ export async function createWorker(companyId: string, actorId: string, input: Cr
     name: input.name,
     phone: input.phone,
     idNumber: input.idNumber?.trim() || null,
-    specialties: input.specialties,
+    specialtyIds: input.specialtyIds,
   });
 
   await logAudit({
@@ -63,6 +75,8 @@ export async function updateWorkerProfile(
     }
   }
 
+  await assertSpecialtiesValid(companyId, input.specialtyIds);
+
   const updated = await workerRepo.updateWorkerProfile(workerId, worker.userId, {
     name: input.name,
     email: input.email,
@@ -78,7 +92,7 @@ export async function updateWorkerProfile(
     education: input.education,
     courses: input.courses,
     languages: input.languages,
-    specialties: input.specialties,
+    specialtyIds: input.specialtyIds,
     experienceYears: input.experienceYears,
     previousEmployers: input.previousEmployers,
     licenses: input.licenses,

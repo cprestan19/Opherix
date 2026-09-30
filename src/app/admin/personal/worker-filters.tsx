@@ -11,9 +11,8 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { specialtyLabels, specialtyValues } from "@/lib/validations/worker-application";
 
-export function WorkerFilters() {
+export function WorkerFilters({ specialties }: { specialties: { id: string; name: string }[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -45,9 +44,9 @@ export function WorkerFilters() {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="ALL">Todas las especialidades</SelectItem>
-          {specialtyValues.map((value) => (
-            <SelectItem key={value} value={value}>
-              {specialtyLabels[value]}
+          {specialties.map((specialty) => (
+            <SelectItem key={specialty.id} value={specialty.id}>
+              {specialty.name}
             </SelectItem>
           ))}
         </SelectContent>

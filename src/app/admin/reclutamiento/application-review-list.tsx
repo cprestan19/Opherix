@@ -26,7 +26,6 @@ import {
   ResponsiveDialogTrigger as DialogTrigger,
 } from "@/components/shared/responsive-dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { specialtyLabels } from "@/lib/validations/worker-application";
 import type { listPendingApplications } from "@/services/recruitment.service";
 import { approveApplicationAction, rejectApplicationAction } from "./actions";
 
@@ -92,9 +91,9 @@ function ApplicationCard({ application, readOnly }: { application: Application; 
               {application.user.email} · {application.user.phone}
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              {application.specialties.map((specialty) => (
-                <Badge key={specialty} variant="secondary">
-                  {specialtyLabels[specialty]}
+              {application.workerSpecialties.map((ws) => (
+                <Badge key={ws.specialty.id} variant="secondary">
+                  {ws.specialty.name}
                 </Badge>
               ))}
               <span className="text-xs text-muted-foreground">

@@ -9,9 +9,9 @@
 import "server-only";
 import * as clientSpecialtyRateRepo from "@/repositories/client-specialty-rate.repository";
 import { findClientById } from "@/repositories/client.repository";
+import { assertActiveSpecialtiesBelongToCompany, SpecialtyError } from "@/services/specialty.service";
 import { logAudit } from "@/lib/audit";
 import type { ClientSpecialtyRateInput } from "@/lib/validations/client-specialty-rate";
-import type { Specialty } from "@/generated/prisma/enums";
 
 export class ClientSpecialtyRateError extends Error {}
 
@@ -22,6 +22,13 @@ export async function saveClientSpecialtyRates(
 ) {
   const client = await findClientById(companyId, input.clientId);
   if (!client) throw new ClientSpecialtyRateError("Cliente no encontrado.");
+
+  try {
+    await assertActiveSpecialtiesBelongToCompany(companyId, input.rates.map((r) => r.specialtyId));
+  } catch (error) {
+    if (error instanceof SpecialtyError) throw new ClientSpecialtyRateError(error.message);
+    throw error;
+  }
 
   const updated = await clientSpecialtyRateRepo.upsertRatesForClient(companyId, input.clientId, input.rates);
 
@@ -59,37 +66,42 @@ export async function getClientSpecialtyRates(companyId: string, clientId: strin
 export async function computeEventChargeTotal(
   companyId: string,
   clientId: string,
-  assignments: { specialty: Specialty | null; status: string }[],
+  assignments: { specialtyId: string | null; specialty: { name: string } | null; status: string }[],
 ) {
   const rates = await clientSpecialtyRateRepo.listRatesForClient(companyId, clientId);
-  const rateBySpecialty = new Map(rates.map((r) => [r.specialty, r]));
+  const rateBySpecialtyId = new Map(rates.map((r) => [r.specialtyId, r]));
 
   const activeAssignments = assignments.filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED");
 
-  const countBySpecialty = new Map<Specialty, number>();
+  const countBySpecialty = new Map<string, { quantity: number; name: string }>();
   let unassignedSpecialtyCount = 0;
   for (const assignment of activeAssignments) {
-    if (!assignment.specialty) {
+    if (!assignment.specialtyId || !assignment.specialty) {
       unassignedSpecialtyCount += 1;
       continue;
     }
-    countBySpecialty.set(assignment.specialty, (countBySpecialty.get(assignment.specialty) ?? 0) + 1);
+    const current = countBySpecialty.get(assignment.specialtyId);
+    countBySpecialty.set(assignment.specialtyId, {
+      quantity: (current?.quantity ?? 0) + 1,
+      name: assignment.specialty.name,
+    });
   }
 
   let chargeToClientTotal = 0;
-  const missingSpecialties: Specialty[] = [];
-  const breakdown: { specialty: Specialty; quantity: number; chargeToClient: number; subtotal: number }[] = [];
+  const missingSpecialties: { specialtyId: string; name: string }[] = [];
+  const breakdown: { specialtyId: string; name: string; quantity: number; chargeToClient: number; subtotal: number }[] =
+    [];
 
-  for (const [specialty, quantity] of countBySpecialty) {
-    const rate = rateBySpecialty.get(specialty);
+  for (const [specialtyId, { quantity, name }] of countBySpecialty) {
+    const rate = rateBySpecialtyId.get(specialtyId);
     if (!rate) {
-      missingSpecialties.push(specialty);
+      missingSpecialties.push({ specialtyId, name });
       continue;
     }
     const chargeToClient = Number(rate.chargeToClient);
     const subtotal = chargeToClient * quantity;
     chargeToClientTotal += subtotal;
-    breakdown.push({ specialty, quantity, chargeToClient, subtotal });
+    breakdown.push({ specialtyId, name, quantity, chargeToClient, subtotal });
   }
 
   return { chargeToClientTotal, breakdown, missingSpecialties, unassignedSpecialtyCount };

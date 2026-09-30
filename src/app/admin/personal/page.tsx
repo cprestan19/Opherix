@@ -15,7 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarBadge, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { specialtyLabels, specialtyValues } from "@/lib/validations/worker-application";
+import { listActiveSpecialties } from "@/services/specialty.service";
 import { calculateAge } from "@/utils/date";
 import { WorkerFilters } from "./worker-filters";
 import { RatingModerationPanel } from "./rating-moderation-panel";
@@ -85,12 +85,12 @@ export default async function PersonalPage({
     );
   }
 
-  const specialty = specialtyValues.find((v) => v === params.specialty);
   const status = WORKER_STATUS_VALUES.find((v) => v === params.status);
 
-  const [workers, pendingModerations] = await Promise.all([
-    listWorkers(companyId, { search: params.search, specialty, status }),
+  const [workers, pendingModerations, specialties] = await Promise.all([
+    listWorkers(companyId, { search: params.search, specialtyId: params.specialty, status }),
     isViewer ? Promise.resolve([]) : listPendingModerations(companyId),
+    listActiveSpecialties(companyId),
   ]);
 
   return (
@@ -109,12 +109,12 @@ export default async function PersonalPage({
                 <Trash2 className="size-3.5" /> Eliminados
               </Link>
             </Button>
-            <WorkerForm />
+            <WorkerForm specialties={specialties} />
           </div>
         )}
       </div>
 
-      <WorkerFilters />
+      <WorkerFilters specialties={specialties} />
 
       {workers.length === 0 ? (
         <Card className="border-dashed">
@@ -156,9 +156,9 @@ export default async function PersonalPage({
                           {languages.length > 0 ? ` · ${languages.join(", ")}` : ""}
                         </p>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                          {worker.specialties.map((specialty) => (
-                            <Badge key={specialty} variant="secondary">
-                              {specialtyLabels[specialty]}
+                          {worker.workerSpecialties.map((ws) => (
+                            <Badge key={ws.specialty.id} variant="secondary">
+                              {ws.specialty.name}
                             </Badge>
                           ))}
                         </div>

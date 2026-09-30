@@ -24,7 +24,22 @@ import {
   saveClientSpecialtyRates,
   ClientSpecialtyRateError,
 } from "@/services/client-specialty-rate.service";
+import {
+  createSpecialty,
+  renameSpecialty,
+  archiveSpecialty,
+  restoreSpecialty,
+  SpecialtyError,
+} from "@/services/specialty.service";
 import { clientSpecialtyRateSchema, type ClientSpecialtyRateInput } from "@/lib/validations/client-specialty-rate";
+import {
+  specialtyNameSchema,
+  renameSpecialtySchema,
+  specialtyIdSchema,
+  type CreateSpecialtyInput,
+  type RenameSpecialtyInput,
+  type SpecialtyIdInput,
+} from "@/lib/validations/specialty";
 import { emailConfigSchema, type EmailConfigInput } from "@/lib/validations/email-config";
 import type { AutoArchiveDelay } from "@/generated/prisma/enums";
 
@@ -93,6 +108,66 @@ export async function saveClientSpecialtyRatesAction(
     throw error;
   }
 
+  revalidatePath("/admin/configuracion");
+  return {};
+}
+
+export async function createSpecialtyAction(input: CreateSpecialtyInput): Promise<ConfigActionResult> {
+  const parsed = specialtyNameSchema.safeParse(input);
+  if (!parsed.success) return { error: "Ingresa un nombre válido." };
+
+  const { user, companyId } = await requireAdmin();
+  try {
+    await createSpecialty(companyId, user.id, parsed.data.name);
+  } catch (error) {
+    if (error instanceof SpecialtyError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath("/admin/configuracion");
+  return {};
+}
+
+export async function renameSpecialtyAction(input: RenameSpecialtyInput): Promise<ConfigActionResult> {
+  const parsed = renameSpecialtySchema.safeParse(input);
+  if (!parsed.success) return { error: "Ingresa un nombre válido." };
+
+  const { user, companyId } = await requireAdmin();
+  try {
+    await renameSpecialty(companyId, user.id, parsed.data.id, parsed.data.name);
+  } catch (error) {
+    if (error instanceof SpecialtyError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath("/admin/configuracion");
+  return {};
+}
+
+export async function archiveSpecialtyAction(input: SpecialtyIdInput): Promise<ConfigActionResult> {
+  const parsed = specialtyIdSchema.safeParse(input);
+  if (!parsed.success) return { error: "Especialidad inválida." };
+
+  const { user, companyId } = await requireAdmin();
+  try {
+    await archiveSpecialty(companyId, user.id, parsed.data.id);
+  } catch (error) {
+    if (error instanceof SpecialtyError) return { error: error.message };
+    throw error;
+  }
+  revalidatePath("/admin/configuracion");
+  return {};
+}
+
+export async function restoreSpecialtyAction(input: SpecialtyIdInput): Promise<ConfigActionResult> {
+  const parsed = specialtyIdSchema.safeParse(input);
+  if (!parsed.success) return { error: "Especialidad inválida." };
+
+  const { user, companyId } = await requireAdmin();
+  try {
+    await restoreSpecialty(companyId, user.id, parsed.data.id);
+  } catch (error) {
+    if (error instanceof SpecialtyError) return { error: error.message };
+    throw error;
+  }
   revalidatePath("/admin/configuracion");
   return {};
 }

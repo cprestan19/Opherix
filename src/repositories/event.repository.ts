@@ -8,7 +8,7 @@
 
 import "server-only";
 import { prisma } from "@/lib/prisma";
-import type { Specialty, EventStatus } from "@/generated/prisma/enums";
+import type { EventStatus } from "@/generated/prisma/enums";
 
 export function createEvent(data: {
   companyId: string;
@@ -33,7 +33,7 @@ export function createEvent(data: {
   // cliente recurrente (§ CreateEventInput/createEventRequest) — null en el
   // resto de flujos de creación.
   batchId?: string;
-  staffRequirements: { specialty: Specialty; quantity: number }[];
+  staffRequirements: { specialtyId: string; quantity: number }[];
 }) {
   const { staffRequirements, status, ...eventFields } = data;
   return prisma.event.create({
@@ -42,7 +42,7 @@ export function createEvent(data: {
       status: status ?? "REQUESTED",
       staffRequirements: { create: staffRequirements },
     },
-    include: { staffRequirements: true },
+    include: { staffRequirements: { include: { specialty: true } } },
   });
 }
 
@@ -70,7 +70,7 @@ export function updateEventDetails(
     startAt: Date;
     endAt: Date;
     notes?: string;
-    staffRequirements: { specialty: Specialty; quantity: number }[];
+    staffRequirements: { specialtyId: string; quantity: number }[];
   },
 ) {
   const { staffRequirements, ...eventFields } = data;
@@ -82,7 +82,7 @@ export function updateEventDetails(
         ...eventFields,
         staffRequirements: { create: staffRequirements },
       },
-      include: { staffRequirements: true },
+      include: { staffRequirements: { include: { specialty: true } } },
     });
   });
 }
@@ -121,7 +121,7 @@ export function listEventsForClient(companyId: string, clientId: string) {
   return prisma.event.findMany({
     where: { companyId, clientId, deletedAt: null },
     include: {
-      staffRequirements: true,
+      staffRequirements: { include: { specialty: true } },
       assignments: {
         select: {
           id: true,
@@ -144,7 +144,7 @@ export function listEventsForCompany(companyId: string, options: { archived?: bo
     },
     include: {
       client: { select: { businessName: true } },
-      staffRequirements: true,
+      staffRequirements: { include: { specialty: true } },
       assignments: {
         select: {
           id: true,
@@ -199,7 +199,7 @@ export function listPreferredWorkerSummaries(companyId: string, workerIds: strin
 export function listEventsForClientQuote(companyId: string, clientId: string, eventIds: string[]) {
   return prisma.event.findMany({
     where: { id: { in: eventIds }, companyId, clientId, deletedAt: null },
-    include: { staffRequirements: true },
+    include: { staffRequirements: { include: { specialty: true } } },
     orderBy: { startAt: "asc" },
   });
 }
@@ -225,7 +225,7 @@ export function listEventsForQuote(companyId: string, eventIds: string[]) {
           address: true,
         },
       },
-      staffRequirements: true,
+      staffRequirements: { include: { specialty: true } },
     },
     orderBy: { startAt: "asc" },
   });
@@ -251,9 +251,10 @@ export function listEventsDetailForBatch(companyId: string, batchId: string) {
     where: { companyId, batchId, deletedAt: null },
     include: {
       client: { select: { businessName: true, contactName: true, contactPhone: true, contactEmail: true } },
-      staffRequirements: true,
+      staffRequirements: { include: { specialty: true } },
       assignments: {
         include: {
+          specialty: true,
           worker: {
             select: { id: true, userId: true, photoUrl: true, idNumber: true, user: { select: { name: true, phone: true } } },
           },
@@ -270,9 +271,10 @@ export function getEventDetail(companyId: string, eventId: string) {
     where: { id: eventId, companyId },
     include: {
       client: { select: { businessName: true, contactName: true, contactPhone: true, contactEmail: true } },
-      staffRequirements: true,
+      staffRequirements: { include: { specialty: true } },
       assignments: {
         include: {
+          specialty: true,
           // `select` (no `include`) para no arrastrar campos `Decimal` del
           // Worker (ratingAverage) — no son serializables hacia el Client
           // Component `AssignmentPanel`, que solo necesita esto.
@@ -327,7 +329,7 @@ export function findEventByAccessToken(companyId: string, eventId: string, token
     where: { id: eventId, companyId, accessToken: token, deletedAt: null },
     include: {
       client: { select: { businessName: true, contactName: true, contactEmail: true, contactPhone: true } },
-      staffRequirements: true,
+      staffRequirements: { include: { specialty: true } },
       assignments: {
         where: { status: "ACCEPTED" },
         select: {
@@ -359,10 +361,10 @@ export function createAssignment(
   eventId: string,
   workerId: string,
   assignedById: string,
-  specialty?: Specialty,
+  specialtyId?: string,
 ) {
   return prisma.workerAssignment.create({
-    data: { eventId, workerId, assignedById, status: "PROPOSED", specialty },
+    data: { eventId, workerId, assignedById, status: "PROPOSED", specialtyId },
   });
 }
 
@@ -406,9 +408,9 @@ export function findAssignmentForWorker(assignmentId: string, workerId: string) 
   });
 }
 
-export function findAvailableWorkersForSpecialty(companyId: string, specialty: Specialty) {
+export function findAvailableWorkersForSpecialty(companyId: string, specialtyId: string) {
   return prisma.worker.findMany({
-    where: { companyId, deletedAt: null, status: "ACTIVE", specialties: { has: specialty } },
+    where: { companyId, deletedAt: null, status: "ACTIVE", workerSpecialties: { some: { specialtyId } } },
     // `select` (no `include`) — igual que en getEventDetail: evita arrastrar
     // campos `Decimal` del Worker (ratingAverage), que no son serializables
     // hacia el Client Component `AssignmentPanel`.

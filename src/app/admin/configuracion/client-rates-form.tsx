@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { specialtyValues, specialtyLabels } from "@/lib/validations/worker-application";
 import { saveClientSpecialtyRatesAction } from "./actions";
 
 interface ClientOption {
@@ -23,9 +22,14 @@ interface ClientOption {
   businessName: string;
 }
 
+interface SpecialtyOption {
+  id: string;
+  name: string;
+}
+
 interface RateRecord {
   clientId: string;
-  specialty: (typeof specialtyValues)[number];
+  specialtyId: string;
   payToWorker: string;
   chargeToClient: string;
 }
@@ -36,7 +40,7 @@ function ratesByClient(records: RateRecord[]): Record<string, RateMap> {
   const result: Record<string, RateMap> = {};
   for (const record of records) {
     result[record.clientId] ??= {};
-    result[record.clientId][record.specialty] = {
+    result[record.clientId][record.specialtyId] = {
       payToWorker: record.payToWorker,
       chargeToClient: record.chargeToClient,
     };
@@ -44,7 +48,15 @@ function ratesByClient(records: RateRecord[]): Record<string, RateMap> {
   return result;
 }
 
-export function ClientRatesForm({ clients, records }: { clients: ClientOption[]; records: RateRecord[] }) {
+export function ClientRatesForm({
+  clients,
+  specialties,
+  records,
+}: {
+  clients: ClientOption[];
+  specialties: SpecialtyOption[];
+  records: RateRecord[];
+}) {
   const initialRates = useMemo(() => ratesByClient(records), [records]);
   const [clientId, setClientId] = useState(clients[0]?.id ?? "");
   const [rates, setRates] = useState<RateMap>(initialRates[clients[0]?.id ?? ""] ?? {});
@@ -55,10 +67,10 @@ export function ClientRatesForm({ clients, records }: { clients: ClientOption[];
     setRates(initialRates[nextClientId] ?? {});
   }
 
-  function updateRate(specialty: string, field: "payToWorker" | "chargeToClient", value: string) {
+  function updateRate(specialtyId: string, field: "payToWorker" | "chargeToClient", value: string) {
     setRates((prev) => {
-      const current = prev[specialty] ?? { payToWorker: "0", chargeToClient: "0" };
-      return { ...prev, [specialty]: { ...current, [field]: value } };
+      const current = prev[specialtyId] ?? { payToWorker: "0", chargeToClient: "0" };
+      return { ...prev, [specialtyId]: { ...current, [field]: value } };
     });
   }
 
@@ -67,10 +79,10 @@ export function ClientRatesForm({ clients, records }: { clients: ClientOption[];
     setIsSubmitting(true);
     const result = await saveClientSpecialtyRatesAction({
       clientId,
-      rates: specialtyValues.map((specialty) => ({
-        specialty,
-        payToWorker: Number(rates[specialty]?.payToWorker ?? 0),
-        chargeToClient: Number(rates[specialty]?.chargeToClient ?? 0),
+      rates: specialties.map((specialty) => ({
+        specialtyId: specialty.id,
+        payToWorker: Number(rates[specialty.id]?.payToWorker ?? 0),
+        chargeToClient: Number(rates[specialty.id]?.chargeToClient ?? 0),
       })),
     });
     setIsSubmitting(false);
@@ -85,6 +97,14 @@ export function ClientRatesForm({ clients, records }: { clients: ClientOption[];
     return (
       <p className="text-sm text-muted-foreground">
         Registra primero un cliente en /admin/clientes para poder configurar sus tarifas.
+      </p>
+    );
+  }
+
+  if (specialties.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No hay especialidades activas — agrega al menos una en &quot;Mantenimiento de especialidades&quot; arriba.
       </p>
     );
   }
@@ -117,17 +137,17 @@ export function ClientRatesForm({ clients, records }: { clients: ClientOption[];
             </tr>
           </thead>
           <tbody>
-            {specialtyValues.map((specialty) => (
-              <tr key={specialty} className="border-b border-border last:border-0">
-                <td className="px-3 py-2">{specialtyLabels[specialty]}</td>
+            {specialties.map((specialty) => (
+              <tr key={specialty.id} className="border-b border-border last:border-0">
+                <td className="px-3 py-2">{specialty.name}</td>
                 <td className="px-3 py-2">
                   <Input
                     type="number"
                     min={0}
                     step="0.01"
                     className="max-w-32"
-                    value={rates[specialty]?.payToWorker ?? "0"}
-                    onChange={(e) => updateRate(specialty, "payToWorker", e.target.value)}
+                    value={rates[specialty.id]?.payToWorker ?? "0"}
+                    onChange={(e) => updateRate(specialty.id, "payToWorker", e.target.value)}
                   />
                 </td>
                 <td className="px-3 py-2">
@@ -136,8 +156,8 @@ export function ClientRatesForm({ clients, records }: { clients: ClientOption[];
                     min={0}
                     step="0.01"
                     className="max-w-32"
-                    value={rates[specialty]?.chargeToClient ?? "0"}
-                    onChange={(e) => updateRate(specialty, "chargeToClient", e.target.value)}
+                    value={rates[specialty.id]?.chargeToClient ?? "0"}
+                    onChange={(e) => updateRate(specialty.id, "chargeToClient", e.target.value)}
                   />
                 </td>
               </tr>

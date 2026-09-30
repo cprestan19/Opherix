@@ -15,7 +15,6 @@ import { getClientSpecialtyRates } from "@/services/client-specialty-rate.servic
 import { getCompany } from "@/repositories/config.repository";
 import { estimateClientCharge } from "@/lib/pricing/estimate-client-charge";
 import { buildQuotePdf, type QuotePdfEvent } from "@/lib/quote-pdf";
-import type { Specialty } from "@/generated/prisma/enums";
 
 export class QuoteError extends Error {}
 
@@ -43,7 +42,11 @@ interface QuoteEventInput {
   address: string;
   startAt: Date;
   clientId: string;
-  staffRequirements: { specialty: Specialty; quantity: number }[];
+  staffRequirements: { specialtyId: string; specialty: { name: string }; quantity: number }[];
+}
+
+function toEstimateInput(staffRequirements: QuoteEventInput["staffRequirements"]) {
+  return staffRequirements.map((r) => ({ specialtyId: r.specialtyId, name: r.specialty.name, quantity: r.quantity }));
 }
 
 async function buildQuoteBuffer(
@@ -55,13 +58,13 @@ async function buildQuoteBuffer(
   if (events.length === 0) throw new QuoteError("No se encontraron los eventos de esta cotización.");
 
   const rawRates = await getClientSpecialtyRates(companyId, events[0].clientId);
-  const rates = rawRates.map((rate) => ({ specialty: rate.specialty, chargeToClient: Number(rate.chargeToClient) }));
+  const rates = rawRates.map((rate) => ({ specialtyId: rate.specialtyId, chargeToClient: Number(rate.chargeToClient) }));
 
   const quoteEvents: QuotePdfEvent[] = events.map((event) => ({
     title: event.title,
     address: event.address,
     startAt: event.startAt,
-    estimate: estimateClientCharge(rates, event.staffRequirements),
+    estimate: estimateClientCharge(rates, toEstimateInput(event.staffRequirements)),
   }));
   const grandTotal = quoteEvents.reduce((sum, e) => sum + e.estimate.total, 0);
   const anyMissingRate = quoteEvents.some((e) => e.estimate.missingSpecialties.length > 0);

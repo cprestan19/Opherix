@@ -27,7 +27,6 @@ import {
 } from "@/components/shared/responsive-dialog";
 import { Field, FieldError, FieldLabel, FieldDescription } from "@/components/ui/field";
 import { createWorkerSchema, type CreateWorkerInput } from "@/lib/validations/worker-create";
-import { specialtyValues, specialtyLabels } from "@/lib/validations/worker-application";
 import { cn } from "@/lib/utils";
 import { createWorkerAction } from "./actions";
 
@@ -37,10 +36,10 @@ const defaultValues: CreateWorkerInput = {
   phone: "",
   password: "",
   idNumber: "",
-  specialties: [],
+  specialtyIds: [],
 };
 
-export function WorkerForm() {
+export function WorkerForm({ specialties }: { specialties: { id: string; name: string }[] }) {
   const [open, setOpen] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -109,22 +108,24 @@ export function WorkerForm() {
             <FieldDescription>Opcional — puedes completarla después desde su perfil.</FieldDescription>
             <FieldError errors={[errors.idNumber]} />
           </Field>
-          <Field data-invalid={!!errors.specialties}>
+          <Field data-invalid={!!errors.specialtyIds}>
             <FieldLabel>Especialidades</FieldLabel>
             <Controller
               control={control}
-              name="specialties"
+              name="specialtyIds"
               render={({ field }) => (
                 <div className="flex flex-wrap gap-2">
-                  {specialtyValues.map((value) => {
-                    const checked = field.value.includes(value);
+                  {specialties.map((specialty) => {
+                    const checked = field.value.includes(specialty.id);
                     return (
                       <button
-                        key={value}
+                        key={specialty.id}
                         type="button"
                         onClick={() =>
                           field.onChange(
-                            checked ? field.value.filter((v) => v !== value) : [...field.value, value],
+                            checked
+                              ? field.value.filter((v) => v !== specialty.id)
+                              : [...field.value, specialty.id],
                           )
                         }
                         className={cn(
@@ -134,7 +135,7 @@ export function WorkerForm() {
                             : "border-border bg-background text-muted-foreground",
                         )}
                       >
-                        {specialtyLabels[value]}
+                        {specialty.name}
                       </button>
                     );
                   })}
@@ -142,7 +143,7 @@ export function WorkerForm() {
               )}
             />
             <FieldDescription>Puedes elegir más de una.</FieldDescription>
-            <FieldError errors={[errors.specialties]} />
+            <FieldError errors={[errors.specialtyIds]} />
           </Field>
 
           {serverError ? <p className="text-sm text-danger">{serverError}</p> : null}

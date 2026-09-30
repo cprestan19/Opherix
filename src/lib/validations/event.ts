@@ -7,7 +7,6 @@
  */
 
 import { z } from "zod";
-import { specialtyValues } from "@/lib/validations/worker-application";
 
 const eventBaseFields = z.object({
   title: z.string().min(2, "Ingresa un título para el evento"),
@@ -19,7 +18,7 @@ const eventBaseFields = z.object({
   staffRequirements: z
     .array(
       z.object({
-        specialty: z.enum(specialtyValues),
+        specialtyId: z.string().min(1),
         quantity: z.number().int().min(1, "Mínimo 1").max(500, "Máximo 500 por tipo de personal"),
       }),
     )

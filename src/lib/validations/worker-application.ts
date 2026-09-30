@@ -27,27 +27,26 @@ export const languageLabels: Record<(typeof languageValues)[number], string> = {
   PORTUGUES: "Portugués",
 };
 
-export const specialtyValues = [
-  "WAITER",
-  "BARTENDER",
-  "HOST",
-  "COOK",
-  "SECURITY",
-  "CLEANING",
-  "LOGISTICS",
-  "OTHER",
+/**
+ * Ya NO es la fuente de verdad de especialidades en runtime — cada empresa
+ * tiene su propio catálogo editable (tabla `Specialty`, § Configuración >
+ * Mantenimiento de especialidades). Esta lista sobrevive solo como semilla:
+ * la migración de datos (prisma/migrations/20260930134418_specialty_catalog_expand)
+ * y el aprovisionamiento de tenants nuevos (self-signup.service.ts,
+ * platform.repository.ts) la usan para crear las 8 especialidades por
+ * defecto de cada empresa. Ningún picker/formulario debe importar esto — la
+ * lista real se fetchea vía specialty.service.ts.
+ */
+export const specialtySeed = [
+  { code: "WAITER", name: "Mesero/a" },
+  { code: "BARTENDER", name: "Bartender" },
+  { code: "HOST", name: "Anfitrión/a" },
+  { code: "COOK", name: "Ayudante de cocina" },
+  { code: "SECURITY", name: "Seguridad" },
+  { code: "CLEANING", name: "Limpieza" },
+  { code: "LOGISTICS", name: "Logística" },
+  { code: "OTHER", name: "Otro" },
 ] as const;
-
-export const specialtyLabels: Record<(typeof specialtyValues)[number], string> = {
-  WAITER: "Mesero/a",
-  BARTENDER: "Bartender",
-  HOST: "Anfitrión/a",
-  COOK: "Ayudante de cocina",
-  SECURITY: "Seguridad",
-  CLEANING: "Limpieza",
-  LOGISTICS: "Logística",
-  OTHER: "Otro",
-};
 
 // La referencia vive dentro de cada empresa anterior (a quién llamar por ese
 // trabajo específico), no como una lista aparte — por eso todos sus campos
@@ -83,7 +82,7 @@ export const workerApplicationSchema = z
     education: z.string().min(1, "Requerido"),
     courses: z.array(z.string()),
     languages: z.array(z.enum(languageValues)).min(1, "Indica al menos un idioma"),
-    specialties: z.array(z.enum(specialtyValues)).min(1, "Selecciona al menos una especialidad"),
+    specialtyIds: z.array(z.string()).min(1, "Selecciona al menos una especialidad"),
     experienceYears: z.number().int().min(0).max(60),
     previousEmployers: z.array(previousEmployerSchema),
     licenses: z.array(z.string()),
@@ -150,7 +149,7 @@ export const APPLICATION_STEPS: {
       "education",
       "courses",
       "languages",
-      "specialties",
+      "specialtyIds",
       "experienceYears",
       "previousEmployers",
       "licenses",

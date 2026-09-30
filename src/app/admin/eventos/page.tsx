@@ -12,10 +12,10 @@ import { getEffectiveCompanyId, getCurrentUser } from "@/lib/tenant";
 import { listEventsForCompany } from "@/repositories/event.repository";
 import { listClients } from "@/services/client.service";
 import { listDeletedEvents } from "@/services/event.service";
+import { listActiveSpecialties } from "@/services/specialty.service";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { specialtyLabels } from "@/lib/validations/worker-application";
 import { AssignedWorkersAvatarGroup } from "@/components/shared/assigned-workers-avatar-group";
 import { EventForm } from "./event-form";
 import { ArchiveEventQuickAction } from "./archive-event-quick-action";
@@ -87,7 +87,7 @@ function EventCardBody({ event, isViewer }: { event: EventListItem; isViewer: bo
       <div className="flex flex-wrap items-center gap-2">
         {event.staffRequirements.map((req) => (
           <Badge key={req.id} variant="outline">
-            {specialtyLabels[req.specialty]} x{req.quantity}
+            {req.specialty.name} x{req.quantity}
           </Badge>
         ))}
         <span className="text-xs text-muted-foreground">
@@ -184,9 +184,10 @@ export default async function EventosPage({
     );
   }
 
-  const [events, clients] = await Promise.all([
+  const [events, clients, specialties] = await Promise.all([
     listEventsForCompany(companyId, { archived }),
     listClients(companyId),
+    listActiveSpecialties(companyId),
   ]);
   const activeClients = clients.filter((client) => client.isActive);
 
@@ -204,7 +205,7 @@ export default async function EventosPage({
         {isViewer ? null : (
           <div className="flex gap-2">
             <ClientForm />
-            <EventForm clients={activeClients} />
+            <EventForm clients={activeClients} specialties={specialties} />
           </div>
         )}
       </div>

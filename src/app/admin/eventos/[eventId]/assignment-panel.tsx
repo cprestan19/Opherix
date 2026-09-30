@@ -16,9 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { specialtyLabels } from "@/lib/validations/worker-application";
 import { assignWorkerAction, removeAssignmentAction } from "./actions";
-import type { Specialty } from "@/generated/prisma/enums";
 
 const ASSIGNMENT_STATUS_LABELS: Record<string, string> = {
   PROPOSED: "Propuesta",
@@ -38,14 +36,15 @@ const ASSIGNMENT_STATUS_VARIANTS: Record<string, "outline" | "secondary" | "dest
 
 interface Requirement {
   id: string;
-  specialty: string;
+  specialtyId: string;
+  specialtyName: string;
   quantity: number;
 }
 
 interface Assignment {
   id: string;
   status: string;
-  specialty: string | null;
+  specialtyId: string | null;
   worker: { id: string; photoUrl: string | null; user: { name: string; phone: string | null } };
 }
 
@@ -76,12 +75,12 @@ export function AssignmentPanel({
 
   const activeAssignments = assignments.filter((a) => a.status !== "CANCELLED" && a.status !== "REJECTED");
 
-  function handleAssign(requirementId: string, specialty: string) {
+  function handleAssign(requirementId: string, specialtyId: string) {
     const workerId = selected[requirementId];
     if (!workerId) return;
     setError(null);
     startTransition(async () => {
-      const result = await assignWorkerAction(eventId, workerId, specialty as Specialty);
+      const result = await assignWorkerAction(eventId, workerId, specialtyId);
       if (result?.error) {
         setError(result.error);
         toast.error(result.error);
@@ -106,16 +105,16 @@ export function AssignmentPanel({
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {requirements.map((req) => {
-            const matchingAssignments = activeAssignments.filter((a) => a.specialty === req.specialty);
+            const matchingAssignments = activeAssignments.filter((a) => a.specialtyId === req.specialtyId);
             const assignedCount = matchingAssignments.length;
             const isOverAssigned = assignedCount > req.quantity;
             const isComplete = assignedCount >= req.quantity;
-            const workers = availableWorkersBySpecialty[req.specialty] ?? [];
+            const workers = availableWorkersBySpecialty[req.specialtyId] ?? [];
             return (
               <div key={req.id} className="flex flex-col gap-2 rounded-lg border border-border p-3">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge>{specialtyLabels[req.specialty as keyof typeof specialtyLabels]}</Badge>
+                    <Badge>{req.specialtyName}</Badge>
                     <span className="text-sm text-muted-foreground">
                       {isOverAssigned
                         ? `${assignedCount} asignado(s) — se pidieron ${req.quantity}`
@@ -149,7 +148,7 @@ export function AssignmentPanel({
                       <Button
                         size="sm"
                         disabled={!selected[req.id] || isPending}
-                        onClick={() => handleAssign(req.id, req.specialty)}
+                        onClick={() => handleAssign(req.id, req.specialtyId)}
                       >
                         {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
                         Asignar

@@ -11,6 +11,7 @@ import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import type { WorkerApplicationInput } from "@/lib/validations/worker-application";
 import * as workerRepo from "@/repositories/worker.repository";
+import { assertActiveSpecialtiesBelongToCompany, SpecialtyError } from "@/services/specialty.service";
 import { logAudit } from "@/lib/audit";
 import { dispatchNotification } from "@/services/notification.service";
 
@@ -25,6 +26,16 @@ export async function submitApplication(companySlug: string, input: WorkerApplic
   const existingUser = await workerRepo.findUserByEmail(input.email);
   if (existingUser) {
     throw new ApplicationError("Ya existe una cuenta con este correo.");
+  }
+
+  // Formulario público sin sesión — nunca confiar en los specialtyId tal
+  // cual llegan, deben pertenecer a esta empresa y seguir activos (§ mismo
+  // principio que el filtrado por companyId, extendido a esta dimensión).
+  try {
+    await assertActiveSpecialtiesBelongToCompany(company.id, input.specialtyIds);
+  } catch (error) {
+    if (error instanceof SpecialtyError) throw new ApplicationError(error.message);
+    throw error;
   }
 
   // Sin campo de contraseña en el formulario público: se genera una al azar
@@ -49,7 +60,7 @@ export async function submitApplication(companySlug: string, input: WorkerApplic
       education: input.education,
       courses: input.courses,
       languages: input.languages,
-      specialties: input.specialties,
+      specialtyIds: input.specialtyIds,
       experienceYears: input.experienceYears,
       previousEmployers: input.previousEmployers,
       licenses: input.licenses,
@@ -89,7 +100,7 @@ export async function submitApplication(companySlug: string, input: WorkerApplic
     action: "APPLICATION_SUBMITTED",
     entityType: "Worker",
     entityId: user.worker!.id,
-    metadata: { specialties: input.specialties },
+    metadata: { specialtyIds: input.specialtyIds },
   });
 
   return user;

@@ -14,7 +14,7 @@ import { listEventsForClient } from "@/repositories/event.repository";
 import { getClientAccessSession } from "@/lib/client-access-session";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { specialtyLabels } from "@/lib/validations/worker-application";
+import { listActiveSpecialties } from "@/services/specialty.service";
 import { formatDateTime12h } from "@/utils/date";
 import { EditRequestForm } from "./edit-request-form";
 import { SignOutClientSessionButton } from "./sign-out-button";
@@ -86,7 +86,10 @@ export default async function SolicitarEstadoPage({
     );
   }
 
-  const events = await listEventsForClient(company.id, session.clientId);
+  const [events, specialties] = await Promise.all([
+    listEventsForClient(company.id, session.clientId),
+    listActiveSpecialties(company.id),
+  ]);
 
   return (
     <div className="min-h-svh w-full bg-secondary px-4 py-10">
@@ -120,7 +123,7 @@ export default async function SolicitarEstadoPage({
                   <div className="flex flex-wrap items-center gap-2">
                     {event.staffRequirements.map((req) => (
                       <Badge key={req.id} variant="outline">
-                        {specialtyLabels[req.specialty]} x{req.quantity}
+                        {req.specialty.name} x{req.quantity}
                       </Badge>
                     ))}
                   </div>
@@ -129,6 +132,7 @@ export default async function SolicitarEstadoPage({
                       <EditRequestForm
                         companySlug={companySlug}
                         eventId={event.id}
+                        specialties={specialties}
                         event={{
                           title: event.title,
                           eventType: event.eventType ?? "",
@@ -137,7 +141,7 @@ export default async function SolicitarEstadoPage({
                           endAt: toDatetimeLocal(event.endAt),
                           notes: event.notes ?? "",
                           staffRequirements: event.staffRequirements.map((r) => ({
-                            specialty: r.specialty,
+                            specialtyId: r.specialtyId,
                             quantity: r.quantity,
                           })),
                         }}

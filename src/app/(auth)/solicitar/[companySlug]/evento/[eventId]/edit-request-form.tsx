@@ -20,7 +20,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
-import { specialtyLabels, specialtyValues } from "@/lib/validations/worker-application";
 import { updateEventViaTokenAction } from "./actions";
 
 export function EditRequestForm({
@@ -28,11 +27,13 @@ export function EditRequestForm({
   eventId,
   token,
   event,
+  specialties,
 }: {
   companySlug: string;
   eventId: string;
   token: string;
   event: EventRequestInput;
+  specialties: { id: string; name: string }[];
 }) {
   const [serverError, setServerError] = useState<string | null>(null);
   const {
@@ -101,16 +102,16 @@ export function EditRequestForm({
                 <div key={item.id} className="flex items-center gap-2">
                   <Controller
                     control={control}
-                    name={`staffRequirements.${index}.specialty`}
+                    name={`staffRequirements.${index}.specialtyId`}
                     render={({ field }) => (
                       <Select value={field.value} onValueChange={field.onChange}>
                         <SelectTrigger className="flex-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {specialtyValues.map((value) => (
-                            <SelectItem key={value} value={value}>
-                              {specialtyLabels[value]}
+                          {specialties.map((specialty) => (
+                            <SelectItem key={specialty.id} value={specialty.id}>
+                              {specialty.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -140,7 +141,8 @@ export function EditRequestForm({
                 variant="outline"
                 size="sm"
                 className="w-fit gap-1"
-                onClick={() => staffFields.append({ specialty: "WAITER", quantity: 1 })}
+                disabled={specialties.length === 0}
+                onClick={() => staffFields.append({ specialtyId: specialties[0]?.id ?? "", quantity: 1 })}
               >
                 <Plus className="size-4" /> Agregar tipo de personal
               </Button>

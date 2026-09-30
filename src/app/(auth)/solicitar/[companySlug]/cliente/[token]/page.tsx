@@ -12,6 +12,7 @@ import { findCompanyBySlug } from "@/repositories/worker.repository";
 import { findClientByAccessToken } from "@/repositories/client.repository";
 import { listPublicAvailableWorkers } from "@/services/public-event-request.service";
 import { getClientSpecialtyRates } from "@/services/client-specialty-rate.service";
+import { listActiveSpecialties } from "@/services/specialty.service";
 import { Card, CardContent } from "@/components/ui/card";
 import { PublicFormHeader } from "@/components/shared/public-form-header";
 import { NewEventForm } from "./new-event-form";
@@ -45,12 +46,13 @@ export default async function ClientPortalPage({
     );
   }
 
-  const [availableWorkers, rawRates] = await Promise.all([
+  const [availableWorkers, rawRates, specialties] = await Promise.all([
     listPublicAvailableWorkers(company.id),
     getClientSpecialtyRates(company.id, client.id),
+    listActiveSpecialties(company.id),
   ]);
   const clientRates = rawRates.map((rate) => ({
-    specialty: rate.specialty,
+    specialtyId: rate.specialtyId,
     chargeToClient: Number(rate.chargeToClient),
   }));
 
@@ -68,6 +70,7 @@ export default async function ClientPortalPage({
               token={token}
               availableWorkers={availableWorkers}
               clientRates={clientRates}
+              specialties={specialties}
             />
           </CardContent>
         </Card>

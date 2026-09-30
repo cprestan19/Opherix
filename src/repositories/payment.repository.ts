@@ -24,7 +24,7 @@ export function listAcceptedAssignmentsForPeriod(companyId: string, periodStart:
     },
     select: {
       workerId: true,
-      specialty: true,
+      specialtyId: true,
       event: { select: { clientId: true } },
     },
   });

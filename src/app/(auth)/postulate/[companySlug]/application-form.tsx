@@ -15,8 +15,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Check, ChevronLeft, ChevronRight, Loader2, Plus, Trash2 } from "lucide-react";
 import {
   workerApplicationSchema,
-  specialtyValues,
-  specialtyLabels,
   maritalStatusValues,
   maritalStatusLabels,
   languageValues,
@@ -75,7 +73,7 @@ const defaultValues: WorkerApplicationInput = {
   education: "",
   courses: [],
   languages: [],
-  specialties: [],
+  specialtyIds: [],
   experienceYears: 0,
   previousEmployers: [],
   licenses: [],
@@ -93,7 +91,13 @@ const defaultValues: WorkerApplicationInput = {
   healthCardName: "",
 };
 
-export function ApplicationForm({ companySlug }: { companySlug: string }) {
+export function ApplicationForm({
+  companySlug,
+  specialties,
+}: {
+  companySlug: string;
+  specialties: { id: string; name: string }[];
+}) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -476,24 +480,24 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                   </Field>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field data-invalid={!!errors.specialties}>
+                  <Field data-invalid={!!errors.specialtyIds}>
                     <FieldLabel>Especialidades</FieldLabel>
                     <Controller
                       control={control}
-                      name="specialties"
+                      name="specialtyIds"
                       render={({ field }) => (
                         <div className="flex flex-wrap gap-2">
-                          {specialtyValues.map((value) => {
-                            const checked = field.value.includes(value);
+                          {specialties.map((specialty) => {
+                            const checked = field.value.includes(specialty.id);
                             return (
                               <button
-                                key={value}
+                                key={specialty.id}
                                 type="button"
                                 onClick={() =>
                                   field.onChange(
                                     checked
-                                      ? field.value.filter((v) => v !== value)
-                                      : [...field.value, value],
+                                      ? field.value.filter((v) => v !== specialty.id)
+                                      : [...field.value, specialty.id],
                                   )
                                 }
                                 className={cn(
@@ -503,7 +507,7 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                                     : "border-border bg-background text-muted-foreground",
                                 )}
                               >
-                                {specialtyLabels[value]}
+                                {specialty.name}
                               </button>
                             );
                           })}
@@ -511,7 +515,7 @@ export function ApplicationForm({ companySlug }: { companySlug: string }) {
                       )}
                     />
                     <FieldDescription>Puedes elegir más de una.</FieldDescription>
-                    <FieldError errors={[errors.specialties]} />
+                    <FieldError errors={[errors.specialtyIds]} />
                   </Field>
                   <Field data-invalid={!!errors.experienceYears}>
                     <FieldLabel htmlFor="experienceYears">Años de experiencia</FieldLabel>

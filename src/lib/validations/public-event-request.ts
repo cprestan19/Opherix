@@ -7,7 +7,6 @@
  */
 
 import { z } from "zod";
-import { specialtyValues } from "@/lib/validations/worker-application";
 
 export const publicEventRequestSchema = z.object({
   contactName: z.string().min(2, "Ingresa tu nombre completo"),
@@ -25,7 +24,7 @@ export const publicEventRequestSchema = z.object({
   staffNeeded: z
     .array(
       z.object({
-        specialty: z.enum(specialtyValues),
+        specialtyId: z.string().min(1),
         quantity: z.number().int().min(1, "Mínimo 1").max(500, "Máximo 500 por tipo de personal"),
       }),
     )

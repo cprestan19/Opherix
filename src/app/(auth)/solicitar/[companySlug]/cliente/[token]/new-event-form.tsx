@@ -43,7 +43,6 @@ import {
 } from "@/components/shared/responsive-dialog";
 import { cn } from "@/lib/utils";
 import { eventRequestSchema, type EventRequestInput } from "@/lib/validations/event";
-import { specialtyLabels, specialtyValues } from "@/lib/validations/worker-application";
 import type { PublicWorkerOption } from "@/services/public-event-request.service";
 import { estimateClientCharge, type ClientSpecialtyRateLite } from "@/lib/pricing/estimate-client-charge";
 import { MAX_EVENTS_PER_BATCH } from "@/lib/event-batch";
@@ -60,16 +59,18 @@ type Step =
   | { name: "review" }
   | { name: "success" };
 
-const emptyDraft: EventRequestInput = {
-  title: "",
-  eventType: "",
-  address: "",
-  startAt: "",
-  endAt: "",
-  notes: "",
-  staffRequirements: [{ specialty: "WAITER", quantity: 1 }],
-  preferredWorkerIds: [],
-};
+function buildEmptyDraft(specialties: { id: string; name: string }[]): EventRequestInput {
+  return {
+    title: "",
+    eventType: "",
+    address: "",
+    startAt: "",
+    endAt: "",
+    notes: "",
+    staffRequirements: [{ specialtyId: specialties[0]?.id ?? "", quantity: 1 }],
+    preferredWorkerIds: [],
+  };
+}
 
 function currency(value: number) {
   return new Intl.NumberFormat("es-PA", { style: "currency", currency: "USD" }).format(value);
@@ -113,12 +114,15 @@ export function NewEventForm({
   token,
   availableWorkers = [],
   clientRates = [],
+  specialties,
 }: {
   companySlug: string;
   token: string;
   availableWorkers?: PublicWorkerOption[];
   clientRates?: ClientSpecialtyRateLite[];
+  specialties: { id: string; name: string }[];
 }) {
+  const specialtyById = useMemo(() => new Map(specialties.map((s) => [s.id, s.name])), [specialties]);
   const storageKey = storageKeyFor(companySlug, token);
   const [drafts, setDrafts] = useState<DraftEvent[]>([]);
   const [hydrated, setHydrated] = useState(false);
@@ -163,8 +167,18 @@ export function NewEventForm({
   const overlapWarning = useMemo(() => findOverlapWarning(drafts), [drafts]);
 
   const estimates = useMemo(
-    () => drafts.map((draft) => estimateClientCharge(clientRates, draft.staffRequirements)),
-    [drafts, clientRates],
+    () =>
+      drafts.map((draft) =>
+        estimateClientCharge(
+          clientRates,
+          draft.staffRequirements.map((r) => ({
+            specialtyId: r.specialtyId,
+            name: specialtyById.get(r.specialtyId) ?? "",
+            quantity: r.quantity,
+          })),
+        ),
+      ),
+    [drafts, clientRates, specialtyById],
   );
   const grandTotal = estimates.reduce((sum, e) => sum + e.total, 0);
   const anyMissingRate = estimates.some((e) => e.missingSpecialties.length > 0);
@@ -302,8 +316,9 @@ export function NewEventForm({
     return (
       <EventDraftForm
         key={effectiveStep.editingId ?? "new"}
-        defaultValues={editingDraft ?? emptyDraft}
+        defaultValues={editingDraft ?? buildEmptyDraft(specialties)}
         availableWorkers={availableWorkers}
+        specialties={specialties}
         submitLabel={effectiveStep.editingId ? "Guardar cambios" : drafts.length === 0 ? "Agregar evento" : "Agregar a la lista"}
         onSave={upsertDraft}
         onCancel={
@@ -362,7 +377,7 @@ export function NewEventForm({
                 <div className="flex flex-wrap items-center gap-2">
                   {draft.staffRequirements.map((req, i) => (
                     <Badge key={i} variant="outline">
-                      {specialtyLabels[req.specialty]} x{req.quantity}
+                      {specialtyById.get(req.specialtyId) ?? req.specialtyId} x{req.quantity}
                     </Badge>
                   ))}
                 </div>
@@ -448,7 +463,7 @@ export function NewEventForm({
                   {estimate.breakdown.map((row, i) => (
                     <li key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                       <span className="text-muted-foreground">
-                        {specialtyLabels[row.specialty]} × {row.quantity}
+                        {row.name} × {row.quantity}
                         {row.chargeToClient !== null ? ` (${currency(row.chargeToClient)} c/u)` : ""}
                       </span>
                       <span className="font-medium">
@@ -519,12 +534,14 @@ export function NewEventForm({
 function EventDraftForm({
   defaultValues,
   availableWorkers,
+  specialties,
   submitLabel,
   onSave,
   onCancel,
 }: {
   defaultValues: EventRequestInput;
   availableWorkers: PublicWorkerOption[];
+  specialties: { id: string; name: string }[];
   submitLabel: string;
   onSave: (values: EventRequestInput) => void;
   onCancel: (() => void) | null;
@@ -589,16 +606,16 @@ function EventDraftForm({
             <div key={item.id} className="flex items-center gap-2">
               <Controller
                 control={control}
-                name={`staffRequirements.${index}.specialty`}
+                name={`staffRequirements.${index}.specialtyId`}
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger className="flex-1">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {specialtyValues.map((value) => (
-                        <SelectItem key={value} value={value}>
-                          {specialtyLabels[value]}
+                      {specialties.map((specialty) => (
+                        <SelectItem key={specialty.id} value={specialty.id}>
+                          {specialty.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -628,7 +645,8 @@ function EventDraftForm({
             variant="outline"
             size="sm"
             className="w-fit gap-1"
-            onClick={() => staffFields.append({ specialty: "WAITER", quantity: 1 })}
+            disabled={specialties.length === 0}
+            onClick={() => staffFields.append({ specialtyId: specialties[0]?.id ?? "", quantity: 1 })}
           >
             <Plus className="size-4" /> Agregar tipo de personal
           </Button>

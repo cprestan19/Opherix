@@ -25,7 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { specialtyLabels, languageLabels } from "@/lib/validations/worker-application";
+import { languageLabels } from "@/lib/validations/worker-application";
 import { asStringArray, asEmployers } from "@/lib/worker-fields";
 import { cn } from "@/lib/utils";
 
@@ -35,7 +35,7 @@ export interface WorkerCvData {
   email: string;
   phone: string | null;
   photoUrl: string | null;
-  specialties: (keyof typeof specialtyLabels)[];
+  specialties: { id: string; name: string }[];
   experienceYears: number | null;
   education: string | null;
   address: string | null;
@@ -138,8 +138,8 @@ export function WorkerCv({ worker }: { worker: WorkerCvData }) {
             <h2 className="text-xl font-semibold tracking-tight text-foreground">{worker.name}</h2>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {worker.specialties.map((specialty) => (
-                <Badge key={specialty} className="w-fit">
-                  {specialtyLabels[specialty]}
+                <Badge key={specialty.id} className="w-fit">
+                  {specialty.name}
                 </Badge>
               ))}
             </div>
@@ -190,7 +190,7 @@ export function WorkerCv({ worker }: { worker: WorkerCvData }) {
             <div className="flex min-w-0 flex-col gap-1.5">
               <h1 className="text-3xl font-bold tracking-tight">{worker.name}</h1>
               <p className="text-sm font-medium text-white/85">
-                {worker.specialties.map((s) => specialtyLabels[s]).join(" · ") || "Personal de eventos"}
+                {worker.specialties.map((s) => s.name).join(" · ") || "Personal de eventos"}
               </p>
               <div className="mt-1 flex items-center gap-1.5">
                 <Star className="size-4 fill-amber-300 text-amber-300" />

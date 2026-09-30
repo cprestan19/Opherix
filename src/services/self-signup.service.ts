@@ -12,6 +12,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { slugify } from "@/lib/slugify";
 import { logAudit } from "@/lib/audit";
+import { specialtySeed } from "@/lib/validations/worker-application";
 
 /**
  * Auto-aprovisionamiento para registro con Google (§ self-service signup):
@@ -49,6 +50,10 @@ export async function provisionCompanyForGoogleUser(email: string, name: string,
           lastLoginAt: new Date(),
         },
       },
+      // Catálogo de especialidades por defecto (§ Configuración > Mantenimiento
+      // de especialidades) — semilla inicial editable desde el día uno, no un
+      // enum fijo.
+      specialties: { create: specialtySeed.map((s) => ({ name: s.name })) },
     },
     include: { users: true },
   });

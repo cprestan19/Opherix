@@ -12,12 +12,14 @@ import { getCompany, getOrCreatePayRuleSet, listHolidays } from "@/repositories/
 import { getEmailConfigStatus } from "@/services/config.service";
 import { listClients } from "@/repositories/client.repository";
 import { listRatesForCompany } from "@/repositories/client-specialty-rate.repository";
+import { listActiveSpecialties, listAllSpecialties } from "@/services/specialty.service";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandingForm } from "./branding-form";
 import { PayRulesForm } from "./pay-rules-form";
 import { HolidaysPanel } from "./holidays-panel";
 import { AutoArchiveForm } from "./auto-archive-form";
 import { ClientRatesForm } from "./client-rates-form";
+import { SpecialtyMaintenancePanel } from "./specialty-maintenance-panel";
 import { EmailConfigForm } from "./email-config-form";
 
 const DEFAULT_RULES = { overtimeMultiplier: "1.5", sundayMultiplier: "1.5", holidayMultiplier: "2" };
@@ -28,13 +30,16 @@ export default async function ConfiguracionPage() {
 
   const companyId = await getEffectiveCompanyId();
   const company = await getCompany(companyId);
-  const [payRules, holidays, clients, specialtyRates, emailConfig] = await Promise.all([
-    getOrCreatePayRuleSet(companyId, company.country),
-    listHolidays(companyId, company.country),
-    listClients(companyId),
-    listRatesForCompany(companyId),
-    getEmailConfigStatus(companyId),
-  ]);
+  const [payRules, holidays, clients, specialtyRates, emailConfig, activeSpecialties, allSpecialties] =
+    await Promise.all([
+      getOrCreatePayRuleSet(companyId, company.country),
+      listHolidays(companyId, company.country),
+      listClients(companyId),
+      listRatesForCompany(companyId),
+      getEmailConfigStatus(companyId),
+      listActiveSpecialties(companyId),
+      listAllSpecialties(companyId),
+    ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,6 +80,20 @@ export default async function ConfiguracionPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base font-medium">Mantenimiento de especialidades</CardTitle>
+          <CardDescription>
+            El catálogo de especialidades (Mesero, Bartender, etc.) es propio de tu empresa — agrega, renombra o
+            archiva las que necesites. Archivar no borra el historial: sigue viéndose en trabajadores y eventos
+            existentes, solo desaparece de los selectores para asignaciones nuevas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SpecialtyMaintenancePanel specialties={allSpecialties} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base font-medium">Tarifas por cliente</CardTitle>
           <CardDescription>
             Para cada cliente registrado, cuánto se le paga al personal de cada especialidad y cuánto se le cobra
@@ -84,9 +103,10 @@ export default async function ConfiguracionPage() {
         <CardContent>
           <ClientRatesForm
             clients={clients.map((c) => ({ id: c.id, businessName: c.businessName }))}
+            specialties={activeSpecialties.map((s) => ({ id: s.id, name: s.name }))}
             records={specialtyRates.map((r) => ({
               clientId: r.clientId,
-              specialty: r.specialty,
+              specialtyId: r.specialtyId,
               payToWorker: r.payToWorker.toString(),
               chargeToClient: r.chargeToClient.toString(),
             }))}

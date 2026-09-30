@@ -14,6 +14,7 @@ export async function getWorkerProfileByUserId(userId: string) {
     where: { userId },
     include: {
       user: { select: { name: true, email: true, phone: true } },
+      workerSpecialties: { include: { specialty: true } },
     },
   });
 }
@@ -23,6 +24,7 @@ export async function getWorkerProfileById(companyId: string, workerId: string) 
     where: { id: workerId, companyId },
     include: {
       user: { select: { name: true, email: true, phone: true } },
+      workerSpecialties: { include: { specialty: true } },
     },
   });
 }
