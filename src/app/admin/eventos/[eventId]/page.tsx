@@ -195,7 +195,7 @@ export default async function EventDetailPage({
                 batchId={event.batchId}
                 batchEventCount={batchEventIds.length}
               />
-              {event.status === "COMPLETED" ? <ArchiveEventAction eventId={event.id} /> : null}
+              {event.status !== "ARCHIVED" ? <ArchiveEventAction eventId={event.id} /> : null}
             </>
           )}
           <EventDeleteAction eventId={event.id} deleted={Boolean(event.deletedAt)} />

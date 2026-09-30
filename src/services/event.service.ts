@@ -187,15 +187,27 @@ export async function updateEventRequestAsClient(
   return updateEventFull(companyId, null, eventId, input);
 }
 
+/**
+ * Archiva el evento sin importar su estado actual (a pedido explícito —
+ * antes solo se permitía desde COMPLETED). Como ARCHIVED reemplaza el status
+ * anterior en el propio Event, el estado previo se guarda en el AuditLog para
+ * no perder ese dato del historial (§4 — reversible/cancelable sin romper
+ * historial).
+ */
 export async function archiveEvent(companyId: string, actorId: string, eventId: string) {
   const event = await eventRepo.getEventDetail(companyId, eventId);
   if (!event) throw new EventError("Evento no encontrado.");
-  if (event.status !== "COMPLETED") {
-    throw new EventError("Solo se pueden archivar eventos ya completados.");
-  }
+  if (event.status === "ARCHIVED") throw new EventError("Este evento ya está archivado.");
 
   const updated = await eventRepo.archiveEvent(eventId);
-  await logAudit({ companyId, actorId, action: "EVENT_ARCHIVED", entityType: "Event", entityId: eventId });
+  await logAudit({
+    companyId,
+    actorId,
+    action: "EVENT_ARCHIVED",
+    entityType: "Event",
+    entityId: eventId,
+    metadata: { previousStatus: event.status },
+  });
   return updated;
 }
 

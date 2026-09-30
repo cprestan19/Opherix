@@ -14,9 +14,11 @@ import { listClients } from "@/services/client.service";
 import { listDeletedEvents } from "@/services/event.service";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { specialtyLabels } from "@/lib/validations/worker-application";
 import { AssignedWorkersAvatarGroup } from "@/components/shared/assigned-workers-avatar-group";
 import { EventForm } from "./event-form";
+import { ArchiveEventQuickAction } from "./archive-event-quick-action";
 import { ClientForm } from "@/app/admin/clientes/client-form";
 import { formatDateTime12h } from "@/utils/date";
 
@@ -42,6 +44,16 @@ const STATUS_VARIANTS: Record<string, "outline" | "secondary" | "default" | "des
   ARCHIVED: "outline",
 };
 
+const STATUS_HINTS: Record<string, string> = {
+  DRAFT: "Borrador — todavía no se envió al Administrador.",
+  REQUESTED: "El cliente solicitó el evento; falta confirmarlo.",
+  CONFIRMED: "El Administrador confirmó el evento al cliente.",
+  IN_PROGRESS: "Hay personal que ya hizo check-in en el evento.",
+  COMPLETED: "El evento terminó: factura y pagos ya se generaron.",
+  CANCELLED: "El evento fue cancelado.",
+  ARCHIVED: "El evento está archivado — oculto de la lista de activos.",
+};
+
 function formatRange(start: Date, end: Date) {
   const dateOptions: Intl.DateTimeFormatOptions = { day: "2-digit", month: "short" };
   return `${formatDateTime12h(start, dateOptions)} – ${formatDateTime12h(end, dateOptions)}`;
@@ -50,14 +62,24 @@ function formatRange(start: Date, end: Date) {
 type EventListItem = Awaited<ReturnType<typeof listEventsForCompany>>[number];
 
 /** Cuerpo de la tarjeta de un evento — se usa igual suelto o anidado dentro de un grupo de lote. */
-function EventCardBody({ event }: { event: EventListItem }) {
+function EventCardBody({ event, isViewer }: { event: EventListItem; isViewer: boolean }) {
   const acceptedCount = event.assignments.filter((a) => a.status === "ACCEPTED").length;
   const totalRequired = event.staffRequirements.reduce((sum, r) => sum + r.quantity, 0);
   return (
     <CardContent className="flex flex-col gap-2 p-4">
       <div className="flex items-center justify-between gap-4">
         <p className="font-medium">{event.title}</p>
-        <Badge variant={STATUS_VARIANTS[event.status]}>{STATUS_LABELS[event.status]}</Badge>
+        <div className="flex items-center gap-1.5">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Badge variant={STATUS_VARIANTS[event.status]}>{STATUS_LABELS[event.status]}</Badge>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{STATUS_HINTS[event.status]}</TooltipContent>
+          </Tooltip>
+          {!isViewer && event.status !== "ARCHIVED" ? <ArchiveEventQuickAction eventId={event.id} /> : null}
+        </div>
       </div>
       <p className="text-sm text-muted-foreground">
         {event.client.businessName} · {formatRange(event.startAt, event.endAt)} · {event.address}
@@ -188,30 +210,45 @@ export default async function EventosPage({
       </div>
 
       <div className="flex w-fit items-center gap-1 rounded-lg bg-muted p-1 text-sm">
-        <Link
-          href="/admin/eventos"
-          className={cn(
-            "rounded-md px-3 py-1 transition-colors",
-            !archived ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          Activos
-        </Link>
-        <Link
-          href="/admin/eventos?archived=1"
-          className={cn(
-            "rounded-md px-3 py-1 transition-colors",
-            archived ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          Archivados
-        </Link>
-        <Link
-          href="/admin/eventos?eliminados=1"
-          className="rounded-md px-3 py-1 text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Eliminados
-        </Link>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href="/admin/eventos"
+              className={cn(
+                "rounded-md px-3 py-1 transition-colors",
+                !archived ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Activos
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent>Eventos en curso: desde solicitados hasta completados, sin archivar.</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href="/admin/eventos?archived=1"
+              className={cn(
+                "rounded-md px-3 py-1 transition-colors",
+                archived ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Archivados
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent>Eventos archivados manualmente — fuera de la lista de activos.</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href="/admin/eventos?eliminados=1"
+              className="rounded-md px-3 py-1 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Eliminados
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent>Eventos borrados (soft-delete) — se pueden restaurar.</TooltipContent>
+        </Tooltip>
       </div>
 
       {events.length === 0 ? (
@@ -228,7 +265,7 @@ export default async function EventosPage({
               return (
                 <Link key={event.id} href={`/admin/eventos/${event.id}`}>
                   <Card className="transition-colors hover:border-primary/40">
-                    <EventCardBody event={event} />
+                    <EventCardBody event={event} isViewer={isViewer} />
                   </Card>
                 </Link>
               );
@@ -251,7 +288,7 @@ export default async function EventosPage({
                     {group.map((event) => (
                       <Link key={event.id} href={`/admin/eventos/${event.id}`}>
                         <Card className="transition-colors hover:border-primary/40">
-                          <EventCardBody event={event} />
+                          <EventCardBody event={event} isViewer={isViewer} />
                         </Card>
                       </Link>
                     ))}
