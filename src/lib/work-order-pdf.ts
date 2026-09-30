@@ -281,22 +281,15 @@ export async function buildBatchWorkOrderPdf(data: BatchWorkOrderPdfData): Promi
   drawWorkOrderTitle(doc, y);
   let headerY = y + 8;
 
-  // events ya viene ordenado por startAt (listEventsDetailForBatch) — el
-  // primero y el último bastan para el rango sin volver a ordenar.
-  const firstEvent = events[0];
-  const lastEvent = events[events.length - 1];
-  const firstDateLabel = formatWorkOrderDate(firstEvent.startAt);
-  const lastDateLabel = formatWorkOrderDate(lastEvent.startAt);
-  const eventDateLabel = firstDateLabel === lastDateLabel ? firstDateLabel : `${firstDateLabel} — ${lastDateLabel}`;
-
+  // Solo el lugar: la fecha ya queda cubierta por el encabezado de cada grupo
+  // dentro de la tabla (uno por día), así que repetirla aquí sería redundante
+  // — a diferencia de la orden de un solo evento, que no tiene esos grupos.
   const uniqueAddresses = new Set(events.map((e) => e.address));
-  const eventPlaceLabel = uniqueAddresses.size === 1 ? firstEvent.address : `${uniqueAddresses.size} lugares distintos (ver detalle por fecha)`;
+  const eventPlaceLabel = uniqueAddresses.size === 1 ? events[0].address : `${uniqueAddresses.size} lugares distintos (ver detalle por fecha)`;
 
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
   doc.text(`Lugar del Evento: ${eventPlaceLabel}`, 14, headerY);
-  headerY += 6;
-  doc.text(`Fecha del Evento: ${eventDateLabel}`, 14, headerY);
   doc.setFont("helvetica", "normal");
   headerY += 6;
 
